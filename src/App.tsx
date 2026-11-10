@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useFactory } from './model/store'
 import { useSensor } from './sensor/hub'
+import Analysis from './views/Analysis'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import Sensors from './views/Sensors'
 import Settings from './views/Settings'
 import Twin from './views/Twin'
 
-type View = 'twin' | 'plan' | 'sensors' | 'settings'
+type View = 'twin' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string }[] = [
   { id: 'twin', label: 'Twin', icon: '◭' },
+  { id: 'analysis', label: 'Analysis', icon: '📊' },
   { id: 'plan', label: 'Plan', icon: '🗺' },
   { id: 'sensors', label: 'Sensors', icon: '📡' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
@@ -47,6 +49,7 @@ export default function App() {
     </header>
     <main className="content">
       {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
+      {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
       {view === 'sensors' && <Sensors />}
       {view === 'settings' && <Settings onRestart={() => setOnboarding(true)} />}

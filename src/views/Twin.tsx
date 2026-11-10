@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import IsoFloor from '../components/IsoFloor'
+import type { HoverInfo, Look } from '../components/Plant3D'
+
+const Plant3D = lazy(() => import('../components/Plant3D'))
 import { Sparkline } from '../components/Charts'
 import { kindIcon, num, ringgit, tonnes } from '../format'
 import { contextFor, machineEmissions, optionsFor, summarise } from '../model/calc'
@@ -90,9 +93,29 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
   const sensor = useSensor()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [withPlan, setWithPlan] = useState(false)
+  const [mode, setMode] = useState<Look | 'map'>('real')
   const summary = summarise(state)
   const items = summary.byMachine.map((row) => ({ machine: row.machine, baselineT: row.baselineT, afterT: row.afterT }))
   const reductionPct = summary.baselineT > 0 ? summary.plannedReductionT / summary.baselineT * 100 : 0
+  const describe = useCallback((machineId: string): HoverInfo | null => {
+    const row = summary.byMachine.find((item) => item.machine.id === machineId)
+    if (!row) return null
+    const best = optionsFor(row.machine, state).find((option) => option.economics.netT > 0)
+    const reading = row.machine.sensorChannel ? sensor.latest?.[row.machine.sensorChannel] : undefined
+    const rows: [string, string][] = [
+      ['CO₂e today', `${tonnes(row.baselineT)}/yr`],
+      ['Share of factory', `${num(row.baselineT / Math.max(1, summary.baselineT) * 100, 1)}%`],
+      ['With plan', row.reductionT > 0 ? `${tonnes(row.afterT)}/yr (−${num(row.reductionT / Math.max(1e-9, row.baselineT) * 100)}%)` : 'no actions yet'],
+      ['Data', row.machine.quality === 'metered' ? 'Metered' : 'Estimated'],
+    ]
+    if (typeof reading === 'number') rows.push(['Live sensor', `${num(reading)} ppm`])
+    return {
+      title: `${kindIcon[row.machine.kind] ?? ''} ${row.machine.name}`,
+      subtitle: row.machine.kind.replace('-', ' '),
+      rows,
+      footer: best ? `Best next step: ${measureById(best.measureId)?.name} (−${tonnes(best.economics.netT)}/yr). Click to open.` : 'Click to open details.',
+    }
+  }, [summary, state, sensor.latest])
 
   return <div className="twin">
     <div className="twin-main">
@@ -108,9 +131,16 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
             <button type="button" role="radio" aria-checked={!withPlan} className={!withPlan ? 'active' : ''} onClick={() => setWithPlan(false)}>Today</button>
             <button type="button" role="radio" aria-checked={withPlan} className={withPlan ? 'active' : ''} onClick={() => setWithPlan(true)} disabled={state.plan.length === 0} title={state.plan.length === 0 ? 'Add actions to your plan first' : ''}>With plan</button>
           </div>
-          <div className="floor-legend"><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span>{sensor.status !== 'off' && <span className={`live-pill ${sensor.status}`}><i />{sensor.status === 'live' ? 'Live sensor' : sensor.status === 'simulated' ? 'Simulated sensor' : sensor.status}</span>}</div>
+          <div className="toggle look-toggle" role="radiogroup" aria-label="Model style">
+            {([['real', '🏭 Real'], ['twin', '◈ Model'], ['map', '▦ 2D map']] as const).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={mode === id} className={mode === id ? 'active' : ''} onClick={() => setMode(id)}>{label}</button>)}
+          </div>
+          <div className="floor-legend">{mode === 'twin' ? <><span><i className="lg-blue" />Lower CO₂</span><span><i className="lg-high" />Highest CO₂</span></> : <><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span></>}{sensor.status !== 'off' && <span className={`live-pill ${sensor.status}`}><i />{sensor.status === 'live' ? 'Live sensor' : sensor.status === 'simulated' ? 'Simulated sensor' : sensor.status}</span>}</div>
         </div>
-        <IsoFloor items={items} withPlan={withPlan} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} />
+        {mode === 'map'
+          ? <IsoFloor items={items} withPlan={withPlan} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} />
+          : <Suspense fallback={<div className="plant3d loading">Loading 3D plant…</div>}>
+              <Plant3D items={items} withPlan={withPlan} look={mode} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} describe={describe} />
+            </Suspense>}
         <p className="floor-note">Height and colour show each machine’s yearly CO₂e. Figures are {state.machines.some((machine) => machine.quality === 'estimated') ? 'partly estimated' : 'from meters'}; factors are editable in Settings.</p>
       </div>
     </div>

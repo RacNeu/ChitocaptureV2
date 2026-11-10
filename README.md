@@ -9,7 +9,10 @@
 | | |
 |---|---|
 | **1. Set up in a minute** | Pick your industry (cement, palm oil, food and beverage, electronics or textile), adjust the machine list or import a CSV, and choose your grid and target. |
-| **2. Carbon twin** | An isometric factory floor where each machine's height and colour show its yearly CO₂e. Toggle **Today / With plan** to watch the factory shrink as actions are added. Live sensor readings float above linked machines. |
+| **2. 3D plant** | A procedurally generated 3D factory campus (kilns, boiler houses, silos, stacks, cooling towers, pipe racks, wastewater basins, offices, roads, fence and trees), built in code from your machine list with no paid models or downloads. Hover any building for a live info card, click to fly to it, drag to orbit. |
+| **Two looks** | **Real** (textured brick, concrete panels with windows, corrugated roofs, lawns, asphalt, trees, fence, lamps, smoke) and **Model** (a pure model: plain blue volumes with outlines, no decoration; the biggest emitters turn red, with light beams sized by CO₂). Switching runs a scanning sweep that converts the plant building by building. A lightweight **2D map** is also available. |
+| **Today / With plan** | Watch smoke, beams and heat drop as actions are added to the plan. Live sensor readings appear on linked buildings. |
+| **Analysis** | A ranked 3D skyline of every emission source, each tower split into grid electricity, fuel and process CO₂, plus the 80% rule (how few sources cause most emissions), the main cause, a ranking table and an illustrative carbon-cost slider in RM per tonne. Works for Today and With plan. |
 | **3. Copilot** | One-tap questions: *Where should I start? How do I hit my target? What saves the most money? Is carbon capture worth it? How reliable is my data?* Answers are computed from your own numbers, with no AI service or API key needed. It can build a plan for you. |
 | **4. Plan** | A waterfall from today to target, a year-by-year trajectory, investment, annual savings and payback, plus an action table with start years. Save it as a PDF to share. |
 | **5. Sensors** | Plug an ESP32 CO₂ sensor into USB and stream it straight into the browser (Web Serial, in Chrome or Edge), or use the built-in simulation. |
@@ -68,7 +71,8 @@ Default grid factors (Peninsular Malaysia 0.74 and Sabah 0.539 kg CO₂e/kWh) we
 src/
   model/       types, factors, industry templates, measure library, calculations, copilot, store (+ tests)
   sensor/      line parser, Web Serial and simulator hub, capture-rig analysis (+ tests)
-  components/  isometric floor map and charts
+  three/       procedural 3D campus builder (Three.js)
+  components/  3D plant viewer, 2D floor map and charts
   views/       Onboarding, Twin, Plan, Sensors, Settings
 firmware/esp32_co2/   Arduino sketch for ESP32 + SCD41
 ```
