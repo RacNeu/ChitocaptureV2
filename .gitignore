@@ -1,0 +1,9 @@
+.venv/
+.playwright-browsers/
+cadgen-cache/
+tmp/
+__pycache__/
+*.py[cod]
+node_modules/
+viewer/dist/
+*.tsbuildinfo
