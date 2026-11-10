@@ -22,6 +22,14 @@ export type Machine = {
   row: number
   /** Sensor channel shown on this machine, if any. */
   sensorChannel?: SensorChannel
+  /** Plain-language description of what this equipment does. */
+  role?: string
+  /** Process area, e.g. "Melt shop", used to group machines. */
+  area?: string
+  /** Linked unit in the live steel control room, if any. */
+  unitId?: string
+  /** Energy-intensity target per tonne of product: kWh/t for electric machines, GJ/t for fuel-fired ones. */
+  targetPerT?: number
 }
 
 export type SensorChannel = 'co2' | 'co2_in' | 'co2_out'
@@ -40,6 +48,10 @@ export type Settings = {
   baselineYear: number
   targetYear: number
   targetReductionPct: number
+  /** Annual production, used for per-tonne intensities and targets. Null when unknown. */
+  productionTPerYear: number | null
+  /** What a tonne refers to, e.g. "steel" or "clinker". */
+  productUnit: string
 }
 
 /** A measure applied to a machine, with its start year. */

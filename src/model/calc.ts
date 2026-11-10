@@ -147,3 +147,57 @@ export function trajectory(state: FactoryState): { year: number; emissionsT: num
   }
   return years
 }
+
+/* ---------------- Energy performance vs target ---------------- */
+
+export type Performance = {
+  actual: number
+  target: number
+  unit: 'kWh/t' | 'GJ/t'
+  /** Percentage above (+) or below (−) target. */
+  gapPct: number
+  status: 'on-target' | 'above' | 'better'
+  /** CO₂e a year that would be avoided by bringing the machine down to its target. */
+  excessT: number
+}
+
+/** Energy intensity per tonne of product compared with the machine's target, if both are known. */
+export function performance(machine: Machine, state: FactoryState): Performance | null {
+  const production = state.settings.productionTPerYear
+  if (!machine.targetPerT || !production || production <= 0) return null
+  const ctx = contextFor(state)
+  const fuelled = machine.fuelGJ > 0
+  const actual = fuelled ? machine.fuelGJ / production : machine.electricityMWh * 1_000 / production
+  if (actual <= 0) return null
+  const gapPct = (actual / machine.targetPerT - 1) * 100
+  const emissions = machineEmissions(machine, ctx)
+  const energyT = fuelled ? emissions.fuelT : emissions.electricityT
+  return {
+    actual,
+    target: machine.targetPerT,
+    unit: fuelled ? 'GJ/t' : 'kWh/t',
+    gapPct,
+    status: gapPct > 2 ? 'above' : gapPct < -2 ? 'better' : 'on-target',
+    excessT: gapPct > 0 ? energyT * (1 - machine.targetPerT / actual) : 0,
+  }
+}
+
+export type AreaSummary = { area: string; totalT: number; perTonneKg: number | null; machines: Machine[]; excessT: number }
+
+/** Emissions grouped by process area, largest first. */
+export function areaSummary(state: FactoryState, useAfterPlan = false): AreaSummary[] {
+  const summary = summarise(state)
+  const production = state.settings.productionTPerYear
+  const areas = new Map<string, AreaSummary>()
+  for (const row of summary.byMachine) {
+    const area = row.machine.area ?? 'Other'
+    const entry = areas.get(area) ?? { area, totalT: 0, perTonneKg: null, machines: [], excessT: 0 }
+    entry.totalT += useAfterPlan ? row.afterT : row.baselineT
+    entry.machines.push(row.machine)
+    entry.excessT += performance(row.machine, state)?.excessT ?? 0
+    areas.set(area, entry)
+  }
+  return [...areas.values()]
+    .map((entry) => ({ ...entry, perTonneKg: production ? entry.totalT / production * 1_000 : null }))
+    .sort((a, b) => b.totalT - a.totalT)
+}

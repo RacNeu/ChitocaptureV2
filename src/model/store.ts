@@ -15,6 +15,23 @@ export const defaultSettings: Settings = {
   baselineYear: 2026,
   targetYear: 2030,
   targetReductionPct: 25,
+  productionTPerYear: templateById('steel')?.production?.tonnes ?? null,
+  productUnit: templateById('steel')?.production?.unit ?? 'product',
+}
+
+/** Production defaults for an industry template. */
+export function productionFor(industryId: string) {
+  const production = templateById(industryId)?.production
+  return { productionTPerYear: production?.tonnes ?? null, productUnit: production?.unit ?? 'product' }
+}
+
+/** Fill in role, area, link and target for machines saved before those fields existed. */
+function enrich(machines: Machine[], industryId: string): Machine[] {
+  const template = templateById(industryId)?.machines ?? []
+  return machines.map((machine) => {
+    const match = template.find((item) => item.name === machine.name)
+    return match ? { role: match.role, area: match.area, unitId: match.unitId, targetPerT: match.targetPerT, ...machine } : machine
+  })
 }
 
 let counter = 0
@@ -25,7 +42,7 @@ export function machinesFromTemplate(industryId: string): Machine[] {
 }
 
 export function freshState(industryId = 'steel'): FactoryState {
-  return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId }, machines: machinesFromTemplate(industryId), plan: [], measuredSorbentCapacity: null }
+  return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId, ...productionFor(industryId) }, machines: machinesFromTemplate(industryId), plan: [], measuredSorbentCapacity: null }
 }
 
 function load(): FactoryState {
@@ -34,7 +51,9 @@ function load(): FactoryState {
     if (raw) {
       const parsed = JSON.parse(raw) as FactoryState
       if (parsed.version === 3 && Array.isArray(parsed.machines)) {
-        return { ...parsed, settings: { ...defaultSettings, ...parsed.settings, fuelPriceRMPerGJ: { ...defaultSettings.fuelPriceRMPerGJ, ...parsed.settings?.fuelPriceRMPerGJ } }, plan: parsed.plan ?? [] }
+        const industryId = parsed.settings?.industryId ?? defaultSettings.industryId
+        const production = 'productionTPerYear' in (parsed.settings ?? {}) ? {} : productionFor(industryId)
+        return { ...parsed, machines: enrich(parsed.machines, industryId), settings: { ...defaultSettings, ...production, ...parsed.settings, fuelPriceRMPerGJ: { ...defaultSettings.fuelPriceRMPerGJ, ...parsed.settings?.fuelPriceRMPerGJ } }, plan: parsed.plan ?? [] }
       }
     }
   } catch { /* Corrupt or unavailable storage: start fresh. */ }

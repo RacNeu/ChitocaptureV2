@@ -19,7 +19,7 @@ const MIN_H = 16
 
 /** Green → amber → red as a machine's share of the factory's emissions grows. */
 function heatColour(share: number) {
-  const stops = [[61, 220, 151], [255, 181, 71], [255, 93, 93]]
+  const stops = [[16, 185, 129], [245, 158, 11], [225, 29, 72]]
   const x = Math.min(1, Math.max(0, Math.sqrt(share) * 1.6))
   const [a, b, f] = x < 0.5 ? [stops[0], stops[1], x / 0.5] : [stops[1], stops[2], (x - 0.5) / 0.5]
   return a.map((channel, index) => Math.round(channel + (b[index] - channel) * f))

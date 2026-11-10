@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { fuelLabels, gridRegions } from '../model/factors'
-import { actions, defaultSettings, machinesFromTemplate, newId } from '../model/store'
+import { actions, defaultSettings, machinesFromTemplate, newId, productionFor } from '../model/store'
 import { industryTemplates } from '../model/templates'
 import type { FuelType, Machine, MachineKind, Settings } from '../model/types'
 import { kindIcon } from '../format'
@@ -43,13 +43,13 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
   const pickIndustry = (industryId: string) => {
     const template = industryTemplates.find((item) => item.id === industryId)
-    setSettings({ ...settings, industryId, factoryName: settings.factoryName === defaultSettings.factoryName || industryTemplates.some((item) => `Sample ${item.label.toLowerCase()}` === settings.factoryName) ? `Sample ${template?.label.toLowerCase()}` : settings.factoryName })
+    setSettings({ ...settings, industryId, ...productionFor(industryId), factoryName: settings.factoryName === defaultSettings.factoryName || industryTemplates.some((item) => `Sample ${item.label.toLowerCase()}` === settings.factoryName) ? `Sample ${template?.label.toLowerCase()}` : settings.factoryName })
     setMachines(machinesFromTemplate(industryId))
     setStep(2)
   }
   const edit = (id: string, patch: Partial<Machine>) => setMachines(machines.map((machine) => machine.id === id ? { ...machine, ...patch } : machine))
   const finish = () => { actions.finishOnboarding(settings, machines); onDone() }
-  const quickStart = () => { actions.finishOnboarding({ ...defaultSettings, industryId: 'steel', factoryName: 'Sample steel mini-mill' }, machinesFromTemplate('steel')); onDone() }
+  const quickStart = () => { actions.finishOnboarding({ ...defaultSettings, industryId: 'steel', ...productionFor('steel'), factoryName: 'Sample steel mini-mill' }, machinesFromTemplate('steel')); onDone() }
 
   return <div className="onboard">
     <header className="onboard-head">
@@ -57,20 +57,26 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
       <ol className="steps" aria-label="Setup steps">
         {['Your factory', 'Your machines', 'Your target'].map((label, index) => <li key={label} className={step === index + 1 ? 'current' : step > index + 1 ? 'done' : ''}><b>{index + 1}</b>{label}</li>)}
       </ol>
-      <button type="button" className="link" onClick={quickStart}>Skip: open the sample plant →</button>
+      <button type="button" className="link" onClick={quickStart}>Skip: open the sample steel mill →</button>
     </header>
 
     {step === 1 && <section className="onboard-body">
       <h1>See your factory’s carbon, live.</h1>
       <p className="lead">In three steps you get a living map of your factory, your biggest CO₂ sources, and a costed plan to cut them that engineers and the sustainability team can both work from.</p>
       <label className="field wide">Factory name<input value={settings.factoryName} onChange={(event) => setSettings({ ...settings, factoryName: event.target.value })} /></label>
-      <h2>What do you make?</h2>
-      <div className="industry-grid">
-        {industryTemplates.map((template) => <button key={template.id} type="button" className={`industry${settings.industryId === template.id ? ' active' : ''}`} onClick={() => pickIndustry(template.id)}>
+      <h2>Start with our flagship: a steel mini-mill</h2>
+      {industryTemplates.filter((template) => template.id === 'steel').map((template) => <button key={template.id} type="button" className="industry hero" onClick={() => pickIndustry(template.id)}>
+        <span className="industry-icon">{template.icon}</span>
+        <span><strong>{template.label}</strong><small>{template.blurb} Includes a live 3D control room of the process line, a carbon ledger per tonne of steel and CBAM exposure.</small></span>
+        <span className="hero-cta">Recommended →</span>
+      </button>)}
+      <h2 className="sub">Also supported</h2>
+      <div className="industry-grid small">
+        {industryTemplates.filter((template) => template.id !== 'steel').map((template) => <button key={template.id} type="button" className={`industry${settings.industryId === template.id ? ' active' : ''}`} onClick={() => pickIndustry(template.id)}>
           <span className="industry-icon">{template.icon}</span><strong>{template.label}</strong><small>{template.blurb}</small>
         </button>)}
       </div>
-      <p className="muted">Each choice loads a sample set of machines with illustrative numbers. You can replace them with your own in the next step.</p>
+      <p className="muted">The same platform works for other factories: each choice loads a sample set of machines with illustrative numbers. You can replace them with your own in the next step.</p>
     </section>}
 
     {step === 2 && <section className="onboard-body">

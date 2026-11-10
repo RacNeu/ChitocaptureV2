@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { LiveState, SteelParams, UnitId, Upgrades } from '../model/steel'
 import { buildSteelHall, type HallHandles } from '../three/steelHall'
+import { createComposer } from '../three/post'
 
 export type SimFrame = { minutes: number; live: LiveState; upgrades: Upgrades; params: SteelParams }
 export type UnitTooltip = { title: string; rows: [string, string][]; note?: string }
@@ -47,8 +48,8 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     mount.appendChild(renderer.domElement)
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x0d1418)
-    scene.fog = new THREE.Fog(0x0d1418, 220, 520)
+    scene.background = new THREE.Color(0xe9eef3)
+    scene.fog = new THREE.Fog(0xe9eef3, 260, 560)
     const camera = new THREE.PerspectiveCamera(34, 1, 1, 1500)
     camera.position.set(30, 120, 135)
     const controls = new OrbitControls(camera, renderer.domElement)
@@ -71,6 +72,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
     const hall = buildSteelHall()
     hallRef.current = hall
     scene.add(hall.root)
+    const post = createComposer(renderer, scene, camera, { bloomStrength: 0.55, bloomThreshold: 0.95 })
 
     const texture = smokeTexture()
     const puffs = hall.stacks.flatMap((stack) => Array.from({ length: 16 }, (_, index) => {
@@ -82,6 +84,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
     const resize = () => {
       renderer.setSize(mount.clientWidth, mount.clientHeight, false)
       renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%'
+      post.setSize(mount.clientWidth, mount.clientHeight)
       camera.aspect = mount.clientWidth / Math.max(1, mount.clientHeight)
       camera.updateProjectionMatrix()
     }
@@ -176,7 +179,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
       }
 
       controls.update()
-      renderer.render(scene, camera)
+      post.render()
 
       for (const [id, { anchor }] of hall.units) {
         const element = labelRefs.current.get(id)
@@ -199,7 +202,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
       return hit ? { id: hit.object.userData.unitId as UnitId, x: event.clientX - rect.left, y: event.clientY - rect.top } : null
     }
     let pending = false, last: PointerEvent | null = null, down: { x: number; y: number } | null = null
-    const onMove = (event: PointerEvent) => { last = event; if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; if (last) { const found = pick(last); setHover(found); mount.style.cursor = found ? 'pointer' : 'grab' } }) }
+    const onMove = (event: PointerEvent) => { last = event; if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; if (last) { const found = pick(last); setHover(found); post.outline.selectedObjects = found ? [hall.units.get(found.id)!.group] : []; mount.style.cursor = found ? 'pointer' : 'grab' } }) }
     const onDown = (event: PointerEvent) => { down = { x: event.clientX, y: event.clientY } }
     const onUp = (event: PointerEvent) => { if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 5) { const found = pick(event); if (found) onSelectRef.current(found.id) } down = null }
     const onLeave = () => setHover(null)
@@ -210,6 +213,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
       observer.disconnect()
       mount.removeEventListener('pointermove', onMove); mount.removeEventListener('pointerdown', onDown); mount.removeEventListener('pointerup', onUp); mount.removeEventListener('pointerleave', onLeave)
       controls.dispose()
+      post.dispose()
       scene.traverse((object) => { const mesh = object as THREE.Mesh; mesh.geometry?.dispose(); const material = mesh.material as THREE.Material | undefined; material?.dispose?.() })
       renderer.dispose()
       mount.removeChild(renderer.domElement)

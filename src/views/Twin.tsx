@@ -5,7 +5,9 @@ import type { HoverInfo, Look } from '../components/Plant3D'
 const Plant3D = lazy(() => import('../components/Plant3D'))
 import { Sparkline } from '../components/Charts'
 import { kindIcon, num, ringgit, tonnes } from '../format'
-import { contextFor, machineEmissions, optionsFor, summarise } from '../model/calc'
+import { contextFor, machineEmissions, optionsFor, performance, summarise } from '../model/calc'
+import { openInControlRoom } from '../model/focus'
+import { PerformanceBlock, performanceLabel } from '../components/PerformanceBlock'
 import { answer, copilotQuestions, type CopilotAnswer, type CopilotQuestion } from '../model/copilot'
 import { fuelLabels } from '../model/factors'
 import { measureById } from '../model/measures'
@@ -47,12 +49,15 @@ function MachinePanel({ machineId, onClose }: { machineId: string; onClose: () =
   return <section className="panel machine">
     <header className="panel-head">
       <span className="machine-icon">{kindIcon[machine.kind]}</span>
-      <div><h2>{machine.name}</h2><small>{machine.kind.replace('-', ' ')} · {machine.quality === 'metered' ? 'metered data' : 'estimated data'}</small></div>
+      <div><h2>{machine.name}</h2><small>{machine.area ? `${machine.area} · ` : ''}{machine.quality === 'metered' ? 'metered data' : 'estimated data'}</small></div>
       <button type="button" className="icon-btn" onClick={onClose} aria-label="Close machine panel">✕</button>
     </header>
+    {machine.role && <p className="machine-role"><b>What it does:</b> {machine.role}</p>}
+    {machine.unitId && <button type="button" className="btn small live-link" onClick={() => openInControlRoom(machine.unitId!)}>▶ Watch it live in the control room</button>}
     <div className="big-number">{tonnes(emissions.totalT)}<small> CO₂e per year</small></div>
     {parts.length > 0 && <div className="stackbar" role="img" aria-label="Emissions by source">{parts.map((part) => <span key={part.label} className={part.className} style={{ flexGrow: part.value }} title={`${part.label}: ${tonnes(part.value)}`} />)}</div>}
     <div className="legend">{parts.map((part) => <span key={part.label}><i className={part.className} />{part.label} {tonnes(part.value)}</span>)}</div>
+    {(() => { const p = performance(machine, state); return p ? <PerformanceBlock performance={p} /> : null })()}
 
     <div className="sensor-row">
       <label>Live sensor<select value={machine.sensorChannel ?? ''} onChange={(event) => actions.bindSensor(machine.id, (event.target.value || undefined) as typeof machine.sensorChannel)}>
@@ -94,6 +99,7 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [withPlan, setWithPlan] = useState(false)
   const [mode, setMode] = useState<Look | 'map'>('real')
+  const [introHidden, setIntroHidden] = useState(() => { try { return localStorage.getItem('chitocapture.v3.introHidden') === '1' } catch { return false } })
   const summary = summarise(state)
   const items = summary.byMachine.map((row) => ({ machine: row.machine, baselineT: row.baselineT, afterT: row.afterT }))
   const reductionPct = summary.baselineT > 0 ? summary.plannedReductionT / summary.baselineT * 100 : 0
@@ -108,12 +114,14 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
       ['With plan', row.reductionT > 0 ? `${tonnes(row.afterT)}/yr (−${num(row.reductionT / Math.max(1e-9, row.baselineT) * 100)}%)` : 'no actions yet'],
       ['Data', row.machine.quality === 'metered' ? 'Metered' : 'Estimated'],
     ]
+    const perf = performance(row.machine, state)
+    if (perf) rows.splice(2, 0, ['Energy per tonne', `${num(perf.actual, perf.unit === 'GJ/t' ? 2 : 0)} ${perf.unit} (${performanceLabel(perf)})`])
     if (typeof reading === 'number') rows.push(['Live sensor', `${num(reading)} ppm`])
     return {
       title: `${kindIcon[row.machine.kind] ?? ''} ${row.machine.name}`,
-      subtitle: row.machine.kind.replace('-', ' '),
+      subtitle: row.machine.role ?? row.machine.kind.replace('-', ' '),
       rows,
-      footer: best ? `Best next step: ${measureById(best.measureId)?.name} (−${tonnes(best.economics.netT)}/yr). Click to open.` : 'Click to open details.',
+      footer: best ? `Best next step: ${measureById(best.measureId)?.name} (−${tonnes(best.economics.netT)}/yr). Click for details${row.machine.unitId ? ' and the live view' : ''}.` : 'Click to open details.',
     }
   }, [summary, state, sensor.latest])
 
@@ -125,6 +133,10 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
         <div className="kpi"><span>Target {state.settings.targetYear}</span><strong>{tonnes(summary.targetT)}</strong><small>−{state.settings.targetReductionPct}% from {state.settings.baselineYear}</small></div>
         <div className={`kpi ${summary.gapT > 0 ? 'warn' : 'good'}`}><span>{summary.gapT > 0 ? 'Gap to target' : 'Target met'}</span><strong>{summary.gapT > 0 ? tonnes(summary.gapT) : '✓'}</strong><small>{summary.gapT > 0 ? 'Ask the copilot how to close it' : 'on paper: now verify it'}</small></div>
       </div>
+      {!introHidden && <div className="intro-card">
+        <div><b>What am I looking at?</b> Each building is one piece of equipment in {state.settings.factoryName}{state.machines.some((item) => item.area) ? `, grouped by process area (${[...new Set(state.machines.map((item) => item.area).filter(Boolean))].join(' → ')})` : ''}. Its colour and smoke show how much CO₂ it releases each year. Hover to see what it does; click for its energy use against target and ways to cut it{state.machines.some((item) => item.unitId) ? ', or to watch it live in the control room' : ''}.</div>
+        <button type="button" className="icon-btn" aria-label="Hide this explanation" onClick={() => { setIntroHidden(true); try { localStorage.setItem('chitocapture.v3.introHidden', '1') } catch { /* ignore */ } }}>✕</button>
+      </div>}
       <div className="floor-card">
         <div className="floor-toolbar">
           <div className="toggle" role="radiogroup" aria-label="Map view">

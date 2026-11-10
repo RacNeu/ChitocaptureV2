@@ -24,6 +24,8 @@ export default function Settings({ onRestart }: { onRestart: () => void }) {
         <label className="field">Discount rate (%)<input type="number" min="0" max="30" value={settings.discountRatePct} onChange={(event) => set({ discountRatePct: Number(event.target.value) })} /></label>
         <label className="field">Baseline year<input type="number" value={settings.baselineYear} onChange={(event) => set({ baselineYear: Number(event.target.value) })} /></label>
         <label className="field">Target year<input type="number" value={settings.targetYear} onChange={(event) => set({ targetYear: Math.max(settings.baselineYear + 1, Number(event.target.value)) })} /></label>
+        <label className="field">Annual production (t)<input type="number" min="0" step="1000" value={settings.productionTPerYear ?? ''} placeholder="e.g. 840000" onChange={(event) => set({ productionTPerYear: event.target.value ? Number(event.target.value) : null })} /></label>
+        <label className="field">Product (what one tonne is)<input value={settings.productUnit} onChange={(event) => set({ productUnit: event.target.value })} /></label>
         <label className="field">Target reduction (%)<input type="number" min="0" max="100" value={settings.targetReductionPct} onChange={(event) => set({ targetReductionPct: Number(event.target.value) })} /></label>
       </div>
       <p className="note">{region?.note} Fuel factors use common IPCC 2006 default CO₂ values (coal 94.6, natural gas 56.1, diesel 74.1, fuel oil 77.4 kg/GJ). Biomass CO₂ is biogenic and reported separately. Prices are demo placeholders.</p>
@@ -32,14 +34,16 @@ export default function Settings({ onRestart }: { onRestart: () => void }) {
     <section className="card">
       <h2>Machines</h2>
       <div className="table-wrap"><table className="grid-table">
-        <thead><tr><th>Machine</th><th>Type</th><th>Electricity MWh/yr</th><th>Fuel</th><th>Fuel GJ/yr</th><th>Process t/yr</th><th>Metered?</th></tr></thead>
+        <thead><tr><th>Machine</th><th>Area</th><th>Type</th><th>Electricity MWh/yr</th><th>Fuel</th><th>Fuel GJ/yr</th><th>Process t/yr</th><th>Target per t</th><th>Metered?</th></tr></thead>
         <tbody>{state.machines.map((machine) => <tr key={machine.id}>
           <td><input aria-label="Machine name" value={machine.name} onChange={(event) => actions.updateMachine({ ...machine, name: event.target.value })} /></td>
+          <td><input aria-label="Area" value={machine.area ?? ''} placeholder="e.g. Melt shop" onChange={(event) => actions.updateMachine({ ...machine, area: event.target.value || undefined })} /></td>
           <td><select aria-label="Type" value={machine.kind} onChange={(event) => actions.updateMachine({ ...machine, kind: event.target.value as MachineKind })}>{kinds.map((kind) => <option key={kind} value={kind}>{kindIcon[kind]} {kind.replace('-', ' ')}</option>)}</select></td>
           <td><input aria-label="Electricity" type="number" min="0" value={machine.electricityMWh} onChange={(event) => actions.updateMachine({ ...machine, electricityMWh: Number(event.target.value) })} /></td>
           <td><select aria-label="Fuel" value={machine.fuel} onChange={(event) => actions.updateMachine({ ...machine, fuel: event.target.value as FuelType })}>{fuels.map((fuel) => <option key={fuel} value={fuel}>{fuelLabels[fuel]}</option>)}</select></td>
           <td><input aria-label="Fuel" type="number" min="0" value={machine.fuelGJ} onChange={(event) => actions.updateMachine({ ...machine, fuelGJ: Number(event.target.value) })} /></td>
           <td><input aria-label="Process" type="number" min="0" value={machine.processT} onChange={(event) => actions.updateMachine({ ...machine, processT: Number(event.target.value) })} /></td>
+          <td><input aria-label="Energy target per tonne" type="number" min="0" step="any" value={machine.targetPerT ?? ''} placeholder={machine.fuelGJ > 0 ? 'GJ/t' : 'kWh/t'} title={machine.fuelGJ > 0 ? 'GJ of fuel per tonne' : 'kWh of electricity per tonne'} onChange={(event) => actions.updateMachine({ ...machine, targetPerT: event.target.value ? Number(event.target.value) : undefined })} /></td>
           <td><input aria-label="Metered" type="checkbox" checked={machine.quality === 'metered'} onChange={(event) => actions.updateMachine({ ...machine, quality: event.target.checked ? 'metered' : 'estimated' })} /></td>
         </tr>)}</tbody>
       </table></div>

@@ -23,6 +23,15 @@ export const steelUnits: readonly SteelUnit[] = [
   { id: 'oxygen', name: 'Oxygen plant', short: 'Oxygen', role: 'Produces oxygen injected into the furnace.' },
 ]
 
+/**
+ * Illustrative good-practice targets per tonne for this sample mill (kWh/t; GJ/t for the reheating
+ * furnace). They are planning placeholders, not published benchmarks: set real targets from the
+ * plant's own best months or an energy audit.
+ */
+export const steelTargets: Record<Exclude<UnitId, 'scrap'>, number> = {
+  eaf: 380, lf: 35, caster: 12, reheat: 1.0, rolling: 85, fume: 28, utilities: 20, oxygen: 18,
+}
+
 export type SteelParams = {
   heatSizeT: number
   /** Tap-to-tap cycle in minutes. */
@@ -255,4 +264,67 @@ export function cbam(i: Intensity, inputs: CbamInputs): CbamResult {
   const netPriceRM = Math.max(0, inputs.euPriceEUR * inputs.rmPerEUR - inputs.malaysiaPriceRM)
   const costRMPerT = directTPerT * netPriceRM * phaseIn
   return { directTPerT, indirectTPerT: i.indirectKgPerT / 1_000, phaseIn, costRMPerT, costRMPerYear: costRMPerT * inputs.exportTPerYear }
+}
+
+/* ---------------- Inside the arc furnace ---------------- */
+
+export type EafInternals = {
+  /** Share of the charged scrap that is molten (0–1). */
+  meltFraction: number
+  /** Liquid bath temperature, °C (approximate, illustrative). */
+  bathTempC: number
+  /** Foamy-slag height factor (0–1); foaming shields the arc and improves efficiency. */
+  slagFoam: number
+  /** CO₂ share in the off-gas, % by volume (illustrative). */
+  offgasCO2Pct: number
+  /** Cooling-water temperature rise across the panels, °C. */
+  coolingDeltaT: number
+  /** Electrode tip height above the bath, 0 = in the scrap/bath, 1 = fully raised. */
+  electrodeLift: number
+  /** Energy and CO₂ in the heat so far. */
+  heatEnergyMWh: number
+  heatCO2T: number
+  /** Short explanation of what is happening now. */
+  story: string
+}
+
+const stories: Record<EafPhase, string> = {
+  Charging: 'The roof swings open and the crane drops a basket of scrap into the shell. Electrodes are raised; almost no power is drawn.',
+  Melting: 'The electrodes bore down into the scrap and strike an arc hotter than the sun’s surface. This is where most of the electricity, and so most of the CO₂, is used.',
+  Refining: 'Oxygen and carbon are injected to foam the slag, which blankets the arc. Impurities move into the slag and the bath is brought to tapping temperature.',
+  Tapping: 'The furnace tilts and liquid steel pours through the bottom tap hole into the ladle, leaving the slag behind.',
+}
+
+/** What is happening inside the EAF at a moment of the heat (deterministic, illustrative). */
+export function eafInternals(p: SteelParams, u: Upgrades, minutes: number): EafInternals {
+  const live = liveState(p, u, minutes)
+  const t = live.phaseProgress
+  const smooth = (x: number) => x * x * (3 - 2 * x)
+  let meltFraction = 0, bathTempC = 1_560, slagFoam = 0.1, electrodeLift = 1
+  if (live.phase === 'Charging') { meltFraction = 0.08 * (1 - t); bathTempC = 1_560 - 60 * t; electrodeLift = 1 }
+  else if (live.phase === 'Melting') { meltFraction = 0.05 + 0.85 * smooth(t); bathTempC = 1_480 + 100 * t; slagFoam = 0.2 + 0.3 * t; electrodeLift = 0.15 + 0.1 * Math.sin(minutes * 3) * (1 - t) }
+  else if (live.phase === 'Refining') { meltFraction = 0.9 + 0.1 * t; bathTempC = 1_580 + 55 * t; slagFoam = 0.6 + 0.35 * Math.sin(Math.PI * t); electrodeLift = 0.3 }
+  else { meltFraction = 1 - 0.95 * t; bathTempC = 1_635 - 15 * t; slagFoam = 0.3 * (1 - t); electrodeLift = 1 }
+  const i = intensity(p, u)
+  const cycleT = ((minutes % p.cycleMin) + p.cycleMin) % p.cycleMin / p.cycleMin
+  // Energy so far in the heat, integrated with the same phase profile used for the live load.
+  let energyShare = 0, acc = 0
+  for (const item of phases) {
+    const done = Math.min(item.share, Math.max(0, cycleT - acc))
+    energyShare += done * item.powerFactor / meanFactor
+    acc += item.share
+  }
+  const heatEnergyMWh = i.kwh.eaf * p.heatSizeT / 1_000 * energyShare
+  const directSoFar = live.phase === 'Charging' ? 0 : i.eafDirectKgPerT * p.heatSizeT / 1_000 * Math.min(1, Math.max(0, (cycleT - 0.1) / 0.8))
+  return {
+    meltFraction,
+    bathTempC,
+    slagFoam,
+    offgasCO2Pct: live.phase === 'Melting' ? 14 + 6 * t : live.phase === 'Refining' ? 22 - 6 * t : 2,
+    coolingDeltaT: 4 + 10 * live.mw.eaf / Math.max(1, i.kwh.eaf * tonnesPerHour(p) / 1_000 * 1.3),
+    electrodeLift,
+    heatEnergyMWh,
+    heatCO2T: heatEnergyMWh * p.gridKgPerKWh * (1 - u.greenShare) / 1_000 + directSoFar,
+    story: stories[live.phase],
+  }
 }

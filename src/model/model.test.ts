@@ -115,3 +115,47 @@ describe('copilot and templates', () => {
     }
   })
 })
+
+import { areaSummary, performance } from './calc'
+
+describe('energy performance and process areas', () => {
+  it('compares energy per tonne with the target and works out the CO₂ at stake', () => {
+    const state = factory([{ kind: 'fan', electricityMWh: 1_100, targetPerT: 100, area: 'Melt shop' }], 0.5)
+    state.settings.productionTPerYear = 10_000
+    const p = performance(state.machines[0], state)!
+    expect(p.actual).toBeCloseTo(110)
+    expect(p.status).toBe('above')
+    expect(p.gapPct).toBeCloseTo(10)
+    // 550 t from electricity; bringing 110 → 100 kWh/t cuts 1/11 of it.
+    expect(p.excessT).toBeCloseTo(50)
+  })
+
+  it('uses GJ per tonne for fuel-fired machines and needs production to compare', () => {
+    const state = factory([{ kind: 'furnace', fuel: 'natural-gas', fuelGJ: 9_000, targetPerT: 1 }])
+    state.settings.productionTPerYear = 10_000
+    expect(performance(state.machines[0], state)!.unit).toBe('GJ/t')
+    expect(performance(state.machines[0], state)!.status).toBe('better')
+    state.settings.productionTPerYear = null
+    expect(performance(state.machines[0], state)).toBeNull()
+  })
+
+  it('groups machines by area with per-tonne figures', () => {
+    const state = factory([
+      { kind: 'fan', electricityMWh: 1_000, area: 'Melt shop' },
+      { kind: 'pump', electricityMWh: 1_000, area: 'Melt shop' },
+      { kind: 'office', electricityMWh: 200, area: 'Buildings' },
+    ], 0.5)
+    state.settings.productionTPerYear = 1_000
+    const areas = areaSummary(state)
+    expect(areas.map((area) => area.area)).toEqual(['Melt shop', 'Buildings'])
+    expect(areas[0].totalT).toBeCloseTo(1_000)
+    expect(areas[0].perTonneKg).toBeCloseTo(1_000)
+  })
+
+  it('gives every steel template machine a role and area, linked to control-room units', () => {
+    const steel = freshState('steel')
+    expect(steel.settings.productionTPerYear).toBeGreaterThan(0)
+    expect(steel.machines.every((machine) => machine.role && machine.area)).toBe(true)
+    expect(steel.machines.filter((machine) => machine.unitId).length).toBe(8)
+  })
+})

@@ -3,10 +3,12 @@ import { Sparkline } from '../components/Charts'
 import type { SimFrame, UnitTooltip } from '../components/SteelHall3D'
 import { num, ringgit, tonnes } from '../format'
 import { gridFactor } from '../model/factors'
-import { actions, freshState, machinesFromTemplate, useFactory } from '../model/store'
-import { annual, cbam, defaultSteelParams, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
+import { actions, freshState, machinesFromTemplate, productionFor, useFactory } from '../model/store'
+import { takePendingUnit } from '../model/focus'
+import { annual, cbam, defaultSteelParams, steelTargets, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
 
 const SteelHall3D = lazy(() => import('../components/SteelHall3D'))
+const EafDeepDive = lazy(() => import('../components/EafDeepDive'))
 
 const speeds = [{ label: '⏸', value: 0 }, { label: '1 min/s', value: 1 }, { label: '5 min/s', value: 5 }, { label: '30 min/s', value: 30 }]
 const electricUnits: Exclude<UnitId, 'scrap' | 'reheat'>[] = ['eaf', 'rolling', 'lf', 'fume', 'utilities', 'oxygen', 'caster']
@@ -22,7 +24,8 @@ export default function ControlRoom() {
   const [upgrades, setUpgrades] = useState<Upgrades>(noUpgrades)
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
-  const [selected, setSelected] = useState<UnitId | null>(null)
+  const [deepDive, setDeepDive] = useState(false)
+  const [selected, setSelected] = useState<UnitId | null>(() => takePendingUnit() as UnitId | null)
   const [carbonPrice, setCarbonPrice] = useState(35)
   const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 100_000, euPriceEUR: 75, rmPerEUR: 5, year: 2030 })
 
@@ -100,7 +103,7 @@ export default function ControlRoom() {
 
   return <div className="control">
     {!isSteel && <div className="note banner">This control room models a sample steel mini-mill. Your current factory is “{state.settings.factoryName}”.
-      <button type="button" className="link" onClick={() => { if (confirm('Replace the current factory with the sample steel mini-mill? Your machines and plan will be replaced.')) actions.replace({ ...freshState('steel'), onboarded: true, settings: { ...state.settings, industryId: 'steel', factoryName: 'Sample steel mini-mill' }, machines: machinesFromTemplate('steel'), measuredSorbentCapacity: state.measuredSorbentCapacity }) }}>Load it as my factory</button></div>}
+      <button type="button" className="link" onClick={() => { if (confirm('Replace the current factory with the sample steel mini-mill? Your machines and plan will be replaced.')) actions.replace({ ...freshState('steel'), onboarded: true, settings: { ...state.settings, industryId: 'steel', ...productionFor('steel'), factoryName: 'Sample steel mini-mill' }, machines: machinesFromTemplate('steel'), measuredSorbentCapacity: state.measuredSorbentCapacity }) }}>Load it as my factory</button></div>}
 
     <header className="control-head">
       <div>
@@ -111,6 +114,7 @@ export default function ControlRoom() {
         <span className={`phase-badge ${live.phase.toLowerCase()}`}><i />Heat #{live.heatNumber} · {live.phase} {num(live.phaseProgress * 100)}%</span>
         <span className="sim-clock">🕒 {clock}</span>
         <div className="toggle" role="radiogroup" aria-label="Simulation speed">{speeds.map((item) => <button key={item.value} type="button" role="radio" aria-checked={speed === item.value} className={speed === item.value ? 'active' : ''} onClick={() => setSpeed(item.value)}>{item.label}</button>)}</div>
+        <button type="button" className={`btn small${deepDive ? ' ghost' : ''}`} onClick={() => setDeepDive(!deepDive)}>{deepDive ? '← Back to the mill' : '🔍 Inside the arc furnace'}</button>
         <label className="flow-switch"><input type="checkbox" checked={showFlows} onChange={(event) => setShowFlows(event.target.checked)} /> Energy flows</label>
       </div>
     </header>
@@ -125,10 +129,12 @@ export default function ControlRoom() {
 
     <div className="control-main">
       <div className="hall-card">
-        <Suspense fallback={<div className="plant3d loading">Loading the mill…</div>}>
-          <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} labels={labels} describe={describe} />
+        <Suspense fallback={<div className="plant3d loading">Loading…</div>}>
+          {deepDive
+            ? <EafDeepDive frame={frame} onClose={() => setDeepDive(false)} />
+            : <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} labels={labels} describe={describe} />}
         </Suspense>
-        {showFlows && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
+        {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
       </div>
       <aside className="panel live-panel">
         <h2>Where the CO₂ is coming from right now</h2>
@@ -140,6 +146,20 @@ export default function ControlRoom() {
             </button>
           </li>)}
         </ul>
+        {selected && (() => {
+          const unit = steelUnits.find((item) => item.id === selected)
+          if (!unit) return null
+          const target = selected === 'scrap' ? null : steelTargets[selected]
+          const actual = selected === 'reheat' ? now.reheatGJPerT : selected === 'scrap' ? null : now.kwh[selected]
+          const unitLabel = selected === 'reheat' ? 'GJ/t' : 'kWh/t'
+          const gap = target && actual ? (actual / target - 1) * 100 : null
+          return <div className="selected-unit">
+            <div className="selected-head"><b>{unit.name}</b><button type="button" className="icon-btn" aria-label="Clear selection" onClick={() => setSelected(null)}>✕</button></div>
+            <p>{unit.role}</p>
+            {selected === 'eaf' && !deepDive && <button type="button" className="btn small zoom-btn" onClick={() => setDeepDive(true)}>🔍 Zoom into the process</button>}
+            {target && actual !== null && <p className={`perf-line ${gap !== null && gap > 2 ? 'above' : 'ok'}`}>{num(actual, selected === 'reheat' ? 2 : 0)} {unitLabel} · target {num(target, selected === 'reheat' ? 2 : 0)} {unitLabel} {gap !== null && gap > 2 ? `(+${num(gap)}%)` : '✓'}</p>}
+          </div>
+        })()}
         <div className="split">
           <div><span>Grid electricity (indirect)</span><b>{num(live.indirectTPerH, 1)} t/h</b></div>
           <div><span>On-site burning & process (direct)</span><b>{num(live.directTPerH, 1)} t/h</b></div>
@@ -147,6 +167,54 @@ export default function ControlRoom() {
         <p className="muted small">The arc furnace's power draw swings with each heat. Watch it peak during melting and drop while charging and tapping.</p>
       </aside>
     </div>
+
+    {(() => {
+      const g = params.gridKgPerKWh * (1 - upgrades.greenShare)
+      const g0 = params.gridKgPerKWh
+      type Row = { step: string; activity: string; factor: string; today: number; withUp: number; scope: 1 | 2; target?: string; above?: boolean }
+      const elec = (step: string, id: Exclude<UnitId, 'scrap' | 'reheat'>): Row => ({ step, activity: `${num(now.kwh[id])} kWh/t`, factor: `${num(g, 3)} kg CO₂/kWh grid`, today: base.kwh[id] * g0, withUp: now.kwh[id] * g, scope: 2, target: id in steelTargets ? `${steelTargets[id as keyof typeof steelTargets]} kWh/t` : undefined, above: id in steelTargets && now.kwh[id] > steelTargets[id as keyof typeof steelTargets] * 1.02 })
+      const rows: Row[] = [
+        elec('Electric arc furnace · electricity', 'eaf'),
+        { step: 'Electric arc furnace · electrodes & carbon', activity: 'graphite electrodes, charge and injected carbon', factor: 'direct', today: base.eafDirectKgPerT, withUp: now.eafDirectKgPerT, scope: 1 },
+        elec('Ladle furnace · electricity', 'lf'),
+        elec('Continuous caster · electricity', 'caster'),
+        { step: 'Reheating furnace · natural gas', activity: `${num(now.reheatGJPerT, 2)} GJ/t`, factor: `${params.gasKgPerGJ} kg CO₂/GJ`, today: base.reheatKgPerT, withUp: now.reheatGJPerT * params.gasKgPerGJ, scope: 1, target: `${steelTargets.reheat} GJ/t`, above: now.reheatGJPerT > steelTargets.reheat * 1.02 },
+        ...(now.capturedKgPerT > 0 ? [{ step: 'Chitosan capture on reheat stack', activity: `${num(upgrades.captureShare * 100)}% of flue gas treated, 90% captured`, factor: 'removed', today: 0, withUp: -now.capturedKgPerT, scope: 1 as const }] : []),
+        elec('Rolling mill · electricity', 'rolling'),
+        elec('Fume extraction fans · electricity', 'fume'),
+        elec('Compressed air, water' + (now.capturedKgPerT > 0 ? ' & capture' : '') + ' · electricity', 'utilities'),
+        elec('Oxygen plant · electricity', 'oxygen'),
+      ]
+      const chain = [
+        { name: 'Scrap', value: 0 },
+        { name: 'Arc furnace', value: now.kwh.eaf * g + now.eafDirectKgPerT },
+        { name: 'Ladle furnace', value: now.kwh.lf * g },
+        { name: 'Caster', value: now.kwh.caster * g },
+        { name: 'Reheat furnace', value: now.reheatKgPerT },
+        { name: 'Rolling mill', value: now.kwh.rolling * g },
+        { name: 'Support systems', value: (now.kwh.fume + now.kwh.utilities + now.kwh.oxygen) * g },
+      ]
+      const chainMax = Math.max(...chain.map((item) => item.value))
+      return <section className="card ledger">
+        <header><div><h2>📒 Carbon ledger: where each kg of CO₂ per tonne comes from</h2><p className="muted">The tracking behind the headline number. Every line is activity × emission factor, following the process route. Scope 1 is burnt or released on site; Scope 2 is from purchased grid electricity.</p></div>
+          <div className="sandbox-result"><span>Per tonne of steel</span><strong>{num(now.totalKgPerT)} kg CO₂</strong><em>Scope 1: {num(now.directKgPerT)} · Scope 2: {num(now.indirectKgPerT)}</em></div></header>
+        <div className="chain">{chain.map((item) => <div key={item.name} className={`chain-step${item.value === chainMax ? ' hot' : ''}`}>
+          <span>{item.name}</span><strong>{num(item.value)} <small className="muted">kg/t</small></strong>
+          <div className="chain-bar"><i style={{ width: `${item.value / Math.max(1, chainMax) * 100}%`, background: item.value === chainMax ? '#e11d48' : '#0ea5e9' }} /></div>
+        </div>)}</div>
+        <div className="table-wrap"><table className="grid-table ledger-table">
+          <thead><tr><th>Process step & source</th><th>Activity per tonne</th><th>Target</th><th>Factor</th><th className="num">Today kg/t</th><th className="num">With upgrades</th><th>Scope</th></tr></thead>
+          <tbody>{rows.map((row) => <tr key={row.step}>
+            <td>{row.step}</td><td>{row.activity}</td><td>{row.target ? <span className={`target-chip ${row.above ? 'above' : 'ok'}`}>{row.target} {row.above ? '▲' : '✓'}</span> : '—'}</td><td>{row.factor}</td>
+            <td className="num">{num(row.today, 1)}</td>
+            <td className={`num${row.withUp < row.today ? ' delta' : ''}`}>{num(row.withUp, 1)}</td>
+            <td><span className={`scope s${row.scope}`}>Scope {row.scope}</span></td>
+          </tr>)}</tbody>
+          <tfoot><tr><td colSpan={4}>Total per tonne of steel</td><td className="num">{num(base.totalKgPerT)}</td><td className="num delta">{num(now.totalKgPerT)}</td><td /></tr></tfoot>
+        </table></div>
+        <p className="muted small">Grid factor from Settings{upgrades.greenShare > 0 ? `, reduced by the ${num(upgrades.greenShare * 100)}% green-electricity share` : ''}. Natural gas uses a common IPCC 2006 default. Process figures and targets are illustrative for a sample mini-mill: ▲ means the unit uses more energy per tonne than its target. Set real targets from the plant's best months or an energy audit.</p>
+      </section>
+    })()}
 
     <section className="card sandbox">
       <header><div><h2>🧪 What-if sandbox</h2><p className="muted">Switch upgrades on and watch the mill, the tickers and CBAM exposure respond. Every estimate is an indicative planning assumption.</p></div>

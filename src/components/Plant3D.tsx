@@ -20,8 +20,10 @@ type Props = {
   describe: (machineId: string) => HoverInfo | null
 }
 
-const TRANSITION_MS = 1800
-const SWEEP_WIDTH = 0.55
+/** A quick, decisive change: the camera swoops round while a crisp wave flips each building. */
+const TRANSITION_MS = 1000
+const SWEEP_WIDTH = 0.12
+const SWOOP_ANGLE = Math.PI * 0.38
 
 /** Pure model look: blue for low emitters, red for the big ones. */
 function modelHeat(base: THREE.Color, share: number) {
@@ -30,7 +32,7 @@ function modelHeat(base: THREE.Color, share: number) {
 }
 
 function heatColour(share: number) {
-  const stops = [new THREE.Color(0x3ddc97), new THREE.Color(0xffb547), new THREE.Color(0xff5d5d)]
+  const stops = [new THREE.Color(0x10b981), new THREE.Color(0xf59e0b), new THREE.Color(0xe11d48)]
   const x = Math.min(1, Math.max(0, Math.sqrt(share) * 1.6))
   return x < 0.5 ? stops[0].clone().lerp(stops[1], x / 0.5) : stops[1].clone().lerp(stops[2], (x - 0.5) / 0.5)
 }
@@ -62,7 +64,7 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
     renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls
     plots: PlotHandles[]; themed: ThemedEntry[]; puffs: Puff[]; sweep: THREE.Mesh; minX: number; spanX: number
     sun: THREE.DirectionalLight; hemi: THREE.HemisphereLight; root: THREE.Group | null
-    lookT: number; lookFrom: number; lookTarget: number; lookStart: number
+    lookT: number; lookFrom: number; lookTarget: number; lookStart: number; swoopFrom: THREE.Spherical | null
     activePuffs: Map<string, number>; flyTo: THREE.Vector3 | null; selectedId: string | null
   } | null>(null)
 
@@ -111,13 +113,13 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
     sun.shadow.bias = -0.0005
     scene.add(hemi, sun, new THREE.AmbientLight(0xffffff, 0.15))
 
-    const sweep = new THREE.Mesh(new THREE.BoxGeometry(0.8, 36, 400), new THREE.MeshBasicMaterial({ color: 0x3ddcff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }))
-    sweep.position.y = 18
+    const sweep = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 400), new THREE.MeshBasicMaterial({ color: 0x5ff6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }))
+    sweep.position.y = 0.4
     scene.add(sweep)
 
     const state = {
       renderer, scene, camera, controls, plots: [] as PlotHandles[], themed: [] as ThemedEntry[], puffs: [] as Puff[], sweep, minX: 0, spanX: 1,
-      sun, hemi, root: null as THREE.Group | null, lookT: 0, lookFrom: 0, lookTarget: 0, lookStart: 0,
+      sun, hemi, root: null as THREE.Group | null, lookT: 0, lookFrom: 0, lookTarget: 0, lookStart: 0, swoopFrom: null as THREE.Spherical | null,
       activePuffs: new Map<string, number>(), flyTo: null as THREE.Vector3 | null, selectedId: null as string | null,
     }
     sceneRef.current = state
@@ -172,7 +174,7 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
       const sweepMat = sweep.material as THREE.MeshBasicMaterial
       if (progress < 1 && state.lookFrom !== state.lookTarget) {
         sweep.position.x = state.minX + state.spanX * Math.min(1.1, sweepFront - SWEEP_WIDTH / 2)
-        sweepMat.opacity = 0.32 * Math.sin(Math.PI * progress)
+        sweepMat.opacity = Math.min(1, Math.sin(Math.PI * progress) * 4)
       } else sweepMat.opacity = 0
 
       // Plot rings, beacons and selection pulse.
@@ -197,6 +199,14 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
       if (state.flyTo) {
         controls.target.lerp(state.flyTo, 0.06)
         if (controls.target.distanceTo(state.flyTo) < 0.5) state.flyTo = null
+      }
+      // Camera swoop: orbit round the site, dipping in and back out, eased over the transition.
+      if (state.swoopFrom) {
+        const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2
+        const dip = Math.sin(Math.PI * progress)
+        const sph = new THREE.Spherical(state.swoopFrom.radius * (1 - 0.22 * dip), Math.max(0.35, state.swoopFrom.phi - 0.18 * dip), state.swoopFrom.theta + SWOOP_ANGLE * eased)
+        camera.position.setFromSpherical(sph).add(controls.target)
+        if (progress >= 1) state.swoopFrom = null
       }
       controls.update()
       renderer.render(scene, camera)
@@ -286,6 +296,8 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
     state.lookFrom = state.lookT
     state.lookTarget = target
     state.lookStart = performance.now()
+    state.controls.autoRotate = false
+    state.swoopFrom = new THREE.Spherical().setFromVector3(state.camera.position.clone().sub(state.controls.target))
   }, [look])
 
   // Fly the camera towards the selected machine.

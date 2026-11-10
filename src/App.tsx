@@ -11,8 +11,8 @@ import Twin from './views/Twin'
 
 type View = 'twin' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string }[] = [
-  { id: 'twin', label: 'Twin', icon: '◭' },
   { id: 'control', label: 'Control room', icon: '🔥' },
+  { id: 'twin', label: 'Site 3D', icon: '◭' },
   { id: 'analysis', label: 'Analysis', icon: '📊' },
   { id: 'plan', label: 'Plan', icon: '🗺' },
   { id: 'sensors', label: 'Sensors', icon: '📡' },
@@ -21,7 +21,7 @@ const views: { id: View; label: string; icon: string }[] = [
 
 const readView = (): View => {
   const hash = window.location.hash.replace('#', '')
-  return views.some((view) => view.id === hash) ? hash as View : 'twin'
+  return views.some((view) => view.id === hash) ? hash as View : 'control'
 }
 
 export default function App() {
@@ -37,7 +37,7 @@ export default function App() {
   }, [])
   const go = (next: View) => { window.location.hash = next; setView(next) }
 
-  if (onboarding) return <Onboarding onDone={() => { setOnboarding(false); go('twin') }} />
+  if (onboarding) return <Onboarding onDone={() => { setOnboarding(false); go('control') }} />
 
   return <div className="app">
     <header className="topbar">
