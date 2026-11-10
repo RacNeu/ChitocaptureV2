@@ -1,0 +1,22 @@
+{
+  "jobs": [
+    {
+      "input": "STEP/chitosan_co2_capture.step",
+      "mode": "view",
+      "outputs": [{ "path": "layouts/top_view.png", "camera": "top", "width": 2400, "height": 900 }],
+      "output": { "padding": 0.08 }
+    },
+    {
+      "input": "STEP/chitosan_co2_capture.step",
+      "mode": "view",
+      "outputs": [{ "path": "layouts/front_view.png", "camera": "front", "width": 1800, "height": 1200 }],
+      "output": { "padding": 0.08 }
+    },
+    {
+      "input": "STEP/chitosan_co2_capture.step",
+      "mode": "view",
+      "outputs": [{ "path": "layouts/overview.png", "camera": "iso", "width": 1800, "height": 1200 }],
+      "output": { "padding": 0.08 }
+    }
+  ]
+}
