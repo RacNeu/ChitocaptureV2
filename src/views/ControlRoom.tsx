@@ -3,7 +3,7 @@ import { Sparkline } from '../components/Charts'
 import type { SimFrame, UnitTooltip } from '../components/SteelHall3D'
 import { num, ringgit, tonnes } from '../format'
 import { gridFactor } from '../model/factors'
-import { actions, freshState, machinesFromTemplate, productionFor, useFactory } from '../model/store'
+import { companyActions, useCompany, useFactory } from '../model/store'
 import { takePendingUnit } from '../model/focus'
 import { annual, cbam, defaultSteelParams, steelTargets, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
 
@@ -100,10 +100,14 @@ export default function ControlRoom() {
 
   const toggle = (key: keyof Upgrades) => setUpgrades((current) => ({ ...current, [key]: !current[key] }))
   const isSteel = state.settings.industryId === 'steel'
+  const company = useCompany()
+  const steelSite = company.sites.find((site) => site.state.settings.industryId === 'steel')
 
   return <div className="control">
-    {!isSteel && <div className="note banner">This control room models a sample steel mini-mill. Your current factory is “{state.settings.factoryName}”.
-      <button type="button" className="link" onClick={() => { if (confirm('Replace the current factory with the sample steel mini-mill? Your machines and plan will be replaced.')) actions.replace({ ...freshState('steel'), onboarded: true, settings: { ...state.settings, industryId: 'steel', ...productionFor('steel'), factoryName: 'Sample steel mini-mill' }, machines: machinesFromTemplate('steel'), measuredSorbentCapacity: state.measuredSorbentCapacity }) }}>Load it as my factory</button></div>}
+    {!isSteel && <div className="note banner">The control room models the steel mini-mill. You are looking at “{state.settings.factoryName}”.
+      {steelSite
+        ? <button type="button" className="btn small" onClick={() => companyActions.switchSite(steelSite.id)}>Switch to {steelSite.state.settings.factoryName}</button>
+        : <button type="button" className="btn small" onClick={() => companyActions.addSite('steel')}>Add a steel mini-mill site</button>}</div>}
 
     <header className="control-head">
       <div>

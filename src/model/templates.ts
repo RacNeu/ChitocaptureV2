@@ -60,6 +60,19 @@ export const industryTemplates: readonly IndustryTemplate[] = [
     ],
   },
   {
+    id: 'office',
+    label: 'Head office & R&D lab',
+    icon: '🏢',
+    blurb: 'Offices, air-conditioning, a server room and the R&D lab. Almost all of it is grid electricity.',
+    machines: [
+      m('Office tower', 'office', 0, 0, { area: 'Offices', role: 'Head office floors: lighting, computers, lifts and plug loads for about 400 staff.' }, 1_800),
+      m('Central air-conditioning', 'chiller', 1, 0, { area: 'Offices', role: 'Chillers and air handlers that cool the office tower. Usually the biggest electricity user in a Malaysian office.' }, 2_600),
+      m('Server room', 'chiller', 2, 0, { area: 'IT', role: 'Servers, network equipment and the precision cooling that runs around the clock.' }, 900),
+      m('R&D & chitosan capture lab', 'production-line', 0, 1, { area: 'R&D', role: 'Process development lab, including the benchtop chitosan CO₂ capture rig, fume hoods and test furnaces.' }, 650),
+      m('Backup diesel genset', 'genset', 1, 1, { area: 'Utilities', role: 'Standby generator, run for tests and during grid outages.' }, 0, 'diesel', 1_200),
+    ],
+  },
+  {
     id: 'palm-oil',
     label: 'Palm oil mill',
     icon: '🌴',

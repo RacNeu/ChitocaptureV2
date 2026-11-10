@@ -1,13 +1,14 @@
 import { fuelLabels, gridRegions } from '../model/factors'
-import { actions, useFactory } from '../model/store'
+import { actions, companyActions, useCompany, useFactory } from '../model/store'
 import type { FuelType, MachineKind } from '../model/types'
 import { kindIcon } from '../format'
 
 const kinds: MachineKind[] = ['kiln', 'boiler', 'furnace', 'mill', 'fan', 'pump', 'compressor', 'chiller', 'production-line', 'genset', 'wastewater', 'cold-room', 'office']
 const fuels = Object.keys(fuelLabels) as FuelType[]
 
-export default function Settings({ onRestart }: { onRestart: () => void }) {
+export default function Settings({ onRestart, onRemoved }: { onRestart: () => void; onRemoved: () => void }) {
   const state = useFactory()
+  const company = useCompany()
   const { settings } = state
   const set = actions.updateSettings
   const region = gridRegions.find((item) => item.id === settings.gridRegionId)
@@ -16,7 +17,8 @@ export default function Settings({ onRestart }: { onRestart: () => void }) {
     <section className="card">
       <h1>Settings</h1>
       <div className="form-grid">
-        <label className="field">Factory name<input value={settings.factoryName} onChange={(event) => set({ factoryName: event.target.value })} /></label>
+        <label className="field">Company name<input value={company.name} onChange={(event) => companyActions.rename(event.target.value)} /></label>
+        <label className="field">Site name<input value={settings.factoryName} onChange={(event) => set({ factoryName: event.target.value })} /></label>
         <label className="field">Electricity grid<select value={settings.gridRegionId} onChange={(event) => set({ gridRegionId: event.target.value })}>{gridRegions.map((item) => <option key={item.id} value={item.id}>{item.label}{item.id !== 'custom' ? ` · ${item.kgPerKWh} kg/kWh` : ''}</option>)}</select></label>
         {settings.gridRegionId === 'custom' && <label className="field">Grid factor (kg CO₂e/kWh)<input type="number" step="0.001" min="0" value={settings.customGridKgPerKWh} onChange={(event) => set({ customGridKgPerKWh: Number(event.target.value) })} /></label>}
         <label className="field">Electricity price (RM/MWh)<input type="number" min="0" value={settings.electricityPriceRMPerMWh} onChange={(event) => set({ electricityPriceRMPerMWh: Number(event.target.value) })} /></label>
@@ -50,9 +52,13 @@ export default function Settings({ onRestart }: { onRestart: () => void }) {
     </section>
 
     <section className="card danger">
-      <h2>Start over</h2>
-      <p className="muted">Run the setup again with a different industry or your own machine list. This clears the current machines and plan, and keeps any measured sorbent capacity.</p>
-      <button type="button" className="btn ghost" onClick={() => { if (confirm('Start over? Your machines and plan will be cleared.')) { actions.restart(); onRestart() } }}>Restart setup</button>
+      <h2>Site & company</h2>
+      <p className="muted">Restart this site’s setup with different machines, remove this site from the company, or reset the whole company to the sample.</p>
+      <div className="row-actions">
+        <button type="button" className="btn ghost" onClick={() => { if (confirm('Restart this site’s setup? Its machines and plan will be cleared.')) { actions.restart(); onRestart() } }}>Restart this site’s setup</button>
+        {company.sites.length > 1 && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Remove “${state.settings.factoryName}” from ${company.name}?`)) { companyActions.removeSite(company.activeId); onRemoved() } }}>Remove this site</button>}
+        <button type="button" className="btn ghost" onClick={() => { if (confirm('Reset the whole company to the sample (steel mill, head office & R&D lab, cement plant)? All your edits will be lost.')) { companyActions.resetToSample(); onRemoved() } }}>Reset company to sample</button>
+      </div>
     </section>
   </div>
 }

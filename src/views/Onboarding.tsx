@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { fuelLabels, gridRegions } from '../model/factors'
-import { actions, defaultSettings, machinesFromTemplate, newId, productionFor } from '../model/store'
+import { actions, defaultSettings, getState, machinesFromTemplate, newId, productionFor } from '../model/store'
 import { industryTemplates } from '../model/templates'
 import type { FuelType, Machine, MachineKind, Settings } from '../model/types'
 import { kindIcon } from '../format'
@@ -35,10 +35,10 @@ export function parseMachinesCsv(text: string): { machines: Machine[]; errors: s
   return { machines: autoLayout(machines), errors }
 }
 
-export default function Onboarding({ onDone }: { onDone: () => void }) {
+export default function Onboarding({ onDone, onCancel }: { onDone: () => void; onCancel?: () => void }) {
   const [step, setStep] = useState(1)
-  const [settings, setSettings] = useState<Settings>({ ...defaultSettings })
-  const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate('steel'))
+  const [settings, setSettings] = useState<Settings>(() => { const current = getState().settings; return { ...current, factoryName: industryTemplates.find((item) => item.id === current.industryId)?.label ?? current.factoryName } })
+  const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate(getState().settings.industryId))
   const [csvErrors, setCsvErrors] = useState<string[]>([])
 
   const pickIndustry = (industryId: string) => {
@@ -49,7 +49,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   }
   const edit = (id: string, patch: Partial<Machine>) => setMachines(machines.map((machine) => machine.id === id ? { ...machine, ...patch } : machine))
   const finish = () => { actions.finishOnboarding(settings, machines); onDone() }
-  const quickStart = () => { actions.finishOnboarding({ ...defaultSettings, industryId: 'steel', ...productionFor('steel'), factoryName: 'Sample steel mini-mill' }, machinesFromTemplate('steel')); onDone() }
+  const quickStart = () => { const id = settings.industryId; actions.finishOnboarding({ ...defaultSettings, industryId: id, ...productionFor(id), factoryName: industryTemplates.find((item) => item.id === id)?.label ?? 'New site' }, machinesFromTemplate(id)); onDone() }
 
   return <div className="onboard">
     <header className="onboard-head">
@@ -57,7 +57,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
       <ol className="steps" aria-label="Setup steps">
         {['Your factory', 'Your machines', 'Your target'].map((label, index) => <li key={label} className={step === index + 1 ? 'current' : step > index + 1 ? 'done' : ''}><b>{index + 1}</b>{label}</li>)}
       </ol>
-      <button type="button" className="link" onClick={quickStart}>Skip: open the sample steel mill →</button>
+      <div className="row-actions">
+        {onCancel && <button type="button" className="btn ghost small" onClick={onCancel}>Cancel</button>}
+        <button type="button" className="link" onClick={quickStart}>Skip: use the sample machines →</button>
+      </div>
     </header>
 
     {step === 1 && <section className="onboard-body">

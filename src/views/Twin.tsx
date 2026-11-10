@@ -128,7 +128,7 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
   return <div className="twin">
     <div className="twin-main">
       <div className="kpis">
-        <div className="kpi"><span>Factory emissions</span><strong>{tonnes(summary.baselineT)}</strong><small>CO₂e per year today</small></div>
+        <div className="kpi"><span>Site emissions</span><strong>{tonnes(summary.baselineT)}</strong><small>CO₂e per year today</small></div>
         <div className="kpi accent"><span>With your plan</span><strong>{tonnes(summary.afterPlanT)}</strong><small>−{num(reductionPct, 1)}% · {state.plan.length} action{state.plan.length === 1 ? '' : 's'}</small></div>
         <div className="kpi"><span>Target {state.settings.targetYear}</span><strong>{tonnes(summary.targetT)}</strong><small>−{state.settings.targetReductionPct}% from {state.settings.baselineYear}</small></div>
         <div className={`kpi ${summary.gapT > 0 ? 'warn' : 'good'}`}><span>{summary.gapT > 0 ? 'Gap to target' : 'Target met'}</span><strong>{summary.gapT > 0 ? tonnes(summary.gapT) : '✓'}</strong><small>{summary.gapT > 0 ? 'Ask the copilot how to close it' : 'on paper: now verify it'}</small></div>
