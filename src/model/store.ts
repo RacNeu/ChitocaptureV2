@@ -6,7 +6,7 @@ const KEY = 'chitocapture.v3.factory'
 
 export const defaultSettings: Settings = {
   factoryName: 'My factory',
-  industryId: 'cement',
+  industryId: 'steel',
   gridRegionId: 'my-peninsular',
   customGridKgPerKWh: 0.5,
   electricityPriceRMPerMWh: 450,
@@ -24,7 +24,7 @@ export function machinesFromTemplate(industryId: string): Machine[] {
   return (templateById(industryId)?.machines ?? []).map((machine) => ({ ...machine, id: newId('m') }))
 }
 
-export function freshState(industryId = 'cement'): FactoryState {
+export function freshState(industryId = 'steel'): FactoryState {
   return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId }, machines: machinesFromTemplate(industryId), plan: [], measuredSorbentCapacity: null }
 }
 

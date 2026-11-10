@@ -1,3 +1,4 @@
+import { annualTonnes, defaultSteelParams as steel } from './steel'
 import type { Machine } from './types'
 
 export type IndustryTemplate = {
@@ -15,7 +16,28 @@ export type IndustryTemplate = {
 const m = (name: string, kind: Machine['kind'], col: number, row: number, electricityMWh: number, fuel: Machine['fuel'] = 'none', fuelGJ = 0, processT = 0): Omit<Machine, 'id'> =>
   ({ name, kind, col, row, electricityMWh, fuel, fuelGJ, processT, quality: 'estimated' })
 
+/** Steel mini-mill machines derived from the same model the control room runs, so both views agree. */
+const steelT = annualTonnes(steel)
+const mwh = (kwhPerT: number) => Math.round(kwhPerT * steelT / 1_000)
+
 export const industryTemplates: readonly IndustryTemplate[] = [
+  {
+    id: 'steel',
+    label: 'Steel mini-mill',
+    icon: '🔩',
+    blurb: 'Electric arc furnace route. First in line for the EU CBAM and Malaysia’s planned carbon tax.',
+    machines: [
+      m('Electric arc furnace', 'furnace', 0, 0, mwh(steel.kwhPerT.eaf), 'none', 0, Math.round(steel.eafDirectKgPerT * steelT / 1_000)),
+      m('Ladle furnace', 'furnace', 1, 0, mwh(steel.kwhPerT.lf)),
+      m('Continuous caster', 'production-line', 2, 0, mwh(steel.kwhPerT.caster)),
+      m('Reheating furnace', 'furnace', 3, 0, 0, 'natural-gas', Math.round(steel.reheatGJPerT * steelT)),
+      m('Rolling mill', 'mill', 0, 1, mwh(steel.kwhPerT.rolling)),
+      m('Fume extraction fans', 'fan', 1, 1, mwh(steel.kwhPerT.fume)),
+      m('Compressed air & water', 'compressor', 2, 1, mwh(steel.kwhPerT.utilities)),
+      m('Oxygen plant', 'compressor', 3, 1, mwh(steel.kwhPerT.oxygen)),
+      m('Office', 'office', 0, 2, 600),
+    ],
+  },
   {
     id: 'cement',
     label: 'Cement plant',

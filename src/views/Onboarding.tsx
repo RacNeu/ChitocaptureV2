@@ -38,7 +38,7 @@ export function parseMachinesCsv(text: string): { machines: Machine[]; errors: s
 export default function Onboarding({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(1)
   const [settings, setSettings] = useState<Settings>({ ...defaultSettings })
-  const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate('cement'))
+  const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate('steel'))
   const [csvErrors, setCsvErrors] = useState<string[]>([])
 
   const pickIndustry = (industryId: string) => {
@@ -49,7 +49,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   }
   const edit = (id: string, patch: Partial<Machine>) => setMachines(machines.map((machine) => machine.id === id ? { ...machine, ...patch } : machine))
   const finish = () => { actions.finishOnboarding(settings, machines); onDone() }
-  const quickStart = () => { actions.finishOnboarding({ ...defaultSettings, factoryName: 'Sample cement plant' }, machinesFromTemplate('cement')); onDone() }
+  const quickStart = () => { actions.finishOnboarding({ ...defaultSettings, industryId: 'steel', factoryName: 'Sample steel mini-mill' }, machinesFromTemplate('steel')); onDone() }
 
   return <div className="onboard">
     <header className="onboard-head">

@@ -1,18 +1,25 @@
 # ChitoCapture
 
-**A live carbon twin and copilot for factories.** See every machine's CO₂ on an interactive 3D floor map, ask the copilot where to start, build a costed plan that hits your target, and connect real CO₂ sensors, including a benchtop chitosan capture rig that measures sorbent capacity.
+**A live carbon twin and copilot for factories, starting with Malaysian steel.** See every machine's CO₂ on an interactive 3D floor map, ask the copilot where to start, build a costed plan that hits your target, and connect real CO₂ sensors, including a benchtop chitosan capture rig that measures sorbent capacity.
 
 > Prototype. Sample factories, factors, prices and measure savings are illustrative and must be verified before any reporting or investment decision. Everything you enter stays in your browser.
+
+## Why steel first
+
+Malaysian steel faces two carbon prices at once: the EU's Carbon Border Adjustment Mechanism (CBAM), whose definitive regime began on 1 January 2026, and the national carbon tax announced for the iron, steel and energy sectors (check the latest official announcement for its rate and start date). Both ask the same question: **how much CO₂ is in each tonne of steel?** ChitoCapture answers it live, then shows how to cut it.
 
 ## What it does
 
 | | |
 |---|---|
-| **1. Set up in a minute** | Pick your industry (cement, palm oil, food and beverage, electronics or textile), adjust the machine list or import a CSV, and choose your grid and target. |
+| **1. Set up in a minute** | Pick your industry (steel mini-mill, cement, palm oil, food and beverage, electronics or textile), adjust the machine list or import a CSV, and choose your grid and target. |
 | **2. 3D plant** | A procedurally generated 3D factory campus (kilns, boiler houses, silos, stacks, cooling towers, pipe racks, wastewater basins, offices, roads, fence and trees), built in code from your machine list with no paid models or downloads. Hover any building for a live info card, click to fly to it, drag to orbit. |
 | **Two looks** | **Real** (textured brick, concrete panels with windows, corrugated roofs, lawns, asphalt, trees, fence, lamps, smoke) and **Model** (a pure model: plain blue volumes with outlines, no decoration; the biggest emitters turn red, with light beams sized by CO₂). Switching runs a scanning sweep that converts the plant building by building. A lightweight **2D map** is also available. |
 | **Today / With plan** | Watch smoke, beams and heat drop as actions are added to the plan. Live sensor readings appear on linked buildings. |
 | **Analysis** | A ranked 3D skyline of every emission source, each tower split into grid electricity, fuel and process CO₂, plus the 80% rule (how few sources cause most emissions), the main cause, a ranking table and an illustrative carbon-cost slider in RM per tonne. Works for Today and With plan. |
+| **🔥 Control room** | A live 3D cutaway of a steel mini-mill: scrap yard → electric arc furnace (glow, sparks and power that swing through each heat) → ladle → ladle furnace → caster → hot billets → reheating furnace → rolling mill. Animated electricity and gas lines, smoke from the stacks, live tickers (MW, t CO₂/h, kg CO₂ per tonne, RM carbon cost), hover any unit for live readings. |
+| **What-if sandbox** | Toggle EAF optimisation, variable-speed fume fans, hot charging, regenerative burners, green electricity and chitosan capture on the reheat stack. See kg/t, kt/yr, capex and payback change instantly. |
+| **CBAM exposure** | A simplified estimate of CBAM cost per tonne and per year, using direct emissions, the year's phase-in share, EU carbon price, exchange rate and deduction of carbon price paid in Malaysia. Today vs with upgrades. |
 | **3. Copilot** | One-tap questions: *Where should I start? How do I hit my target? What saves the most money? Is carbon capture worth it? How reliable is my data?* Answers are computed from your own numbers, with no AI service or API key needed. It can build a plan for you. |
 | **4. Plan** | A waterfall from today to target, a year-by-year trajectory, investment, annual savings and payback, plus an action table with start years. Save it as a PDF to share. |
 | **5. Sensors** | Plug an ESP32 CO₂ sensor into USB and stream it straight into the browser (Web Serial, in Chrome or Edge), or use the built-in simulation. |

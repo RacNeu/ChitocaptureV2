@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react'
 import { useFactory } from './model/store'
 import { useSensor } from './sensor/hub'
 import Analysis from './views/Analysis'
+import ControlRoom from './views/ControlRoom'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import Sensors from './views/Sensors'
 import Settings from './views/Settings'
 import Twin from './views/Twin'
 
-type View = 'twin' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'twin' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string }[] = [
   { id: 'twin', label: 'Twin', icon: '◭' },
+  { id: 'control', label: 'Control room', icon: '🔥' },
   { id: 'analysis', label: 'Analysis', icon: '📊' },
   { id: 'plan', label: 'Plan', icon: '🗺' },
   { id: 'sensors', label: 'Sensors', icon: '📡' },
@@ -49,6 +51,7 @@ export default function App() {
     </header>
     <main className="content">
       {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
+      {view === 'control' && <ControlRoom />}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
       {view === 'sensors' && <Sensors />}
