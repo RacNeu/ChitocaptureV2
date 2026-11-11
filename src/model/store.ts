@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import { templateById } from './templates'
-import type { FactoryState, Machine, PlanAction, Settings } from './types'
+import type { ActionStatus, FactoryState, HistoryEntry, Machine, PlanAction, Role, Settings } from './types'
+import { roleById, statusInfo } from './roles'
+import { measureById } from './measures'
 
 export const defaultSettings: Settings = {
   factoryName: 'My factory',
@@ -49,7 +51,7 @@ export function freshState(industryId = 'steel'): FactoryState {
 export type Site = { id: string; state: FactoryState; fixed?: boolean }
 /** fixed = a sample company that cannot be deleted. */
 export type Company = { id: string; name: string; sites: Site[]; activeId: string; fixed?: boolean }
-export type Workspace = { version: 2; companies: Company[]; activeCompanyId: string }
+export type Workspace = { version: 2; companies: Company[]; activeCompanyId: string; role?: Role }
 
 const WORKSPACE_KEY = 'chitocapture.v3.workspace'
 /** How many companies a user can add on top of the samples. */
@@ -75,7 +77,7 @@ export function defaultWorkspace(): Workspace {
     siteFromTemplate('office', 'Head office'),
   ])
   const cement = makeCompany('Malaysia Cement Demo Sdn Bhd', [siteFromTemplate('cement', 'Cement plant')])
-  return { version: 2, companies: [steel, cement], activeCompanyId: steel.id }
+  return { version: 2, role: 'engineer', companies: [steel, cement], activeCompanyId: steel.id }
 }
 
 function normalise(parsed: FactoryState): FactoryState {
@@ -99,7 +101,7 @@ function loadWorkspace(): Workspace {
           const fixed = item.fixed ?? ['Malaysia Steel Demo Sdn Bhd', 'Malaysia Cement Demo Sdn Bhd'].includes(item.name)
           return { ...item, fixed, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
         }).filter((item) => item.sites.length > 0)
-        if (companies.length) return { version: 2, companies, activeCompanyId: companies.some((item) => item.id === parsed.activeCompanyId) ? parsed.activeCompanyId : companies[0].id }
+        if (companies.length) return { version: 2, role: parsed.role ?? 'engineer', companies, activeCompanyId: companies.some((item) => item.id === parsed.activeCompanyId) ? parsed.activeCompanyId : companies[0].id }
       }
     }
   } catch { /* Corrupt or unavailable storage: start with the samples. */ }
@@ -133,6 +135,19 @@ function commit(next: FactoryState) {
 export const getState = () => state
 export const getCompany = () => company
 export const getWorkspace = () => workspace
+export const getRole = (): Role => workspace.role ?? 'engineer'
+export const useRole = () => useSyncExternalStore(subscribe, getRole, getRole)
+
+/** Append a history line; repeated edits of the same thing within two minutes collapse into one. */
+function logged(next: FactoryState, text: string, key?: string): FactoryState {
+  const role = getRole()
+  const entry: HistoryEntry & { key?: string } = { at: new Date().toISOString(), who: roleById(role).person, role, text, key }
+  const history = (next.history ?? []) as (HistoryEntry & { key?: string })[]
+  const last = history.at(-1)
+  const recent = last && key && last.key === key && last.role === role && Date.now() - Date.parse(last.at) < 120_000
+  return { ...next, history: [...(recent ? history.slice(0, -1) : history), entry].slice(-200) }
+}
+const actionName = (s: FactoryState, action: PlanAction) => `${measureById(action.measureId)?.name ?? 'Action'} on ${s.machines.find((item) => item.id === action.machineId)?.name ?? 'a machine'}`
 export const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
 export const useFactory = () => useSyncExternalStore(subscribe, getState, getState)
 export const useCompany = () => useSyncExternalStore(subscribe, getCompany, getCompany)
@@ -194,16 +209,52 @@ export const actions = {
   replace: (next: FactoryState) => commit(next),
   finishOnboarding: (settings: Settings, machines: Machine[]) => commit({ ...state, onboarded: true, settings, machines, plan: [] }),
   restart: () => commit({ ...freshState(state.settings.industryId), measuredSorbentCapacity: state.measuredSorbentCapacity }),
-  updateSettings: (patch: Partial<Settings>) => commit({ ...state, settings: { ...state.settings, ...patch } }),
-  updateMachine: (machine: Machine) => commit({ ...state, machines: state.machines.map((item) => item.id === machine.id ? machine : item) }),
+  updateSettings: (patch: Partial<Settings>) => {
+    const fields = Object.keys(patch).filter((key) => JSON.stringify(patch[key as keyof Settings]) !== JSON.stringify(state.settings[key as keyof Settings]))
+    const next = { ...state, settings: { ...state.settings, ...patch } }
+    commit(fields.length ? logged(next, `Changed settings: ${fields.join(', ')}`, `settings:${fields.join(',')}`) : next)
+  },
+  updateMachine: (machine: Machine) => {
+    const before = state.machines.find((item) => item.id === machine.id)
+    const fields = before ? (Object.keys(machine) as (keyof Machine)[]).filter((key) => before[key] !== machine[key] && key !== 'sensorChannel') : []
+    const next = { ...state, machines: state.machines.map((item) => item.id === machine.id ? machine : item) }
+    commit(fields.length ? logged(next, `Edited ${machine.name}: ${fields.join(', ')}`, `machine:${machine.id}:${fields.join(',')}`) : next)
+  },
   addToPlan: (machineId: string, measureId: string, startYear: number) => {
     if (state.plan.some((item) => item.machineId === machineId && item.measureId === measureId)) return
-    const action: PlanAction = { id: newId('a'), machineId, measureId, startYear }
-    commit({ ...state, plan: [...state.plan, action] })
+    const action: PlanAction = { id: newId('a'), machineId, measureId, startYear, status: 'proposed', owner: roleById(getRole()).person, comments: [] }
+    commit(logged({ ...state, plan: [...state.plan, action] }, `Proposed ${actionName(state, action)}`))
   },
-  removeFromPlan: (actionId: string) => commit({ ...state, plan: state.plan.filter((item) => item.id !== actionId) }),
+  removeFromPlan: (actionId: string) => {
+    const action = state.plan.find((item) => item.id === actionId)
+    commit(logged({ ...state, plan: state.plan.filter((item) => item.id !== actionId) }, `Removed ${action ? actionName(state, action) : 'an action'}`))
+  },
   setActionYear: (actionId: string, startYear: number) => commit({ ...state, plan: state.plan.map((item) => item.id === actionId ? { ...item, startYear } : item) }),
-  setPlan: (plan: PlanAction[]) => commit({ ...state, plan }),
+  setPlan: (plan: PlanAction[]) => {
+    const owner = roleById(getRole()).person
+    commit(logged({ ...state, plan: plan.map((item) => ({ status: 'proposed' as ActionStatus, owner, comments: [], ...item })) }, `Copilot proposed a plan of ${plan.length} actions`))
+  },
+  updateAction: (actionId: string, patch: Partial<PlanAction>) => {
+    const action = state.plan.find((item) => item.id === actionId)
+    if (!action) return
+    const fields = Object.keys(patch).join(', ')
+    commit(logged({ ...state, plan: state.plan.map((item) => item.id === actionId ? { ...item, ...patch } : item) }, `Updated ${actionName(state, action)}: ${fields}`, `action:${actionId}:${fields}`))
+  },
+  setActionStatus: (actionId: string, status: ActionStatus, note?: string) => {
+    const action = state.plan.find((item) => item.id === actionId)
+    if (!action) return
+    const role = getRole()
+    const comments = note?.trim() ? [...(action.comments ?? []), { at: new Date().toISOString(), who: roleById(role).person, role, text: note.trim() }] : action.comments
+    commit(logged({ ...state, plan: state.plan.map((item) => item.id === actionId ? { ...item, status, comments } : item) }, `${statusInfo[status].label}: ${actionName(state, action)}${note?.trim() ? ` — “${note.trim()}”` : ''}`))
+  },
+  addComment: (actionId: string, text: string) => {
+    const action = state.plan.find((item) => item.id === actionId)
+    if (!action || !text.trim()) return
+    const role = getRole()
+    const comment = { at: new Date().toISOString(), who: roleById(role).person, role, text: text.trim() }
+    commit(logged({ ...state, plan: state.plan.map((item) => item.id === actionId ? { ...item, comments: [...(item.comments ?? []), comment] } : item) }, `Commented on ${actionName(state, action)}: “${text.trim()}”`))
+  },
+  setRole: (role: Role) => { workspace = { ...workspace, role }; save() },
   bindSensor: (machineId: string, channel: Machine['sensorChannel']) => commit({
     ...state,
     machines: state.machines.map((item) => item.id === machineId ? { ...item, sensorChannel: channel } : item.sensorChannel === channel ? { ...item, sensorChannel: undefined } : item),

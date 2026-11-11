@@ -55,7 +55,27 @@ export type Settings = {
 }
 
 /** A measure applied to a machine, with its start year. */
-export type PlanAction = { id: string; machineId: string; measureId: string; startYear: number }
+export type Role = 'engineer' | 'sustainability' | 'management'
+
+/** Proposed → Approved → In progress → Done → Verified (or Rejected). */
+export type ActionStatus = 'proposed' | 'approved' | 'in-progress' | 'done' | 'verified' | 'rejected'
+
+export type Comment = { at: string; who: string; role: Role; text: string }
+
+export type PlanAction = {
+  id: string
+  machineId: string
+  measureId: string
+  startYear: number
+  status?: ActionStatus
+  owner?: string
+  dueDate?: string
+  /** Saving measured after the work, t CO₂e per year (entered when marking Done). */
+  measuredT?: number
+  comments?: Comment[]
+}
+
+export type HistoryEntry = { at: string; who: string; role: Role; text: string }
 
 export type FactoryState = {
   version: 3
@@ -63,6 +83,8 @@ export type FactoryState = {
   settings: Settings
   machines: Machine[]
   plan: PlanAction[]
+  /** Who changed what on this site, newest last. */
+  history?: HistoryEntry[]
   /** Sorbent capacity measured on the capture rig, in mmol CO₂ per g; null until measured. */
   measuredSorbentCapacity: number | null
 }

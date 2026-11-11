@@ -374,6 +374,6 @@ export default function Plant3D({ items, withPlan, look, selectedId, onSelect, l
       <dl>{hoverInfo.rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       {hoverInfo.footer && <p>{hoverInfo.footer}</p>}
     </div>}
-    {!interacted && <div className="p3-hint">Drag to orbit · scroll to zoom · hover a building</div>}
+    {!interacted && <div className="p3-hint">Drag to orbit · pinch or scroll to zoom · tap or hover a building</div>}
   </div>
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { kindIcon, num, tonnes } from '../format'
 import { summarise } from '../model/calc'
-import { companyActions, useCompany, useWorkspace } from '../model/store'
+import { companyActions, useCompany, useRole, useWorkspace } from '../model/store'
+import { roleById, waitingFor } from '../model/roles'
 import { industryTemplates, templateById } from '../model/templates'
 
 type Props = { onOpen: (view: 'twin' | 'control' | 'analysis') => void; onAddSite: () => void }
@@ -11,6 +12,7 @@ const siteColours = ['#059669', '#0ea5e9', '#f59e0b', '#7c3aed', '#e11d48', '#14
 export default function Company({ onOpen, onAddSite }: Props) {
   const company = useCompany()
   const workspace = useWorkspace()
+  const role = useRole()
   const [adding, setAdding] = useState(false)
   const rows = company.sites.map((site, index) => {
     const summary = summarise(site.state)
@@ -47,6 +49,15 @@ export default function Company({ onOpen, onAddSite }: Props) {
       </button>)}</div>
     </section>}
 
+    {(() => {
+      const waiting = company.sites.flatMap((site) => site.state.plan.filter((action) => waitingFor(role, action.status ?? 'proposed')).map(() => site))
+      if (!waiting.length) return null
+      const first = waiting[0]
+      return <div className="waiting-banner">
+        <span>{roleById(role).icon} <b>{waiting.length} action{waiting.length === 1 ? '' : 's'} waiting for you</b> as {roleById(role).label}{new Set(waiting.map((site) => site.id)).size > 1 ? ' across sites' : ` at ${first.state.settings.factoryName}`}.</span>
+        <button type="button" className="btn small" onClick={() => { companyActions.switchSite(first.id); window.location.hash = 'plan' }}>Open plan →</button>
+      </div>
+    })()}
     <div className="kpis">
       <div className="kpi"><span>Company emissions</span><strong>{tonnes(total)}</strong><small>CO₂e per year across {company.sites.length} site{company.sites.length === 1 ? '' : 's'}</small></div>
       <div className="kpi accent"><span>With site plans</span><strong>{tonnes(afterPlan)}</strong><small>−{num(total > 0 ? (1 - afterPlan / total) * 100 : 0, 1)}% from planned actions</small></div>

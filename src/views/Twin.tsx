@@ -10,7 +10,7 @@ import { PerformanceBlock, performanceLabel } from '../components/PerformanceBlo
 import { answer, copilotQuestions, type CopilotAnswer, type CopilotQuestion } from '../model/copilot'
 import { fuelLabels } from '../model/factors'
 import { measureById } from '../model/measures'
-import { actions, useFactory } from '../model/store'
+import { actions, useFactory, useRole } from '../model/store'
 import { useSensor } from '../sensor/hub'
 
 function Copilot({ onShowPlan }: { onShowPlan: () => void }) {
@@ -31,6 +31,7 @@ function Copilot({ onShowPlan }: { onShowPlan: () => void }) {
 
 function MachinePanel({ machineId, onClose }: { machineId: string; onClose: () => void }) {
   const state = useFactory()
+  const role = useRole()
   const sensor = useSensor()
   const machine = state.machines.find((item) => item.id === machineId)
   if (!machine) return null
@@ -85,7 +86,7 @@ function MachinePanel({ machineId, onClose }: { machineId: string; onClose: () =
           <details><summary>Engineering checks & basis</summary><ul>{measure.checks.map((check) => <li key={check}>{check}</li>)}</ul><p className="muted">Indicative estimate: {measure.basis}. Replace it with an audit, a quote or trial data.</p></details>
           {action
             ? <button type="button" className="btn ghost small" onClick={() => actions.removeFromPlan(action.id)}>✓ In plan ({action.startYear}) · remove</button>
-            : <button type="button" className="btn small" disabled={bad} onClick={() => actions.addToPlan(machine.id, measureId, state.settings.baselineYear + 1)}>+ Add to plan</button>}
+            : <button type="button" className="btn small" disabled={bad || role === 'management'} title={role === 'management' ? 'Management reviews; engineers and sustainability propose' : ''} onClick={() => actions.addToPlan(machine.id, measureId, state.settings.baselineYear + 1)}>+ Propose for plan</button>}
         </li>
       })}
     </ul>
@@ -133,7 +134,7 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
         <div className={`kpi ${summary.gapT > 0 ? 'warn' : 'good'}`}><span>{summary.gapT > 0 ? 'Gap to target' : 'Target met'}</span><strong>{summary.gapT > 0 ? tonnes(summary.gapT) : '✓'}</strong><small>{summary.gapT > 0 ? 'Ask the copilot how to close it' : 'on paper: now verify it'}</small></div>
       </div>
       {!introHidden && <div className="intro-card">
-        <div><b>What am I looking at?</b> Each building is one piece of equipment in {state.settings.factoryName}{state.machines.some((item) => item.area) ? `, grouped by process area (${[...new Set(state.machines.map((item) => item.area).filter(Boolean))].join(' → ')})` : ''}. Its colour and smoke show how much CO₂ it releases each year. Hover to see what it does; click for its energy use against target and ways to cut it{state.machines.some((item) => item.unitId) ? ', or to watch it live in the simulation' : ''}.</div>
+        <div><b>What am I looking at?</b> Each building is one piece of equipment in {state.settings.factoryName}{state.machines.some((item) => item.area) ? `, grouped by process area (${[...new Set(state.machines.map((item) => item.area).filter(Boolean))].join(' → ')})` : ''}. Its colour and smoke show how much CO₂ it releases each year. Hover (or tap) to see what it does; click for its energy use against target and ways to cut it{state.machines.some((item) => item.unitId) ? ', or to watch it live in the simulation' : ''}.</div>
         <button type="button" className="icon-btn" aria-label="Hide this explanation" onClick={() => { setIntroHidden(true); try { localStorage.setItem('chitocapture.v3.introHidden', '1') } catch { /* ignore */ } }}>✕</button>
       </div>}
       <div className="floor-card">

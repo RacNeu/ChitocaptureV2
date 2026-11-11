@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { companyActions, getCompany, getState, useCompany, useFactory, useWorkspace } from './model/store'
+import { actions, companyActions, getCompany, getState, useCompany, useFactory, useRole, useWorkspace } from './model/store'
+import { roles } from './model/roles'
 import { templateById } from './model/templates'
 import Company from './views/Company'
 import SimulationPicker from './views/SimulationPicker'
@@ -36,6 +37,7 @@ export default function App() {
   const [view, setView] = useState<View>(readView)
   const company = useCompany()
   const workspace = useWorkspace()
+  const role = useRole()
   const onboarding = !state.onboarded
   const [previousSite, setPreviousSite] = useState<string | null>(null)
 
@@ -82,8 +84,14 @@ export default function App() {
         </label>
       </div>
       <nav className="tabs" aria-label="Main">
-        {views.map((item) => { const current = view === item.id || (item.id === 'simulate' && view === 'control'); return <button key={item.id} type="button" className={current ? 'active' : ''} aria-current={current ? 'page' : undefined} onClick={() => go(item.id)}><span aria-hidden="true">{item.icon}</span>{item.label}</button> })}
+        {views.map((item) => { const current = view === item.id || (item.id === 'simulate' && view === 'control'); return <button key={item.id} type="button" className={current ? 'active' : ''} aria-current={current ? 'page' : undefined} onClick={() => go(item.id)}><span aria-hidden="true">{item.icon}</span><span className="tab-label">{item.label}</span></button> })}
       </nav>
+      <label className="role-switch" title="View the app as a different team">
+        <span className="role-label">View as</span>
+        <select value={role} onChange={(event) => actions.setRole(event.target.value as typeof role)}>
+          {roles.map((item) => <option key={item.id} value={item.id}>{item.icon} {item.label}</option>)}
+        </select>
+      </label>
       <button type="button" className={`live-pill ${sensor.status}`} onClick={() => go('sensors')} title="Sensor status">
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
       </button>

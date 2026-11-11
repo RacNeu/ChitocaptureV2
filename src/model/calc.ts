@@ -85,7 +85,8 @@ export type PlannedAction = { action: PlanAction; machine: Machine; economics: E
 
 export function plannedActions(state: FactoryState): PlannedAction[] {
   const ctx = contextFor(state)
-  return state.plan.flatMap((action) => {
+  // Rejected actions no longer count towards the plan.
+  return state.plan.filter((action) => action.status !== 'rejected').flatMap((action) => {
     const machine = state.machines.find((item) => item.id === action.machineId)
     const measure = measureById(action.measureId)
     const effect = machine && measure?.estimate(machine, ctx)

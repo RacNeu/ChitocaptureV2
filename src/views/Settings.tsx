@@ -1,5 +1,6 @@
 import { fuelLabels, gridRegions } from '../model/factors'
-import { actions, companyActions, useCompany, useFactory } from '../model/store'
+import { actions, companyActions, useCompany, useFactory, useRole } from '../model/store'
+import { can, roleById } from '../model/roles'
 import type { FuelType, MachineKind } from '../model/types'
 import { kindIcon } from '../format'
 
@@ -9,12 +10,17 @@ const fuels = Object.keys(fuelLabels) as FuelType[]
 export default function Settings({ onRestart, onRemoved }: { onRestart: () => void; onRemoved: () => void }) {
   const state = useFactory()
   const company = useCompany()
+  const role = useRole()
+  const lockSettings = !can.editSettings(role)
+  const lockMachines = !can.editMachines(role)
   const { settings } = state
   const set = actions.updateSettings
   const region = gridRegions.find((item) => item.id === settings.gridRegionId)
 
   return <div className="settings">
     <section className="card">
+      {lockSettings && <p className="note">Viewing as {roleById(role).label}: targets, factors and prices are set by the sustainability team.</p>}
+      <fieldset className="lock" disabled={lockSettings}>
       <h1>Settings</h1>
       <div className="form-grid">
         <label className="field">Company name<input value={company.name} onChange={(event) => companyActions.rename(event.target.value)} /></label>
@@ -31,9 +37,11 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
         <label className="field">Target reduction (%)<input type="number" min="0" max="100" value={settings.targetReductionPct} onChange={(event) => set({ targetReductionPct: Number(event.target.value) })} /></label>
       </div>
       <p className="note">{region?.note} Fuel factors use common IPCC 2006 default CO₂ values (coal 94.6, natural gas 56.1, diesel 74.1, fuel oil 77.4 kg/GJ). Biomass CO₂ is biogenic and reported separately. Prices are demo placeholders.</p>
-    </section>
+    </fieldset></section>
 
     <section className="card">
+      {lockMachines && <p className="note">Viewing as {roleById(role).label}: machine data is read-only.</p>}
+      <fieldset className="lock" disabled={lockMachines}>
       <h2>Machines</h2>
       <div className="table-wrap"><table className="grid-table">
         <thead><tr><th>Machine</th><th>Area</th><th>Type</th><th>Electricity MWh/yr</th><th>Fuel</th><th>Fuel GJ/yr</th><th>Process t/yr</th><th>Target per t</th><th>Metered?</th></tr></thead>
@@ -49,7 +57,7 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
           <td><input aria-label="Metered" type="checkbox" checked={machine.quality === 'metered'} onChange={(event) => actions.updateMachine({ ...machine, quality: event.target.checked ? 'metered' : 'estimated' })} /></td>
         </tr>)}</tbody>
       </table></div>
-    </section>
+    </fieldset></section>
 
     <section className="card danger">
       <h2>Site & company</h2>
