@@ -157,6 +157,72 @@ export const measures: readonly Measure[] = [
       return { ...none, directT: captured, addedElectricityMWh: captured * 0.25, capexRM: Math.round(captured * 1_000 + sorbentT * 1_000 * SORBENT_RM_PER_KG), opexChangeRM: Math.round(captured * 60), lifetimeYears: 15 }
     },
   },
+
+  /* ---------- Steel mini-mill process measures (indicative planning assumptions) ---------- */
+  {
+    id: 'scrap-preheat', name: 'Scrap preheating with furnace off-gas', short: 'Scrap preheat', category: 'Heat recovery', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Pass the hot furnace off-gas through the scrap before it is charged, so the arc has less heating to do.',
+    checks: ['Check off-gas temperature and dust load', 'Confirm space for a preheating shaft or conveyor', 'Review dioxin control for preheated scrap'],
+    basis: '8% of the arc furnace’s electricity; capex RM 30m', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.08, capexRM: 30_000_000, lifetimeYears: 20 } : null,
+  },
+  {
+    id: 'eaf-optimisation', name: 'Arc furnace power & foamy-slag optimisation', short: 'EAF optimise', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Tune the electrical power programme and keep a foamy slag over the arc, so more energy goes into the steel and less into the furnace walls.',
+    checks: ['Analyse kWh/t per heat against scrap mix', 'Trial carbon and oxygen injection rates', 'Check electrode consumption'],
+    basis: '6% of the arc furnace’s electricity; capex RM 6m', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.06, capexRM: 6_000_000, lifetimeYears: 10 } : null,
+  },
+  {
+    id: 'green-ppa', name: 'Renewable electricity supply (green tariff or PPA)', short: 'Green power', category: 'Renewables', appliesTo: ['furnace', 'mill', 'production-line'], steelOnly: true,
+    explain: 'Buy part of the plant’s electricity as certified renewable power, for example through a green electricity tariff or a power purchase agreement.',
+    checks: ['Compare available green tariffs and PPA prices', 'Agree how the certificates are counted in reporting', 'Check contract length and volume'],
+    basis: '30% of the machine’s grid electricity becomes renewable; premium RM 20/MWh',
+    estimate: (machine, ctx) => machine.electricityMWh > 0 ? { ...none, directT: machine.electricityMWh * 0.3 * ctx.gridKgPerKWh, opexChangeRM: Math.round(machine.electricityMWh * 0.3 * 20), lifetimeYears: 10 } : null,
+  },
+  {
+    id: 'lf-control', name: 'Ladle furnace heating control & ladle covers', short: 'LF control', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Keep ladles covered and preheated, and control reheating so the steel is not heated more than casting needs.',
+    checks: ['Log temperature loss between tapping and casting', 'Check ladle cover handling with the crane'],
+    basis: '10% of the ladle furnace’s electricity; 2-year payback', estimate: electricShare(0.1, 2, 10),
+  },
+  {
+    id: 'hot-charging', name: 'Hot charging of billets', short: 'Hot charging', category: 'Heat recovery', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Send billets straight from the caster into the reheating furnace while still hot, instead of letting them cool in the yard.',
+    checks: ['Match caster and rolling schedules', 'Check billet surface quality when hot charged', 'Plan the transfer route'],
+    basis: '30% of the reheating furnace’s gas; capex RM 15m', estimate: (machine) => machine.fuelGJ > 0 ? { ...none, fuelSavedGJ: machine.fuelGJ * 0.3, capexRM: 15_000_000, lifetimeYears: 20 } : null,
+  },
+  {
+    id: 'regen-burners', name: 'Regenerative burners', short: 'Regen burners', category: 'Heat recovery', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Use the furnace’s own exhaust heat to preheat the combustion air, so less gas is burnt.',
+    checks: ['Check burner layout and NOx limits', 'Plan installation during a shutdown'],
+    basis: '15% of the reheating furnace’s gas; capex RM 20m', estimate: (machine) => machine.fuelGJ > 0 ? { ...none, fuelSavedGJ: machine.fuelGJ * 0.15, capexRM: 20_000_000, lifetimeYears: 20 } : null,
+  },
+  {
+    id: 'mill-drives', name: 'Rolling mill drive & motor upgrade', short: 'Mill drives', category: 'Efficiency', appliesTo: ['mill'], steelOnly: true,
+    explain: 'Replace old DC drives and motors on the rolling stands with modern AC drives that waste less power.',
+    checks: ['Survey motor ages and duty', 'Check harmonics and grid connection'],
+    basis: '8% of the rolling mill’s electricity; 4-year payback', estimate: electricShare(0.08, 4, 20),
+  },
+  {
+    id: 'oxygen-turndown', name: 'Oxygen plant turndown & demand matching', short: 'O₂ turndown', category: 'Efficiency', appliesTo: ['compressor'], steelOnly: true,
+    explain: 'Run the oxygen plant to match what the furnace actually uses, instead of producing and venting surplus.',
+    checks: ['Log oxygen production vs consumption', 'Check the plant’s minimum stable load'],
+    basis: '10% of the oxygen plant’s electricity; 2-year payback', estimate: electricShare(0.1, 2, 10),
+  },
 ]
 
 export const measureById = (id: string) => measures.find((measure) => measure.id === id)
+
+/**
+ * Measures that make sense for each unit of the steel mini-mill. Steel machines (those linked to a
+ * control-room unit) only get these; other machines get the generic measures for their kind.
+ */
+export const steelUnitMeasures: Record<string, readonly string[]> = {
+  eaf: ['eaf-optimisation', 'scrap-preheat', 'green-ppa'],
+  lf: ['lf-control'],
+  caster: ['line-idle'],
+  reheat: ['hot-charging', 'regen-burners', 'combustion', 'insulation', 'chitosan-capture'],
+  rolling: ['mill-drives', 'green-ppa'],
+  fume: ['vsd'],
+  utilities: ['air-leaks', 'vsd'],
+  oxygen: ['oxygen-turndown'],
+}

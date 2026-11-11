@@ -106,6 +106,8 @@ export type Measure = {
   short: string
   category: 'Efficiency' | 'Heat recovery' | 'Renewables' | 'Fuel switch' | 'Process' | 'Methane capture' | 'Carbon capture'
   appliesTo: readonly MachineKind[]
+  /** Steel-process measures only offered on these control-room units (see steelUnitMeasures). */
+  steelOnly?: boolean
   /** Plain-language explanation for non-engineers. */
   explain: string
   /** What an engineer must confirm before relying on the estimate. */

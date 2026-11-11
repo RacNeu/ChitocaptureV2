@@ -1,15 +1,15 @@
 import type { FuelType, GridRegion } from './types'
 
 /**
- * Default factors. These are starting points so the demo works out of the box.
- * Grid factors were entered from the Energy Commission's provisional grid emission factor
- * publication in the earlier prototype and have NOT been re-verified here.
- * Fuel factors follow commonly used IPCC 2006 default combustion values for CO₂.
- * Every factor is editable in Settings and must be checked before real reporting.
+ * Grid emission factors from the Energy Commission (Suruhanjaya Tenaga), "Grid Emission Factor (GEF)
+ * in Malaysia", 2022 values (t CO₂/MWh = kg CO₂/kWh), the figures used by Bursa Malaysia's SEDG GHG
+ * calculator for 2022 onwards. Fuel factors are IPCC 2006 default combustion values for CO₂.
+ * Every factor is editable in Settings; check for newer publications before reporting.
  */
 export const gridRegions: readonly GridRegion[] = [
-  { id: 'my-peninsular', label: 'Peninsular Malaysia', kgPerKWh: 0.74, note: 'Provisional value carried over from the prototype; verify against the latest Energy Commission GEF publication.' },
-  { id: 'my-sabah', label: 'Sabah', kgPerKWh: 0.539, note: 'Provisional value carried over from the prototype; verify against the latest Energy Commission GEF publication.' },
+  { id: 'my-peninsular', label: 'Peninsular Malaysia', kgPerKWh: 0.774, note: 'Energy Commission GEF 2022 (0.774 t CO₂/MWh). The Single Buyer’s 2024 figure for Peninsular Malaysia is 0.740; check for newer official values before reporting.' },
+  { id: 'my-sabah', label: 'Sabah', kgPerKWh: 0.525, note: 'Energy Commission GEF 2022 (0.525 t CO₂/MWh).' },
+  { id: 'my-sarawak', label: 'Sarawak', kgPerKWh: 0.199, note: 'Energy Commission GEF 2022 (0.199 t CO₂/MWh), low because of hydropower.' },
   { id: 'custom', label: 'Custom factor', kgPerKWh: 0.5, note: 'Enter your own sourced grid factor.' },
 ]
 

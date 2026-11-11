@@ -328,3 +328,63 @@ export function eafInternals(p: SteelParams, u: Upgrades, minutes: number): EafI
     story: stories[live.phase],
   }
 }
+
+/* ---------------- Inside the ChitoCapture unit ---------------- */
+
+/** Two sorbent columns swap every half cycle: one captures CO₂ while the other is regenerated. */
+export const CAPTURE_CYCLE_MIN = 60
+
+export type CaptureInternals = {
+  /** Which column is capturing now. */
+  activeBed: 'A' | 'B'
+  /** Progress through the current half cycle (0–1). */
+  phaseT: number
+  /** Height of the saturation front in the capturing bed (0 = fresh, 1 = full). */
+  front: number
+  /** Outlet/inlet CO₂ ratio of the capturing bed (breakthrough curve). */
+  breakthrough: number
+  /** CO₂ still held by the regenerating bed (0–1 of capacity). */
+  regenLoading: number
+  /** Temperature of the regenerating bed, °C. */
+  regenTempC: number
+  inletCO2Pct: number
+  outletCO2Pct: number
+  /** CO₂ captured now, kg/h. */
+  capturedKgPerH: number
+  /** CO₂ sent to the storage tank by the regenerating bed now, kg/h. */
+  toTankKgPerH: number
+  /** Storage tank fill, 0–1 (the tank is emptied by truck when full). */
+  tankFill: number
+  stage: string
+}
+
+export function captureInternals(p: SteelParams, u: Upgrades, minutes: number): CaptureInternals {
+  const live = liveState(p, u, minutes)
+  const half = CAPTURE_CYCLE_MIN / 2
+  const m = ((minutes % CAPTURE_CYCLE_MIN) + CAPTURE_CYCLE_MIN) % CAPTURE_CYCLE_MIN
+  const activeBed = m < half ? 'A' : 'B'
+  const phaseT = (m % half) / half
+  const smooth = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t) }
+  const front = smooth(phaseT * 1.05)
+  // Logistic breakthrough: almost nothing slips until the bed nears saturation, then the bed is swapped.
+  const breakthrough = 1 / (1 + Math.exp(-(phaseT - 0.9) * 18))
+  const inletCO2Pct = 8.5 + 0.4 * Math.sin(minutes / 7)
+  const running = u.captureShare > 0
+  const capturedKgPerH = running ? live.capturedTPerH * 1_000 * (1 - breakthrough) / 0.92 : 0
+  // Regeneration: heat up with waste heat (first 25%), release CO₂ (to 80%), then cool for the next swap.
+  const heat = smooth(phaseT / 0.25), cool = smooth((phaseT - 0.8) / 0.2)
+  const regenTempC = 40 + 80 * heat - 80 * cool
+  const regenLoading = 1 - smooth((phaseT - 0.15) / 0.65)
+  const releasing = phaseT > 0.15 && phaseT < 0.8
+  const toTankKgPerH = running && releasing ? live.capturedTPerH * 1_000 / 0.65 : 0
+  const hoursIntoFill = (minutes / 60) % 12
+  return {
+    activeBed, phaseT, front, breakthrough, regenLoading, regenTempC,
+    inletCO2Pct, outletCO2Pct: running ? inletCO2Pct * (1 - 0.9 * (1 - breakthrough)) : inletCO2Pct,
+    capturedKgPerH, toTankKgPerH, tankFill: running ? hoursIntoFill / 12 : 0,
+    stage: !running ? 'The capture unit is switched off. Turn on the ChitoCapture slider in the what-if sandbox.'
+      : phaseT < 0.25 ? `Column ${activeBed} captures CO₂ from the reheat-furnace exhaust. Column ${activeBed === 'A' ? 'B' : 'A'} is heated with furnace waste heat to start releasing its CO₂.`
+        : phaseT < 0.8 ? `Column ${activeBed}’s chitosan sorbent is filling from the bottom up. Column ${activeBed === 'A' ? 'B' : 'A'} releases concentrated CO₂, which is compressed into the storage tank.`
+          : `Column ${activeBed} is nearly full: CO₂ starts to slip through (breakthrough). The columns are about to swap; the regenerated column cools down ready to capture again.`,
+  }
+}

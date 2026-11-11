@@ -81,3 +81,21 @@ describe('inside the arc furnace', () => {
     expect(end.heatCO2T).toBeGreaterThan(end.heatEnergyMWh * 0.74 / 1_000 * 0.99)
   })
 })
+
+import { captureInternals } from './steel'
+
+describe('inside the ChitoCapture unit', () => {
+  const on = { ...noUpgrades, captureShare: 0.05 }
+  it('alternates the two columns every half cycle', () => {
+    expect(captureInternals(p, on, 5).activeBed).toBe('A')
+    expect(captureInternals(p, on, 35).activeBed).toBe('B')
+  })
+  it('lets little CO₂ through until the bed nears saturation', () => {
+    expect(captureInternals(p, on, 10).breakthrough).toBeLessThan(0.05)
+    expect(captureInternals(p, on, 29).breakthrough).toBeGreaterThan(0.5)
+    expect(captureInternals(p, on, 10).outletCO2Pct).toBeLessThan(captureInternals(p, on, 10).inletCO2Pct * 0.2)
+  })
+  it('captures nothing when the unit is switched off', () => {
+    expect(captureInternals(p, noUpgrades, 10).capturedKgPerH).toBe(0)
+  })
+})

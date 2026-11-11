@@ -12,6 +12,7 @@ const PILOT_SHARE = 0.05
 
 const SteelHall3D = lazy(() => import('../components/SteelHall3D'))
 const EafDeepDive = lazy(() => import('../components/EafDeepDive'))
+const CaptureDeepDive = lazy(() => import('../components/CaptureDeepDive'))
 
 const speeds = [{ label: '⏸', value: 0 }, { label: '1 min/s', value: 1 }, { label: '5 min/s', value: 5 }, { label: '30 min/s', value: 30 }]
 const electricUnits: Exclude<UnitId, 'scrap' | 'reheat'>[] = ['eaf', 'rolling', 'lf', 'fume', 'utilities', 'oxygen', 'caster']
@@ -27,7 +28,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
   const [upgrades, setUpgrades] = useState<Upgrades>({ ...noUpgrades, captureShare: PILOT_SHARE })
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
-  const [deepDive, setDeepDive] = useState(false)
+  const [deepDive, setDeepDive] = useState<null | 'eaf' | 'capture'>(null)
   const [selected, setSelected] = useState<UnitId | null>(() => takePendingUnit() as UnitId | null)
   const [carbonPrice, setCarbonPrice] = useState(35)
   const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 100_000, euPriceEUR: 75, rmPerEUR: 5, year: 2030 })
@@ -116,7 +117,10 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
         <span className={`phase-badge ${live.phase.toLowerCase()}`}><i />Heat #{live.heatNumber} · {live.phase} {num(live.phaseProgress * 100)}%</span>
         <span className="sim-clock">🕒 {clock}</span>
         <div className="toggle" role="radiogroup" aria-label="Simulation speed">{speeds.map((item) => <button key={item.value} type="button" role="radio" aria-checked={speed === item.value} className={speed === item.value ? 'active' : ''} onClick={() => setSpeed(item.value)}>{item.label}</button>)}</div>
-        <button type="button" className={`btn small${deepDive ? ' ghost' : ''}`} onClick={() => setDeepDive(!deepDive)}>{deepDive ? '← Back to the mill' : '🔍 Inside the arc furnace'}</button>
+        {deepDive
+          ? <button type="button" className="btn small ghost" onClick={() => setDeepDive(null)}>← Back to the mill</button>
+          : <><button type="button" className="btn small dive-eaf" onClick={() => setDeepDive('eaf')}>🔍 Inside the arc furnace</button>
+            <button type="button" className="btn small dive-capture" onClick={() => setDeepDive('capture')}>🧪 Inside the ChitoCapture unit</button></>}
         <label className="flow-switch"><input type="checkbox" checked={showFlows} onChange={(event) => setShowFlows(event.target.checked)} /> Energy flows</label>
       </div>
     </header>
@@ -132,8 +136,10 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     <div className="control-main">
       <div className="hall-card">
         <Suspense fallback={<div className="plant3d loading">Loading…</div>}>
-          {deepDive
-            ? <EafDeepDive frame={frame} onClose={() => setDeepDive(false)} />
+          {deepDive === 'eaf'
+            ? <EafDeepDive frame={frame} onClose={() => setDeepDive(null)} />
+            : deepDive === 'capture'
+            ? <CaptureDeepDive frame={frame} capacity={state.measuredSorbentCapacity} onClose={() => setDeepDive(null)} />
             : <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} labels={labels} describe={describe} />}
         </Suspense>
         {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
@@ -143,6 +149,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
           <div className="pilot-head"><span className="pilot-logo">◭</span><b>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'ChitoCapture pilot unit' : 'ChitoCapture capture unit'}</b><em>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'pilot' : 'scale-up'}</em></div>
           <p>Treating {num(upgrades.captureShare * 100)}% of the reheat-stack gas · capturing <b>{num(live.capturedTPerH * 1_000)} kg CO₂/h</b> · {tonnes(now.capturedKgPerT * nowYear.steelT / 1_000)} a year</p>
           <small>{state.measuredSorbentCapacity ? `Sorbent capacity ${num(state.measuredSorbentCapacity, 2)} mmol/g, measured on the ChitoCapture rig.` : 'Sorbent capacity is still assumed: measure it on the ChitoCapture rig (Sensors tab).'}</small>
+          {deepDive !== 'capture' && <button type="button" className="btn small pilot-dive" onClick={() => setDeepDive('capture')}>🧪 Look inside the unit</button>}
         </div>}
         <h2>Where the CO₂ is coming from right now</h2>
         <ul className="unit-bars">
@@ -163,7 +170,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
           return <div className="selected-unit">
             <div className="selected-head"><b>{unit.name}</b><button type="button" className="icon-btn" aria-label="Clear selection" onClick={() => setSelected(null)}>✕</button></div>
             <p>{unit.role}</p>
-            {selected === 'eaf' && !deepDive && <button type="button" className="btn small zoom-btn" onClick={() => setDeepDive(true)}>🔍 Zoom into the process</button>}
+            {selected === 'eaf' && !deepDive && <button type="button" className="btn small zoom-btn" onClick={() => setDeepDive('eaf')}>🔍 Zoom into the process</button>}
             {target && actual !== null && <p className={`perf-line ${gap !== null && gap > 2 ? 'above' : 'ok'}`}>{num(actual, selected === 'reheat' ? 2 : 0)} {unitLabel} · target {num(target, selected === 'reheat' ? 2 : 0)} {unitLabel} {gap !== null && gap > 2 ? `(+${num(gap)}%)` : '✓'}</p>}
           </div>
         })()}

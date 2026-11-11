@@ -159,3 +159,19 @@ describe('energy performance and process areas', () => {
     expect(steel.machines.filter((machine) => machine.unitId).length).toBe(8)
   })
 })
+
+describe('steel-specific measures', () => {
+  it('offers process measures on steel units and no generic mismatches', () => {
+    const steel = freshState('steel')
+    const byName = (name: string) => optionsFor(steel.machines.find((machine) => machine.name === name)!, steel).map((option) => option.measureId)
+    expect(byName('Electric arc furnace')).toEqual(expect.arrayContaining(['eaf-optimisation', 'scrap-preheat']))
+    expect(byName('Reheating furnace')).toEqual(expect.arrayContaining(['hot-charging', 'regen-burners', 'chitosan-capture']))
+    expect(byName('Rolling mill')).not.toContain('grinding')
+    expect(byName('Oxygen plant')).not.toContain('air-leaks')
+    expect(byName('Oxygen plant')).toContain('oxygen-turndown')
+    // Non-steel sites keep the generic library and never see steel-only measures.
+    const cement = freshState('cement')
+    expect(cement.machines.flatMap((machine) => optionsFor(machine, cement).map((option) => option.measureId))).not.toContain('hot-charging')
+    expect(autoPlan(steel).every((action) => !['grinding'].includes(action.measureId))).toBe(true)
+  })
+})

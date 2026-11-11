@@ -1,5 +1,5 @@
 import { fuelFactorsKgPerGJ, gridFactor } from './factors'
-import { measureById, measures } from './measures'
+import { measureById, measures, steelUnitMeasures } from './measures'
 import type { EstimateContext, FactoryState, FuelType, Machine, MeasureEffect, PlanAction } from './types'
 
 export function contextFor(state: FactoryState): EstimateContext {
@@ -69,7 +69,8 @@ export type Option = { machine: Machine; measureId: string; economics: Economics
 /** Every measure that applies to a machine, with its economics, best first. */
 export function optionsFor(machine: Machine, state: FactoryState): Option[] {
   const ctx = contextFor(state)
-  return measures.filter((measure) => measure.appliesTo.includes(machine.kind))
+  const steelSet = machine.unitId ? steelUnitMeasures[machine.unitId] : undefined
+  return measures.filter((measure) => steelSet ? steelSet.includes(measure.id) : measure.appliesTo.includes(machine.kind) && !measure.steelOnly)
     .map((measure) => {
       const effect = measure.estimate(machine, ctx)
       return effect ? { machine, measureId: measure.id, economics: economics(effect, machine, ctx, state.settings.discountRatePct) } : null
