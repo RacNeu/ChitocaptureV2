@@ -86,7 +86,7 @@ export default function Analysis() {
           const colour = zoneColours[index % zoneColours.length]
           // Label each site's three biggest emitters; the rest show their details on hover.
           const labelled = new Set([...rows].sort((x, y) => y.baselineT - x.baselineT).slice(0, 3).map((row) => row.machine.id))
-          rows.forEach((row) => mapItems.push({ machine: { ...row.machine, col: row.machine.col + colOffset, row: row.machine.row + rowOffset }, baselineT: row.baselineT, afterT: row.afterT, hideLabel: !labelled.has(row.machine.id) }))
+          rows.forEach((row) => mapItems.push({ machine: { ...row.machine, col: row.machine.col + colOffset, row: row.machine.row + rowOffset }, baselineT: row.baselineT, afterT: row.afterT, hideLabel: !labelled.has(row.machine.id), zone: site.id }))
           zones.push({ id: site.id, label: `${icon} ${site.state.settings.factoryName}`, col: colOffset, row: rowOffset, cols, rows: height, colour })
           colOffset += cols + 1
           rowHeight = Math.max(rowHeight, height)
@@ -116,7 +116,7 @@ export default function Analysis() {
           </div>}
           <div className="floor-legend"><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span></div>
         </div>
-        <IsoFloor items={mapItems} zones={zones} onSelectZone={scope === 'company' ? openSite : undefined} spacing={scope === 'company' ? 2.4 : 1.9} withPlan={withPlan} selectedId={null} onSelect={open} live={null} />
+        <IsoFloor key={`${scope}-${company.activeId}-${withPlan}`} tilt items={mapItems} zones={zones} onSelectZone={scope === 'company' ? openSite : undefined} spacing={scope === 'company' ? 2.4 : 1.9} withPlan={withPlan} selectedId={null} onSelect={open} live={null} />
         <p className="muted small">{scope === 'site' ? `Every component of ${state.settings.factoryName}, labelled with its process area.` : `Every component in ${company.name}, grouped into coloured zones by site. Each site’s three biggest emitters are labelled; hover any block for its name. Click a site to open it in “This site”.`} Height and colour show yearly CO₂e{withPlan ? ' after the plan' : ''}.{scope === 'site' && state.machines.some((machine) => machine.unitId) ? ' Click a block to watch it live in the simulation.' : ''}</p>
       </section>
     })()}

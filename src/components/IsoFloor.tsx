@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { kindIcon, num, tonnes } from '../format'
 import type { Machine } from '../model/types'
 import type { Point } from '../sensor/hub'
 
 /** sub = where the component belongs, e.g. its site or process area. */
-export type FloorItem = { machine: Machine; baselineT: number; afterT: number; sub?: string; subColour?: string; hideLabel?: boolean }
+export type FloorItem = { machine: Machine; baselineT: number; afterT: number; sub?: string; subColour?: string; hideLabel?: boolean; zone?: string }
 /** A labelled area of the floor, in grid cells (before spacing), e.g. one site in the company view. */
 export type FloorZone = { id: string; label: string; col: number; row: number; cols: number; rows: number; colour: string }
 
@@ -17,6 +18,8 @@ type Props = {
   zones?: FloorZone[]
   /** Grid cells per machine slot; larger values leave more room for labels. */
   spacing?: number
+  /** Tilt the map in 3D perspective. */
+  tilt?: boolean
 }
 
 const TILE_W = 150
@@ -41,7 +44,11 @@ function liveValue(machine: Machine, live: Point | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSelectZone, live, zones = [], spacing = 1.9 }: Props) {
+export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSelectZone, live, zones = [], spacing = 1.9, tilt = false }: Props) {
+  const [hoverZone, setHoverZone] = useState<string | null>(null)
+  const [pulse, setPulse] = useState<{ id: string; n: number } | null>(null)
+  // Replay the block's shoot-up, then act on the click once the motion has read.
+  const press = (id: string) => { setPulse((current) => ({ id, n: (current?.n ?? 0) + 1 })); window.setTimeout(() => onSelect(id), 420) }
   const SPACING = spacing
   const subOf = (id: string) => items.find((entry) => entry.machine.id === id)?.sub
   const place = (machine: Machine) => iso(machine.col * SPACING + 0.75, machine.row * SPACING + 0.75)
@@ -54,13 +61,14 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
   const corners = [iso(0, 0), iso(cols, 0), iso(cols, rows), iso(0, rows)]
   const minX = Math.min(...corners.map((c) => c.x)) - 40, maxX = Math.max(...corners.map((c) => c.x)) + 40
   const labelScale = Math.min(1.9, Math.max(1, (maxX - minX) / 1500))
-  const minY = -MAX_H - 120 * labelScale, maxY = Math.max(...corners.map((c) => c.y)) + (zones.length ? 90 : 50)
+  const minY = -MAX_H - 120 * labelScale, maxY = Math.max(...corners.map((c) => c.y)) + (zones.length ? 130 * labelScale : 50)
 
   // Draw back-to-front so nearer boxes overlap farther ones.
   const ordered = [...items].sort((a, b) => (a.machine.col + a.machine.row) - (b.machine.col + b.machine.row))
 
-  return <svg className="iso" viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="group" aria-label="Factory floor map. Taller and redder machines emit more CO₂.">
+  return <svg className={`iso${tilt ? ' tilt' : ''}${hoverZone ? ' zone-hover' : ''}`} viewBox={`${minX} ${minY} ${maxX - minX} ${maxY - minY}`} role="group" aria-label="Factory floor map. Taller and redder machines emit more CO₂.">
     <defs>
+      <filter id="zone-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="12" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       <radialGradient id="smoke"><stop offset="0%" stopColor="#c8d3cf" stopOpacity=".55" /><stop offset="100%" stopColor="#c8d3cf" stopOpacity="0" /></radialGradient>
     </defs>
     <polygon className="iso-floor" points={corners.map((c) => `${c.x},${c.y}`).join(' ')} />
@@ -70,13 +78,14 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
     {zones.map((zone) => {
       const a = iso(zone.col * SPACING + 0.05, zone.row * SPACING + 0.05), b = iso((zone.col + zone.cols) * SPACING - 0.35, zone.row * SPACING + 0.05)
       const c = iso((zone.col + zone.cols) * SPACING - 0.35, (zone.row + zone.rows) * SPACING - 0.35), d = iso(zone.col * SPACING + 0.05, (zone.row + zone.rows) * SPACING - 0.35)
-      return <g key={zone.label} className={`iso-zone${onSelectZone ? ' clickable' : ''}`} onClick={() => onSelectZone?.(zone.id)}>
+      return <g key={zone.label} className={`iso-zone${onSelectZone ? ' clickable' : ''}${hoverZone === zone.id ? ' hot' : ''}`} onClick={() => onSelectZone?.(zone.id)}
+        onMouseEnter={() => setHoverZone(zone.id)} onMouseLeave={() => setHoverZone(null)}>
         <title>{`Open ${zone.label.trim()} in “This site”`}</title>
-        <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`} fill={zone.colour} fillOpacity="0.12" stroke={zone.colour} strokeOpacity="0.6" strokeWidth="2" strokeDasharray="8 6" />
+        <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`} fill={zone.colour} stroke={zone.colour} className="iso-zone-shape" style={{ color: zone.colour }} />
 
       </g>
     })}
-    {ordered.map(({ machine, baselineT, afterT }) => {
+    {ordered.map(({ machine, baselineT, afterT, zone }, order) => {
       const shownT = withPlan ? afterT : baselineT
       const h = height(shownT)
       const colour = heatColour(shownT / total)
@@ -90,11 +99,15 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
       const smokeCount = shownT <= 0 ? 0 : Math.max(1, Math.round(Math.sqrt(shownT / total) * 6))
       const selected = machine.id === selectedId
       const reading = liveValue(machine, live)
-      return <g key={machine.id} className={`iso-machine${selected ? ' selected' : ''}`} onClick={() => onSelect(machine.id)}
+      const inHot = hoverZone !== null && zone === hoverZone
+      const dim = hoverZone !== null && zone !== hoverZone
+      return <g key={machine.id} className={`iso-machine${selected ? ' selected' : ''}${inHot ? ' lift' : ''}${dim ? ' dim' : ''}`} onClick={() => press(machine.id)}
+        onMouseEnter={() => zone && setHoverZone(zone)} onMouseLeave={() => zone && setHoverZone(null)}
         role="button" tabIndex={0} aria-label={`${machine.name}: ${tonnes(shownT)} CO₂e per year`}
-        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(machine.id) } }}>
+        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); press(machine.id) } }}>
         <title>{`${machine.name}${subOf(machine.id) ? ` · ${subOf(machine.id)}` : ''}: ${tonnes(shownT)} CO₂e/yr`}</title>
         <ellipse cx={centre.x} cy={centre.y + d * 0.3} rx={w * 1.25} ry={d * 1.25} className="iso-shadow" />
+        <g className="iso-lift"><g key={pulse?.id === machine.id ? `p${pulse.n}` : 'b'} className="iso-body" style={{ transformOrigin: `${centre.x}px ${centre.y + d}px`, animationDelay: `${pulse?.id === machine.id ? 0 : order * 45}ms` }}>
         {withPlan && afterT < baselineT && <polygon className="iso-ghost" points={`${centre.x - w},${centre.y - ghostH} ${centre.x},${centre.y - ghostH - d} ${centre.x + w},${centre.y - ghostH} ${centre.x},${centre.y - ghostH + d}`} />}
         <polygon points={left} fill={rgb(colour, 0.62)} className="iso-face" />
         <polygon points={right} fill={rgb(colour, 0.8)} className="iso-face" />
@@ -107,6 +120,7 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
           <circle cx="-30" cy="-3" r="4" className="iso-live-dot" />
           <text x="6" y="2" textAnchor="middle">{num(reading)} ppm</text>
         </g>}
+        </g></g>
       </g>
     })}
     {ordered.map((item) => {
@@ -116,7 +130,8 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
       // Float each label just above its machine so labels never sit on top of a neighbour's box.
       const labelY = centre.y - height(Math.max(shownT, withPlan ? baselineT : shownT)) - TILE_H * 0.36 - 34
       if (item.hideLabel) return null
-      return <g key={`label-${machine.id}`} transform={`translate(${centre.x}, ${labelY - (labelScale - 1) * 30}) scale(${labelScale})`} className={`iso-label${machine.id === selectedId ? ' selected' : ''}`} pointerEvents="none">
+      const dimLabel = hoverZone !== null && item.zone !== hoverZone
+      return <g key={`label-${machine.id}`} transform={`translate(${centre.x}, ${labelY - (labelScale - 1) * 30}) scale(${labelScale})`} className={`iso-label${machine.id === selectedId ? ' selected' : ''}${dimLabel ? ' dim' : ''}`} pointerEvents="none">
         {(() => {
           const valueText = `${tonnes(shownT)}/yr`
           const w = Math.max(machine.name.length * 8.4, (item.sub?.length ?? 0) * 7.6, valueText.length * 7.2) + 20
@@ -129,12 +144,16 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSele
       </g>
     })}
     {zones.map((zone) => {
-      const a = iso(zone.col * SPACING + 0.05, zone.row * SPACING + 0.05), d = iso(zone.col * SPACING + 0.05, (zone.row + zone.rows) * SPACING - 0.35)
-      return <g key={`pill-${zone.label}`} className={onSelectZone ? 'iso-pill clickable' : 'iso-pill'} onClick={() => onSelectZone?.(zone.id)} role={onSelectZone ? 'button' : undefined} tabIndex={onSelectZone ? 0 : undefined}
+      // Badge sits in front of the zone's front edge, on open floor, so it never covers a block.
+      const d = iso(zone.col * SPACING + 0.05, (zone.row + zone.rows) * SPACING - 0.35), c = iso((zone.col + zone.cols) * SPACING - 0.35, (zone.row + zone.rows) * SPACING - 0.35)
+      const x = (d.x + c.x) / 2, y = (d.y + c.y) / 2 + 58 * labelScale
+      return <g key={`pill-${zone.label}`} className={`iso-pill${onSelectZone ? ' clickable' : ''}${hoverZone === zone.id ? ' hot' : ''}`} onClick={() => onSelectZone?.(zone.id)} role={onSelectZone ? 'button' : undefined} tabIndex={onSelectZone ? 0 : undefined}
+        onMouseEnter={() => setHoverZone(zone.id)} onMouseLeave={() => setHoverZone(null)}
         aria-label={onSelectZone ? `Open ${zone.label.trim()}` : undefined} onKeyDown={(event) => { if (onSelectZone && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectZone(zone.id) } }}>
-        <g transform={`translate(${(d.x + a.x) / 2 - 40 * labelScale}, ${(d.y + a.y) / 2 + 10 * labelScale}) scale(${labelScale})`}>
-          <rect x={-zone.label.length * 6.6 - 14} y="-20" width={zone.label.length * 13.2 + 28} height="32" rx="16" fill="#ffffff" stroke={zone.colour} strokeWidth="2" />
-          <text y="2" textAnchor="middle" className="iso-zone-label" fill={zone.colour}>{zone.label}</text>
+        <line x1={x} y1={(d.y + c.y) / 2} x2={x} y2={y - 16 * labelScale} stroke={zone.colour} strokeWidth="2" strokeDasharray="3 4" />
+        <g transform={`translate(${x}, ${y}) scale(${labelScale})`}>
+          <rect x={-zone.label.length * 6.6 - 14} y="-20" width={zone.label.length * 13.2 + 28} height="34" rx="17" fill="#ffffff" stroke={zone.colour} strokeWidth="2" className="iso-pill-bg" style={{ color: zone.colour }} />
+          <text y="3" textAnchor="middle" className="iso-zone-label" fill={zone.colour}>{zone.label}</text>
         </g>
       </g>
     })}

@@ -668,3 +668,20 @@ li.above .perf-stake-cell { color: #92400e; }
 .site-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-right: auto; margin-left: 8px; }
 .site-chips button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
 .site-chips button.active { border-color: var(--green-2); background: var(--green-soft); color: #047857; }
+
+/* Block map motion & perspective */
+.iso.tilt { transform: perspective(1900px) rotateX(16deg) scale(1.02); transform-origin: 50% 60%; }
+.iso-body { transform-box: view-box; animation: iso-grow .85s cubic-bezier(.2, 1.25, .35, 1) both; }
+@keyframes iso-grow { 0% { transform: scaleY(0.02); opacity: .2; } 60% { opacity: 1; } 100% { transform: scaleY(1); } }
+.iso-lift { transition: transform .25s ease; transform-box: view-box; }
+.iso-machine.lift .iso-lift { transform: translateY(-10px); }
+.iso-machine, .iso-label { transition: opacity .25s ease; }
+.iso-machine.dim, .iso-label.dim { opacity: .28; }
+.iso-label { animation: iso-fade .45s ease-out .55s both; }
+@keyframes iso-fade { from { opacity: 0; } }
+.iso-zone-shape { fill-opacity: .1; stroke-opacity: .55; stroke-width: 2; stroke-dasharray: 8 6; transition: fill-opacity .25s, stroke-opacity .25s; }
+.iso-zone.hot .iso-zone-shape { fill-opacity: .26; stroke-opacity: 1; stroke-dasharray: none; stroke-width: 3; filter: drop-shadow(0 0 14px currentColor); }
+.iso-pill-bg { transition: filter .25s, stroke-width .25s; }
+.iso-pill.hot .iso-pill-bg { stroke-width: 3; filter: drop-shadow(0 0 10px currentColor); }
+.iso.zone-hover .iso-pill:not(.hot) { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .iso.tilt { transform: none; } }
