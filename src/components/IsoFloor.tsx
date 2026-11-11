@@ -5,13 +5,14 @@ import type { Point } from '../sensor/hub'
 /** sub = where the component belongs, e.g. its site or process area. */
 export type FloorItem = { machine: Machine; baselineT: number; afterT: number; sub?: string; subColour?: string; hideLabel?: boolean }
 /** A labelled area of the floor, in grid cells (before spacing), e.g. one site in the company view. */
-export type FloorZone = { label: string; col: number; row: number; cols: number; rows: number; colour: string }
+export type FloorZone = { id: string; label: string; col: number; row: number; cols: number; rows: number; colour: string }
 
 type Props = {
   items: FloorItem[]
   withPlan: boolean
   selectedId: string | null
   onSelect: (id: string) => void
+  onSelectZone?: (zoneId: string) => void
   live: Point | null
   zones?: FloorZone[]
   /** Grid cells per machine slot; larger values leave more room for labels. */
@@ -40,7 +41,7 @@ function liveValue(machine: Machine, live: Point | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-export default function IsoFloor({ items, withPlan, selectedId, onSelect, live, zones = [], spacing = 1.9 }: Props) {
+export default function IsoFloor({ items, withPlan, selectedId, onSelect, onSelectZone, live, zones = [], spacing = 1.9 }: Props) {
   const SPACING = spacing
   const subOf = (id: string) => items.find((entry) => entry.machine.id === id)?.sub
   const place = (machine: Machine) => iso(machine.col * SPACING + 0.75, machine.row * SPACING + 0.75)
@@ -69,7 +70,8 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, live, 
     {zones.map((zone) => {
       const a = iso(zone.col * SPACING + 0.05, zone.row * SPACING + 0.05), b = iso((zone.col + zone.cols) * SPACING - 0.35, zone.row * SPACING + 0.05)
       const c = iso((zone.col + zone.cols) * SPACING - 0.35, (zone.row + zone.rows) * SPACING - 0.35), d = iso(zone.col * SPACING + 0.05, (zone.row + zone.rows) * SPACING - 0.35)
-      return <g key={zone.label} className="iso-zone">
+      return <g key={zone.label} className={`iso-zone${onSelectZone ? ' clickable' : ''}`} onClick={() => onSelectZone?.(zone.id)}>
+        <title>{`Open ${zone.label.trim()} in “This site”`}</title>
         <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y} ${d.x},${d.y}`} fill={zone.colour} fillOpacity="0.12" stroke={zone.colour} strokeOpacity="0.6" strokeWidth="2" strokeDasharray="8 6" />
 
       </g>
@@ -128,7 +130,8 @@ export default function IsoFloor({ items, withPlan, selectedId, onSelect, live, 
     })}
     {zones.map((zone) => {
       const a = iso(zone.col * SPACING + 0.05, zone.row * SPACING + 0.05), d = iso(zone.col * SPACING + 0.05, (zone.row + zone.rows) * SPACING - 0.35)
-      return <g key={`pill-${zone.label}`} pointerEvents="none">
+      return <g key={`pill-${zone.label}`} className={onSelectZone ? 'iso-pill clickable' : 'iso-pill'} onClick={() => onSelectZone?.(zone.id)} role={onSelectZone ? 'button' : undefined} tabIndex={onSelectZone ? 0 : undefined}
+        aria-label={onSelectZone ? `Open ${zone.label.trim()}` : undefined} onKeyDown={(event) => { if (onSelectZone && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelectZone(zone.id) } }}>
         <g transform={`translate(${(d.x + a.x) / 2 - 40 * labelScale}, ${(d.y + a.y) / 2 + 10 * labelScale}) scale(${labelScale})`}>
           <rect x={-zone.label.length * 6.6 - 14} y="-20" width={zone.label.length * 13.2 + 28} height="32" rx="16" fill="#ffffff" stroke={zone.colour} strokeWidth="2" />
           <text y="2" textAnchor="middle" className="iso-zone-label" fill={zone.colour}>{zone.label}</text>

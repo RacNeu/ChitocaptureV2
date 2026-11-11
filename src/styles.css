@@ -661,3 +661,10 @@ li.above .perf-stake-cell { color: #92400e; }
 
 .iso-label-bg { fill: #ffffffe8; stroke: #e2e8f0; stroke-width: 1; filter: drop-shadow(0 2px 4px rgba(15,23,42,.08)); }
 .iso-zone-label { font-size: 16px; }
+
+.iso-zone.clickable, .iso-pill.clickable { cursor: pointer; }
+.iso-zone.clickable:hover polygon { fill-opacity: .22; }
+.iso-pill.clickable:hover rect { stroke-width: 3; }
+.site-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-right: auto; margin-left: 8px; }
+.site-chips button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.site-chips button.active { border-color: var(--green-2); background: var(--green-soft); color: #047857; }

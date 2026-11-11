@@ -86,16 +86,21 @@ export default function Analysis() {
           const colour = zoneColours[index % zoneColours.length]
           // Label each site's three biggest emitters; the rest show their details on hover.
           const labelled = new Set([...rows].sort((x, y) => y.baselineT - x.baselineT).slice(0, 3).map((row) => row.machine.id))
-          rows.forEach((row) => mapItems.push({ machine: { ...row.machine, col: row.machine.col + colOffset, row: row.machine.row + rowOffset }, baselineT: row.baselineT, afterT: row.afterT, sub: site.state.settings.factoryName, subColour: colour, hideLabel: !labelled.has(row.machine.id) }))
-          zones.push({ label: `${icon} ${site.state.settings.factoryName}`, col: colOffset, row: rowOffset, cols, rows: height, colour })
+          rows.forEach((row) => mapItems.push({ machine: { ...row.machine, col: row.machine.col + colOffset, row: row.machine.row + rowOffset }, baselineT: row.baselineT, afterT: row.afterT, hideLabel: !labelled.has(row.machine.id) }))
+          zones.push({ id: site.id, label: `${icon} ${site.state.settings.factoryName}`, col: colOffset, row: rowOffset, cols, rows: height, colour })
           colOffset += cols + 1
           rowHeight = Math.max(rowHeight, height)
         })
       }
+      const openSite = (siteId: string) => { companyActions.switchSite(siteId); setScope('site') }
       const open = (id: string) => {
-        const owner = scope === 'company' ? company.sites.find((site) => site.state.machines.some((machine) => machine.id === id)) : undefined
-        const machine = (owner?.state.machines ?? state.machines).find((item) => item.id === id)
-        if (owner) companyActions.switchSite(owner.id)
+        if (scope === 'company') {
+          // In the company view a click drills into that component's site.
+          const owner = company.sites.find((site) => site.state.machines.some((machine) => machine.id === id))
+          if (owner) openSite(owner.id)
+          return
+        }
+        const machine = state.machines.find((item) => item.id === id)
         if (machine?.unitId) openInControlRoom(machine.unitId)
       }
       return <section className="card map-card">
@@ -104,10 +109,15 @@ export default function Analysis() {
             <button type="button" role="radio" aria-checked={scope === 'site'} className={scope === 'site' ? 'active' : ''} onClick={() => setScope('site')}>This site</button>
             <button type="button" role="radio" aria-checked={scope === 'company'} className={scope === 'company' ? 'active' : ''} onClick={() => setScope('company')}>Whole company</button>
           </div>
+          {scope === 'site' && company.sites.length > 1 && <div className="site-chips" role="tablist" aria-label="Site shown">
+            {company.sites.filter((site) => site.state.onboarded).map((site) => <button key={site.id} type="button" role="tab" aria-selected={site.id === company.activeId} className={site.id === company.activeId ? 'active' : ''} onClick={() => companyActions.switchSite(site.id)}>
+              {templateById(site.state.settings.industryId)?.icon} {site.state.settings.factoryName}
+            </button>)}
+          </div>}
           <div className="floor-legend"><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span></div>
         </div>
-        <IsoFloor items={mapItems} zones={zones} spacing={scope === 'company' ? 2.4 : 1.9} withPlan={withPlan} selectedId={null} onSelect={open} live={null} />
-        <p className="muted small">{scope === 'site' ? `Every component of ${state.settings.factoryName}, labelled with its process area.` : `Every component in ${company.name}, grouped into coloured zones by site. Each site’s three biggest emitters are labelled; hover any block for its name and site.`} Height and colour show yearly CO₂e{withPlan ? ' after the plan' : ''}. Click a steel-mill block to watch it live in the simulation.</p>
+        <IsoFloor items={mapItems} zones={zones} onSelectZone={scope === 'company' ? openSite : undefined} spacing={scope === 'company' ? 2.4 : 1.9} withPlan={withPlan} selectedId={null} onSelect={open} live={null} />
+        <p className="muted small">{scope === 'site' ? `Every component of ${state.settings.factoryName}, labelled with its process area.` : `Every component in ${company.name}, grouped into coloured zones by site. Each site’s three biggest emitters are labelled; hover any block for its name. Click a site to open it in “This site”.`} Height and colour show yearly CO₂e{withPlan ? ' after the plan' : ''}.{scope === 'site' && state.machines.some((machine) => machine.unitId) ? ' Click a block to watch it live in the simulation.' : ''}</p>
       </section>
     })()}
 
