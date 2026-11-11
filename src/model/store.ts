@@ -47,18 +47,21 @@ export function freshState(industryId = 'steel'): FactoryState {
 
 /** fixed = part of the sample company and cannot be deleted; sites the user adds can be. */
 export type Site = { id: string; state: FactoryState; fixed?: boolean }
-export type Company = { id: string; name: string; sites: Site[]; activeId: string }
+/** fixed = a sample company that cannot be deleted. */
+export type Company = { id: string; name: string; sites: Site[]; activeId: string; fixed?: boolean }
 export type Workspace = { version: 2; companies: Company[]; activeCompanyId: string }
 
 const WORKSPACE_KEY = 'chitocapture.v3.workspace'
+/** How many companies a user can add on top of the samples. */
+export const MAX_ADDED_COMPANIES = 3
 
 function siteFromTemplate(industryId: string, name: string): Site {
   const fresh = freshState(industryId)
   return { id: newId('site'), fixed: true, state: { ...fresh, onboarded: true, settings: { ...fresh.settings, factoryName: name } } }
 }
 
-function makeCompany(name: string, sites: Site[]): Company {
-  return { id: newId('co'), name, sites, activeId: sites[0].id }
+function makeCompany(name: string, sites: Site[], fixed = true): Company {
+  return { id: newId('co'), name, sites, activeId: sites[0].id, fixed }
 }
 
 /**
@@ -93,7 +96,8 @@ function loadWorkspace(): Workspace {
           const legacy = (item.sites ?? []).every((site) => site.fixed === undefined)
           const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines))
             .map((site, index) => ({ ...site, fixed: legacy ? index < 3 && sampleIndustries.includes(site.state.settings?.industryId) : site.fixed, state: normalise(site.state) }))
-          return { ...item, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
+          const fixed = item.fixed ?? ['Malaysia Steel Demo Sdn Bhd', 'Malaysia Cement Demo Sdn Bhd'].includes(item.name)
+          return { ...item, fixed, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
         }).filter((item) => item.sites.length > 0)
         if (companies.length) return { version: 2, companies, activeCompanyId: companies.some((item) => item.id === parsed.activeCompanyId) ? parsed.activeCompanyId : companies[0].id }
       }
@@ -162,6 +166,28 @@ export const companyActions = {
   },
   rename: (name: string) => updateCompany((current) => ({ ...current, name })),
   resetToSample: () => { workspace = defaultWorkspace(); save() },
+  /**
+   * Create a company from chosen site templates and make it active. Sites start un-set-up, so
+   * opening each one walks the user through its machines.
+   */
+  addCompany: (name: string, sites: { industryId: string; name: string }[]) => {
+    if (workspace.companies.filter((item) => !item.fixed).length >= MAX_ADDED_COMPANIES || sites.length === 0) return null
+    const created = sites.map((item) => {
+      const fresh = freshState(item.industryId)
+      return { id: newId('site'), fixed: false, state: { ...fresh, settings: { ...fresh.settings, factoryName: item.name } } }
+    })
+    const company = makeCompany(name.trim() || 'New company', created, false)
+    workspace = { ...workspace, companies: [...workspace.companies, company], activeCompanyId: company.id }
+    save()
+    return company.id
+  },
+  removeCompany: (id: string) => {
+    const target = workspace.companies.find((item) => item.id === id)
+    if (!target || target.fixed || workspace.companies.length <= 1) return
+    const companies = workspace.companies.filter((item) => item.id !== id)
+    workspace = { ...workspace, companies, activeCompanyId: workspace.activeCompanyId === id ? companies[0].id : workspace.activeCompanyId }
+    save()
+  },
 }
 
 export const actions = {

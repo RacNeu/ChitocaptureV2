@@ -35,9 +35,9 @@ export function parseMachinesCsv(text: string): { machines: Machine[]; errors: s
   return { machines: autoLayout(machines), errors }
 }
 
-export default function Onboarding({ onDone, onCancel }: { onDone: () => void; onCancel?: () => void }) {
+export default function Onboarding({ onDone, onCancel, progress }: { onDone: () => void; onCancel?: () => void; progress?: string }) {
   const [step, setStep] = useState(1)
-  const [settings, setSettings] = useState<Settings>(() => { const current = getState().settings; return { ...current, factoryName: industryTemplates.find((item) => item.id === current.industryId)?.label ?? current.factoryName } })
+  const [settings, setSettings] = useState<Settings>(() => { const current = getState().settings; const generic = current.factoryName === 'My factory' || !current.factoryName; return { ...current, factoryName: generic ? industryTemplates.find((item) => item.id === current.industryId)?.label ?? current.factoryName : current.factoryName } })
   const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate(getState().settings.industryId))
   const [csvErrors, setCsvErrors] = useState<string[]>([])
 
@@ -53,7 +53,7 @@ export default function Onboarding({ onDone, onCancel }: { onDone: () => void; o
 
   return <div className="onboard">
     <header className="onboard-head">
-      <div className="brand"><span className="brand-mark">◭</span> ChitoCapture</div>
+      <div className="brand"><span className="brand-mark">◭</span> ChitoCapture{progress && <small>{progress}</small>}</div>
       <ol className="steps" aria-label="Setup steps">
         {['Your factory', 'Your machines', 'Your target'].map((label, index) => <li key={label} className={step === index + 1 ? 'current' : step > index + 1 ? 'done' : ''}><b>{index + 1}</b>{label}</li>)}
       </ol>

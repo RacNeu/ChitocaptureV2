@@ -67,3 +67,19 @@ describe('fixed sample sites and added sites', () => {
     expect(s.getCompany().sites).toHaveLength(3)
   })
 })
+
+describe('adding companies', () => {
+  it('adds up to three companies, each with un-set-up sites, and deletes only added ones', async () => {
+    vi.resetModules()
+    const s = await import('./store')
+    for (let k = 0; k < 3; k += 1) expect(s.companyActions.addCompany(`Co ${k}`, [{ industryId: 'food', name: 'Plant' }])).toBeTruthy()
+    expect(s.companyActions.addCompany('Too many', [{ industryId: 'food', name: 'Plant' }])).toBeNull()
+    expect(s.getWorkspace().companies).toHaveLength(5)
+    expect(s.getState().onboarded).toBe(false)
+    const sample = s.getWorkspace().companies[0]
+    s.companyActions.removeCompany(sample.id)
+    expect(s.getWorkspace().companies).toHaveLength(5)
+    s.companyActions.removeCompany(s.getCompany().id)
+    expect(s.getWorkspace().companies).toHaveLength(4)
+  })
+})

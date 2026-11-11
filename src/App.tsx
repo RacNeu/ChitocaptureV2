@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { companyActions, useCompany, useFactory, useWorkspace } from './model/store'
+import { companyActions, getCompany, getState, useCompany, useFactory, useWorkspace } from './model/store'
 import { templateById } from './model/templates'
 import Company from './views/Company'
 import SimulationPicker from './views/SimulationPicker'
+import AddCompany from './views/AddCompany'
+import { MAX_ADDED_COMPANIES } from './model/store'
 import { useSensor } from './sensor/hub'
 import Analysis from './views/Analysis'
 import ControlRoom from './views/ControlRoom'
@@ -12,7 +14,7 @@ import Sensors from './views/Sensors'
 import Settings from './views/Settings'
 import Twin from './views/Twin'
 
-type View = 'company' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'company' | 'add-company' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string }[] = [
   { id: 'company', label: 'Company', icon: '🏢' },
   { id: 'twin', label: 'Site 3D', icon: '◭' },
@@ -25,7 +27,7 @@ const views: { id: View; label: string; icon: string }[] = [
 
 const readView = (): View => {
   const hash = window.location.hash.replace('#', '')
-  return views.some((view) => view.id === hash) || hash === 'control' ? hash as View : 'company'
+  return views.some((view) => view.id === hash) || hash === 'control' || hash === 'add-company' ? hash as View : 'company'
 }
 
 export default function App() {
@@ -44,31 +46,38 @@ export default function App() {
   }, [])
   const go = (next: View) => { window.location.hash = next; setView(next) }
 
-  if (onboarding) return <Onboarding
-    onDone={() => go(state.settings.industryId === 'steel' ? 'control' : 'twin')}
-    onCancel={company.sites.length > 1 ? () => { const id = company.activeId; companyActions.switchSite(previousSite && previousSite !== id ? previousSite : company.sites.find((site) => site.id !== id)!.id); companyActions.removeSite(id); go('company') } : undefined} />
+  // After a site is set up, continue with the next site in the same company that still needs it.
+  const finishSetup = () => {
+    const next = getCompany().sites.find((site) => !site.state.onboarded)
+    if (next) { companyActions.switchSite(next.id); return }
+    go(getState().settings.industryId === 'steel' ? 'control' : 'twin')
+  }
+  const cancelSetup = () => {
+    const id = company.activeId
+    if (!company.fixed && company.sites.every((site) => !site.state.onboarded)) { companyActions.removeCompany(company.id); go('company'); return }
+    const fallback = previousSite && previousSite !== id ? previousSite : company.sites.find((site) => site.id !== id)?.id
+    if (fallback) { companyActions.switchSite(fallback); companyActions.removeSite(id) }
+    go('company')
+  }
+  if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
+
+  const siteScoped = view === 'twin' || view === 'plan' || view === 'settings' || view === 'sensors'
+  const addedCount = workspace.companies.filter((item) => !item.fixed).length
 
   return <div className="app">
     <header className="topbar">
       <div className="brand"><span className="brand-mark">◭</span> ChitoCapture
-        <label className="site-switch" title="Switch site">
-          <span className="sr-only">Site</span>
-          <select value={view === 'company' ? `__company:${company.id}` : company.activeId} onChange={(event) => {
+        <label className="site-switch" title="Switch company">
+          <span className="sr-only">Company</span>
+          <select value={company.id} onChange={(event) => {
             const value = event.target.value
-            if (value.startsWith('__company:')) { companyActions.switchCompany(value.slice('__company:'.length)); go('company') }
-            else if (value === '__add') { go('company'); window.setTimeout(() => document.querySelector<HTMLButtonElement>('.site-card.add')?.click(), 0) }
-            else {
-              setPreviousSite(company.activeId)
-              companyActions.switchSite(value)
-              const industry = workspace.companies.flatMap((item) => item.sites).find((site) => site.id === value)?.state.settings.industryId
-              if (view === 'company' || (view === 'control' && industry !== 'steel')) go(industry === 'steel' ? 'control' : 'twin')
-            }
+            if (value === '__add') { go('add-company'); return }
+            companyActions.switchCompany(value)
+            if (view === 'control' && getState().settings.industryId !== 'steel') go('simulate')
+            if (view === 'add-company') go('company')
           }}>
-            {workspace.companies.map((item) => <optgroup key={item.id} label={item.name}>
-              <option value={`__company:${item.id}`}>🏢 Company overview</option>
-              {item.sites.map((site) => <option key={site.id} value={site.id}>{templateById(site.state.settings.industryId)?.icon ?? '🏭'} {site.state.settings.factoryName}</option>)}
-            </optgroup>)}
-            <option value="__add">+ Add site to {company.name}…</option>
+            {workspace.companies.map((item) => <option key={item.id} value={item.id}>🏢 {item.name}</option>)}
+            <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>
           </select>
         </label>
       </div>
@@ -80,10 +89,17 @@ export default function App() {
       </button>
     </header>
     <main className="content">
+      {siteScoped && company.sites.length > 1 && <div className="site-bar">
+        <span className="eyebrow">Site</span>
+        {company.sites.map((site) => <button key={site.id} type="button" className={site.id === company.activeId ? 'active' : ''} onClick={() => companyActions.switchSite(site.id)}>
+          {templateById(site.state.settings.industryId)?.icon ?? '🏭'} {site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}
+        </button>)}
+      </div>}
+      {view === 'add-company' && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
       {view === 'company' && <Company onOpen={go} onAddSite={() => setPreviousSite(company.activeId)} />}
       {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
-      {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} />}
-      {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} />)}
+      {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />}
+      {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />)}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
       {view === 'sensors' && <Sensors />}

@@ -33,7 +33,10 @@ export default function Company({ onOpen, onAddSite }: Props) {
         <h1 className="company-name">{company.name}</h1>
         <p className="muted">{company.sites.length} site{company.sites.length === 1 ? '' : 's'} · every figure is the sum of the sites below · sample data, illustrative only</p>
       </div>
-      <button type="button" className="btn" onClick={() => setAdding(!adding)}>+ Add site</button>
+      <div className="row-actions">
+        {!company.fixed && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Delete ${company.name} and all its sites? This cannot be undone.`)) companyActions.removeCompany(company.id) }}>🗑 Delete company</button>}
+        <button type="button" className="btn" onClick={() => setAdding(!adding)}>+ Add site</button>
+      </div>
     </header>
 
     {adding && <section className="card add-site">
