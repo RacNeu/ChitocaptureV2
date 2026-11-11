@@ -70,7 +70,7 @@ export default function Onboarding({ onDone, onCancel }: { onDone: () => void; o
       <h2>Start with our flagship: a steel mini-mill</h2>
       {industryTemplates.filter((template) => template.id === 'steel').map((template) => <button key={template.id} type="button" className="industry hero" onClick={() => pickIndustry(template.id)}>
         <span className="industry-icon">{template.icon}</span>
-        <span><strong>{template.label}</strong><small>{template.blurb} Includes a live 3D control room of the process line, a carbon ledger per tonne of steel and CBAM exposure.</small></span>
+        <span><strong>{template.label}</strong><small>{template.blurb} Includes a live 3D simulation of the process line, a carbon ledger per tonne of steel and CBAM exposure.</small></span>
         <span className="hero-cta">Recommended →</span>
       </button>)}
       <h2 className="sub">Also supported</h2>

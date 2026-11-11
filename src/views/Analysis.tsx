@@ -1,5 +1,12 @@
 import { useState } from 'react'
-import IsoStack, { type StackItem } from '../components/IsoStack'
+import IsoFloor, { type FloorItem, type FloorZone } from '../components/IsoFloor'
+import type { Machine } from '../model/types'
+import { companyActions, useCompany } from '../model/store'
+import { templateById } from '../model/templates'
+
+type StackSegment = { key: 'electricity' | 'fuel' | 'process'; label: string; value: number }
+type StackItem = { machine: Machine; segments: StackSegment[]; total: number; before?: number }
+const zoneColours = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#0f766e']
 import { kindIcon, num, ringgit, tonnes } from '../format'
 import { areaSummary, contextFor, machineEmissions, performance, summarise } from '../model/calc'
 import { openInControlRoom } from '../model/focus'
@@ -11,6 +18,8 @@ export default function Analysis() {
   const state = useFactory()
   const [withPlan, setWithPlan] = useState(false)
   const [carbonPrice, setCarbonPrice] = useState(35)
+  const [scope, setScope] = useState<'site' | 'company'>('site')
+  const company = useCompany()
   const ctx = contextFor(state)
   const summary = summarise(state)
 
@@ -45,7 +54,7 @@ export default function Analysis() {
 
   return <div className="analysis">
     <header className="plan-head">
-      <div><h1>Where does the carbon come from?</h1><p className="muted">Every piece of equipment ranked by its yearly CO₂e and split by cause (electricity, fuel or process). Hover a tower for details{state.machines.some((item) => item.unitId) ? '; click it to watch that unit live in the control room' : ''}.</p></div>
+      <div><h1>Where does the carbon come from?</h1><p className="muted">Every piece of equipment ranked by its yearly CO₂e and split by cause (electricity, fuel or process). Switch the map between this site and the whole company to see where each component belongs.</p></div>
       <div className="toggle" role="radiogroup" aria-label="Scenario">
         <button type="button" role="radio" aria-checked={!withPlan} className={!withPlan ? 'active' : ''} onClick={() => setWithPlan(false)}>Today</button>
         <button type="button" role="radio" aria-checked={withPlan} className={withPlan ? 'active' : ''} disabled={state.plan.length === 0} onClick={() => setWithPlan(true)} title={state.plan.length === 0 ? 'Add actions to your plan first' : ''}>With plan</button>
@@ -59,11 +68,48 @@ export default function Analysis() {
       <div className="kpi accent"><span>Carbon cost at RM {carbonPrice}/t</span><strong>{ringgit(total * carbonPrice)}</strong><small>per year · illustrative price, adjust below</small></div>
     </div>
 
-    <section className="card skyline-card">
-      <div className="skyline-legend legend"><span><i className="elec" />Grid electricity</span><span><i className="fuel" />Fuel combustion</span><span><i className="proc" />Process</span>{withPlan && <span><i className="ghost-swatch" />Before plan</span>}</div>
-      <IsoStack items={items} onSelect={(id) => { const machine = state.machines.find((item) => item.id === id); if (machine?.unitId) openInControlRoom(machine.unitId) }} />
-      <p className="muted small">Tower height uses a square-root scale so small sources stay visible next to a dominant one. Exact tonnes are shown on each tower and in the table.</p>
-    </section>
+    {(() => {
+      let mapItems: FloorItem[]
+      let zones: FloorZone[] = []
+      if (scope === 'site') {
+        mapItems = summary.byMachine.map((row) => ({ machine: row.machine, baselineT: row.baselineT, afterT: row.afterT, sub: row.machine.area }))
+      } else {
+        // Lay the company's sites side by side, each in its own labelled zone.
+        mapItems = []
+        let colOffset = 0, rowOffset = 0, rowHeight = 0
+        company.sites.filter((site) => site.state.onboarded).forEach((site, index) => {
+          const rows = summarise(site.state).byMachine
+          const cols = Math.max(2, ...rows.map((row) => row.machine.col + 1))
+          const height = Math.max(2, ...rows.map((row) => row.machine.row + 1))
+          // Sites sit side by side along one diagonal, which reads left to right.
+          const icon = templateById(site.state.settings.industryId)?.icon ?? ''
+          const colour = zoneColours[index % zoneColours.length]
+          // Label each site's three biggest emitters; the rest show their details on hover.
+          const labelled = new Set([...rows].sort((x, y) => y.baselineT - x.baselineT).slice(0, 3).map((row) => row.machine.id))
+          rows.forEach((row) => mapItems.push({ machine: { ...row.machine, col: row.machine.col + colOffset, row: row.machine.row + rowOffset }, baselineT: row.baselineT, afterT: row.afterT, sub: site.state.settings.factoryName, subColour: colour, hideLabel: !labelled.has(row.machine.id) }))
+          zones.push({ label: `${icon} ${site.state.settings.factoryName}`, col: colOffset, row: rowOffset, cols, rows: height, colour })
+          colOffset += cols + 1
+          rowHeight = Math.max(rowHeight, height)
+        })
+      }
+      const open = (id: string) => {
+        const owner = scope === 'company' ? company.sites.find((site) => site.state.machines.some((machine) => machine.id === id)) : undefined
+        const machine = (owner?.state.machines ?? state.machines).find((item) => item.id === id)
+        if (owner) companyActions.switchSite(owner.id)
+        if (machine?.unitId) openInControlRoom(machine.unitId)
+      }
+      return <section className="card map-card">
+        <div className="map-head">
+          <div className="toggle" role="radiogroup" aria-label="Map scope">
+            <button type="button" role="radio" aria-checked={scope === 'site'} className={scope === 'site' ? 'active' : ''} onClick={() => setScope('site')}>This site</button>
+            <button type="button" role="radio" aria-checked={scope === 'company'} className={scope === 'company' ? 'active' : ''} onClick={() => setScope('company')}>Whole company</button>
+          </div>
+          <div className="floor-legend"><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span></div>
+        </div>
+        <IsoFloor items={mapItems} zones={zones} spacing={scope === 'company' ? 2.4 : 1.9} withPlan={withPlan} selectedId={null} onSelect={open} live={null} />
+        <p className="muted small">{scope === 'site' ? `Every component of ${state.settings.factoryName}, labelled with its process area.` : `Every component in ${company.name}, grouped into coloured zones by site. Each site’s three biggest emitters are labelled; hover any block for its name and site.`} Height and colour show yearly CO₂e{withPlan ? ' after the plan' : ''}. Click a steel-mill block to watch it live in the simulation.</p>
+      </section>
+    })()}
 
     {(() => {
       const areas = areaSummary(state, withPlan)

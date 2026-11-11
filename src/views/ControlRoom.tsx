@@ -3,9 +3,12 @@ import { Sparkline } from '../components/Charts'
 import type { SimFrame, UnitTooltip } from '../components/SteelHall3D'
 import { num, ringgit, tonnes } from '../format'
 import { gridFactor } from '../model/factors'
-import { companyActions, useCompany, useFactory } from '../model/store'
+import { useFactory } from '../model/store'
 import { takePendingUnit } from '../model/focus'
 import { annual, cbam, defaultSteelParams, steelTargets, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
+
+/** Share of the reheat stack gas treated by the ChitoCapture pilot unit. */
+const PILOT_SHARE = 0.05
 
 const SteelHall3D = lazy(() => import('../components/SteelHall3D'))
 const EafDeepDive = lazy(() => import('../components/EafDeepDive'))
@@ -13,7 +16,7 @@ const EafDeepDive = lazy(() => import('../components/EafDeepDive'))
 const speeds = [{ label: '⏸', value: 0 }, { label: '1 min/s', value: 1 }, { label: '5 min/s', value: 5 }, { label: '30 min/s', value: 30 }]
 const electricUnits: Exclude<UnitId, 'scrap' | 'reheat'>[] = ['eaf', 'rolling', 'lf', 'fume', 'utilities', 'oxygen', 'caster']
 
-export default function ControlRoom() {
+export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void }) {
   const state = useFactory()
   const params: SteelParams = useMemo(() => ({
     ...defaultSteelParams,
@@ -21,7 +24,7 @@ export default function ControlRoom() {
     electricityRMPerMWh: state.settings.electricityPriceRMPerMWh,
     gasRMPerGJ: state.settings.fuelPriceRMPerGJ['natural-gas'],
   }), [state.settings])
-  const [upgrades, setUpgrades] = useState<Upgrades>(noUpgrades)
+  const [upgrades, setUpgrades] = useState<Upgrades>({ ...noUpgrades, captureShare: PILOT_SHARE })
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
   const [deepDive, setDeepDive] = useState(false)
@@ -99,19 +102,14 @@ export default function ControlRoom() {
   }, [])
 
   const toggle = (key: keyof Upgrades) => setUpgrades((current) => ({ ...current, [key]: !current[key] }))
-  const isSteel = state.settings.industryId === 'steel'
-  const company = useCompany()
-  const steelSite = company.sites.find((site) => site.state.settings.industryId === 'steel')
 
   return <div className="control">
-    {!isSteel && <div className="note banner">The control room models the steel mini-mill. You are looking at “{state.settings.factoryName}”.
-      {steelSite
-        ? <button type="button" className="btn small" onClick={() => companyActions.switchSite(steelSite.id)}>Switch to {steelSite.state.settings.factoryName}</button>
-        : <button type="button" className="btn small" onClick={() => companyActions.addSite('steel')}>Add a steel mini-mill site</button>}</div>}
+
 
     <header className="control-head">
       <div>
-        <h1>Steel mini-mill control room</h1>
+        <button type="button" className="link back-link" onClick={onChooseSite}>← Choose another site to simulate</button>
+        <h1>{state.settings.factoryName} · live simulation</h1>
         <p className="muted">Electric arc furnace route · {num(tonnesPerHour(params))} t/h · illustrative sample plant</p>
       </div>
       <div className="control-status">
@@ -141,6 +139,11 @@ export default function ControlRoom() {
         {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
       </div>
       <aside className="panel live-panel">
+        {upgrades.captureShare > 0 && <div className="pilot-card">
+          <div className="pilot-head"><span className="pilot-logo">◭</span><b>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'ChitoCapture pilot unit' : 'ChitoCapture capture unit'}</b><em>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'pilot' : 'scale-up'}</em></div>
+          <p>Treating {num(upgrades.captureShare * 100)}% of the reheat-stack gas · capturing <b>{num(live.capturedTPerH * 1_000)} kg CO₂/h</b> · {tonnes(now.capturedKgPerT * nowYear.steelT / 1_000)} a year</p>
+          <small>{state.measuredSorbentCapacity ? `Sorbent capacity ${num(state.measuredSorbentCapacity, 2)} mmol/g, measured on the ChitoCapture rig.` : 'Sorbent capacity is still assumed: measure it on the ChitoCapture rig (Sensors tab).'}</small>
+        </div>}
         <h2>Where the CO₂ is coming from right now</h2>
         <ul className="unit-bars">
           {[...steelUnits.filter((unit) => unit.id !== 'scrap')].map((unit) => ({ unit, co2: unitCo2(unit.id) })).sort((a, b) => b.co2 - a.co2).map(({ unit, co2 }) => <li key={unit.id}>
@@ -244,7 +247,7 @@ export default function ControlRoom() {
               <span><b>{impact.capexRM ? ringgit(impact.capexRM) : '—'}</b> capex</span>
               <span><b>{impact.paybackYears ? `${num(impact.paybackYears, 1)} yr` : impact.annualSavingRM < 0 ? 'costs more' : '—'}</b> payback</span>
             </div> : <small className="muted">{info.basis}</small>}
-            {info.key === 'captureShare' && <small className="muted">{state.measuredSorbentCapacity ? `Sorbent capacity measured on your rig: ${num(state.measuredSorbentCapacity, 2)} mmol/g.` : 'Measure your sorbent capacity on the Sensors page to firm up this estimate.'} It only treats the reheating furnace exhaust. Most mini-mill CO₂ comes from grid electricity.</small>}
+            {info.key === 'captureShare' && <small className="muted">{state.measuredSorbentCapacity ? `Sorbent capacity measured on the ChitoCapture rig: ${num(state.measuredSorbentCapacity, 2)} mmol/g.` : 'Measure the sorbent capacity on the ChitoCapture rig (Sensors tab) to firm up this estimate.'} It only treats the reheating furnace exhaust. Most mini-mill CO₂ comes from grid electricity.</small>}
           </article>
         })}
       </div>

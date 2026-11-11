@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
-import IsoFloor from '../components/IsoFloor'
 import type { HoverInfo, Look } from '../components/Plant3D'
 
 const Plant3D = lazy(() => import('../components/Plant3D'))
@@ -53,7 +52,7 @@ function MachinePanel({ machineId, onClose }: { machineId: string; onClose: () =
       <button type="button" className="icon-btn" onClick={onClose} aria-label="Close machine panel">✕</button>
     </header>
     {machine.role && <p className="machine-role"><b>What it does:</b> {machine.role}</p>}
-    {machine.unitId && <button type="button" className="btn small live-link" onClick={() => openInControlRoom(machine.unitId!)}>▶ Watch it live in the control room</button>}
+    {machine.unitId && <button type="button" className="btn small live-link" onClick={() => openInControlRoom(machine.unitId!)}>▶ Watch it live in the simulation</button>}
     <div className="big-number">{tonnes(emissions.totalT)}<small> CO₂e per year</small></div>
     {parts.length > 0 && <div className="stackbar" role="img" aria-label="Emissions by source">{parts.map((part) => <span key={part.label} className={part.className} style={{ flexGrow: part.value }} title={`${part.label}: ${tonnes(part.value)}`} />)}</div>}
     <div className="legend">{parts.map((part) => <span key={part.label}><i className={part.className} />{part.label} {tonnes(part.value)}</span>)}</div>
@@ -98,7 +97,7 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
   const sensor = useSensor()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [withPlan, setWithPlan] = useState(false)
-  const [mode, setMode] = useState<Look | 'map'>('real')
+  const [mode, setMode] = useState<Look>('real')
   const [introHidden, setIntroHidden] = useState(() => { try { return localStorage.getItem('chitocapture.v3.introHidden') === '1' } catch { return false } })
   const summary = summarise(state)
   const items = summary.byMachine.map((row) => ({ machine: row.machine, baselineT: row.baselineT, afterT: row.afterT }))
@@ -134,7 +133,7 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
         <div className={`kpi ${summary.gapT > 0 ? 'warn' : 'good'}`}><span>{summary.gapT > 0 ? 'Gap to target' : 'Target met'}</span><strong>{summary.gapT > 0 ? tonnes(summary.gapT) : '✓'}</strong><small>{summary.gapT > 0 ? 'Ask the copilot how to close it' : 'on paper: now verify it'}</small></div>
       </div>
       {!introHidden && <div className="intro-card">
-        <div><b>What am I looking at?</b> Each building is one piece of equipment in {state.settings.factoryName}{state.machines.some((item) => item.area) ? `, grouped by process area (${[...new Set(state.machines.map((item) => item.area).filter(Boolean))].join(' → ')})` : ''}. Its colour and smoke show how much CO₂ it releases each year. Hover to see what it does; click for its energy use against target and ways to cut it{state.machines.some((item) => item.unitId) ? ', or to watch it live in the control room' : ''}.</div>
+        <div><b>What am I looking at?</b> Each building is one piece of equipment in {state.settings.factoryName}{state.machines.some((item) => item.area) ? `, grouped by process area (${[...new Set(state.machines.map((item) => item.area).filter(Boolean))].join(' → ')})` : ''}. Its colour and smoke show how much CO₂ it releases each year. Hover to see what it does; click for its energy use against target and ways to cut it{state.machines.some((item) => item.unitId) ? ', or to watch it live in the simulation' : ''}.</div>
         <button type="button" className="icon-btn" aria-label="Hide this explanation" onClick={() => { setIntroHidden(true); try { localStorage.setItem('chitocapture.v3.introHidden', '1') } catch { /* ignore */ } }}>✕</button>
       </div>}
       <div className="floor-card">
@@ -144,15 +143,13 @@ export default function Twin({ onShowPlan }: { onShowPlan: () => void }) {
             <button type="button" role="radio" aria-checked={withPlan} className={withPlan ? 'active' : ''} onClick={() => setWithPlan(true)} disabled={state.plan.length === 0} title={state.plan.length === 0 ? 'Add actions to your plan first' : ''}>With plan</button>
           </div>
           <div className="toggle look-toggle" role="radiogroup" aria-label="Model style">
-            {([['real', '🏭 Real'], ['twin', '◈ Model'], ['map', '▦ 2D map']] as const).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={mode === id} className={mode === id ? 'active' : ''} onClick={() => setMode(id)}>{label}</button>)}
+            {([['real', '🏭 Real'], ['twin', '◈ Model']] as const).map(([id, label]) => <button key={id} type="button" role="radio" aria-checked={mode === id} className={mode === id ? 'active' : ''} onClick={() => setMode(id)}>{label}</button>)}
           </div>
           <div className="floor-legend">{mode === 'twin' ? <><span><i className="lg-blue" />Lower CO₂</span><span><i className="lg-high" />Highest CO₂</span></> : <><span><i className="lg-low" />Low</span><span><i className="lg-mid" />Medium</span><span><i className="lg-high" />High share of CO₂</span></>}{sensor.status !== 'off' && <span className={`live-pill ${sensor.status}`}><i />{sensor.status === 'live' ? 'Live sensor' : sensor.status === 'simulated' ? 'Simulated sensor' : sensor.status}</span>}</div>
         </div>
-        {mode === 'map'
-          ? <IsoFloor items={items} withPlan={withPlan} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} />
-          : <Suspense fallback={<div className="plant3d loading">Loading 3D plant…</div>}>
-              <Plant3D items={items} withPlan={withPlan} look={mode} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} describe={describe} />
-            </Suspense>}
+        <Suspense fallback={<div className="plant3d loading">Loading 3D plant…</div>}>
+          <Plant3D items={items} withPlan={withPlan} look={mode} selectedId={selectedId} onSelect={setSelectedId} live={sensor.latest} describe={describe} />
+        </Suspense>
         <p className="floor-note">Height and colour show each machine’s yearly CO₂e. Figures are {state.machines.some((machine) => machine.quality === 'estimated') ? 'partly estimated' : 'from meters'}; factors are editable in Settings.</p>
       </div>
     </div>

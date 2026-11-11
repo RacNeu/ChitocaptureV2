@@ -56,8 +56,8 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
       <p className="muted">Restart this site’s setup with different machines, remove this site from the company, or reset the whole company to the sample.</p>
       <div className="row-actions">
         <button type="button" className="btn ghost" onClick={() => { if (confirm('Restart this site’s setup? Its machines and plan will be cleared.')) { actions.restart(); onRestart() } }}>Restart this site’s setup</button>
-        {company.sites.length > 1 && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Remove “${state.settings.factoryName}” from ${company.name}?`)) { companyActions.removeSite(company.activeId); onRemoved() } }}>Remove this site</button>}
-        <button type="button" className="btn ghost" onClick={() => { if (confirm('Reset the whole company to the sample (steel mill, head office & R&D lab, cement plant)? All your edits will be lost.')) { companyActions.resetToSample(); onRemoved() } }}>Reset company to sample</button>
+        {company.sites.length > 1 && !company.sites.find((site) => site.id === company.activeId)?.fixed && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Remove “${state.settings.factoryName}” from ${company.name}?`)) { companyActions.removeSite(company.activeId); onRemoved() } }}>Remove this site</button>}
+        <button type="button" className="btn ghost" onClick={() => { if (confirm('Reset both demo companies to the samples (the steel group and the cement producer)? All your edits will be lost.')) { companyActions.resetToSample(); onRemoved() } }}>Reset demo companies</button>
       </div>
     </section>
   </div>

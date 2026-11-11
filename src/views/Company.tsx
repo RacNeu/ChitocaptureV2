@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { kindIcon, num, tonnes } from '../format'
 import { summarise } from '../model/calc'
-import { companyActions, useCompany } from '../model/store'
+import { companyActions, useCompany, useWorkspace } from '../model/store'
 import { industryTemplates, templateById } from '../model/templates'
 
 type Props = { onOpen: (view: 'twin' | 'control' | 'analysis') => void; onAddSite: () => void }
@@ -10,6 +10,7 @@ const siteColours = ['#059669', '#0ea5e9', '#f59e0b', '#7c3aed', '#e11d48', '#14
 
 export default function Company({ onOpen, onAddSite }: Props) {
   const company = useCompany()
+  const workspace = useWorkspace()
   const [adding, setAdding] = useState(false)
   const rows = company.sites.map((site, index) => {
     const summary = summarise(site.state)
@@ -25,9 +26,12 @@ export default function Company({ onOpen, onAddSite }: Props) {
   return <div className="company">
     <header className="plan-head">
       <div>
-        <span className="eyebrow">Company overview</span>
+        <div className="demo-switch" role="tablist" aria-label="Demo company">
+          <span className="eyebrow">Demo customer</span>
+          {workspace.companies.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === company.id} className={item.id === company.id ? 'active' : ''} onClick={() => companyActions.switchCompany(item.id)}>{templateById(item.sites[0]?.state.settings.industryId ?? '')?.icon} {item.name}</button>)}
+        </div>
         <h1 className="company-name">{company.name}</h1>
-        <p className="muted">{company.sites.length} sites · every figure is the sum of the sites below · sample data, illustrative only</p>
+        <p className="muted">{company.sites.length} site{company.sites.length === 1 ? '' : 's'} · every figure is the sum of the sites below · sample data, illustrative only</p>
       </div>
       <button type="button" className="btn" onClick={() => setAdding(!adding)}>+ Add site</button>
     </header>
@@ -41,7 +45,7 @@ export default function Company({ onOpen, onAddSite }: Props) {
     </section>}
 
     <div className="kpis">
-      <div className="kpi"><span>Company emissions</span><strong>{tonnes(total)}</strong><small>CO₂e per year across {company.sites.length} sites</small></div>
+      <div className="kpi"><span>Company emissions</span><strong>{tonnes(total)}</strong><small>CO₂e per year across {company.sites.length} site{company.sites.length === 1 ? '' : 's'}</small></div>
       <div className="kpi accent"><span>With site plans</span><strong>{tonnes(afterPlan)}</strong><small>−{num(total > 0 ? (1 - afterPlan / total) * 100 : 0, 1)}% from planned actions</small></div>
       <div className="kpi"><span>Combined target</span><strong>{tonnes(target)}</strong><small>sum of each site’s target</small></div>
       <div className="kpi warn"><span>Biggest site</span><strong>{biggest?.site.state.settings.factoryName ?? '—'}</strong><small>{biggest ? `${num(biggest.summary.baselineT / Math.max(1, total) * 100, 1)}% of company emissions` : ''}</small></div>
@@ -62,8 +66,10 @@ export default function Company({ onOpen, onAddSite }: Props) {
         return <article key={row.site.id} className={`site-card${active ? ' active' : ''}`} style={{ borderTopColor: row.colour }}>
           <header>
             <span className="site-icon">{row.template?.icon ?? '🏭'}</span>
-            <div><h3>{row.site.state.settings.factoryName}</h3><small>{row.template?.label ?? 'Custom site'}{!row.site.state.onboarded ? ' · setup not finished' : ''}</small></div>
+            <div><h3>{row.site.state.settings.factoryName}</h3><small>{row.template?.label ?? 'Custom site'}{!row.site.state.onboarded ? ' · setup not finished' : ''}{row.site.fixed ? ' · sample site' : ' · added by you'}</small></div>
             {active && <span className="active-chip">Open now</span>}
+            {!row.site.fixed && <button type="button" className="icon-btn delete-site" title="Delete this site" aria-label={`Delete ${row.site.state.settings.factoryName}`}
+              onClick={() => { if (confirm(`Delete “${row.site.state.settings.factoryName}” and everything entered for it? This cannot be undone.`)) companyActions.removeSite(row.site.id) }}>🗑</button>}
           </header>
           <div className="site-number"><strong>{tonnes(row.summary.baselineT)}</strong><small>CO₂e per year</small></div>
           <dl className="site-facts">
@@ -73,13 +79,13 @@ export default function Company({ onOpen, onAddSite }: Props) {
             <div><dt>Planned actions</dt><dd>{row.site.state.plan.length ? `${row.site.state.plan.length} · −${tonnes(row.summary.plannedReductionT)}/yr` : 'none yet'}</dd></div>
           </dl>
           <div className="site-actions">
-            {isSteel && <button type="button" className="btn small" onClick={() => open(row.site.id, 'control')}>🔥 Control room</button>}
+            {isSteel && <button type="button" className="btn small" onClick={() => open(row.site.id, 'control')}>🔥 Simulate</button>}
             <button type="button" className={`btn small${isSteel ? ' ghost' : ''}`} onClick={() => open(row.site.id, 'twin')}>◭ Site 3D</button>
             <button type="button" className="btn small ghost" onClick={() => open(row.site.id, 'analysis')}>📊 Analysis</button>
           </div>
         </article>
       })}
-      <button type="button" className="site-card add" onClick={() => setAdding(true)}><span>+</span>Add another site<small>cement, palm oil, food, electronics, textile or an office</small></button>
+      <button type="button" className="site-card add" onClick={() => setAdding(true)}><span>+</span>Add another site<small>another plant, warehouse or office</small></button>
     </div>
 
     <p className="muted small">Sites report separately and add up to the company total, the way corporate carbon inventories are organised. Electricity, fuel and process emissions are counted per site with that site’s own factors.</p>

@@ -43,25 +43,36 @@ export function freshState(industryId = 'steel'): FactoryState {
   return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId, ...productionFor(industryId) }, machines: machinesFromTemplate(industryId), plan: [], measuredSorbentCapacity: null }
 }
 
-/* ---------------- Company with several sites ---------------- */
+/* ---------------- Demo companies, each with several sites ---------------- */
 
-export type Site = { id: string; state: FactoryState }
-export type Company = { version: 1; name: string; sites: Site[]; activeId: string }
+/** fixed = part of the sample company and cannot be deleted; sites the user adds can be. */
+export type Site = { id: string; state: FactoryState; fixed?: boolean }
+export type Company = { id: string; name: string; sites: Site[]; activeId: string }
+export type Workspace = { version: 2; companies: Company[]; activeCompanyId: string }
 
-const COMPANY_KEY = 'chitocapture.v3.company'
+const WORKSPACE_KEY = 'chitocapture.v3.workspace'
 
 function siteFromTemplate(industryId: string, name: string): Site {
-  return { id: newId('site'), state: { ...freshState(industryId), onboarded: true, settings: { ...freshState(industryId).settings, factoryName: name } } }
+  const fresh = freshState(industryId)
+  return { id: newId('site'), fixed: true, state: { ...fresh, onboarded: true, settings: { ...fresh.settings, factoryName: name } } }
 }
 
-/** The sample company: a steel mill (flagship), its head office & R&D lab, and a separate cement plant. */
-export function defaultCompany(): Company {
-  const sites = [
+function makeCompany(name: string, sites: Site[]): Company {
+  return { id: newId('co'), name, sites, activeId: sites[0].id }
+}
+
+/**
+ * Two sample customers. The steel group is the flagship: mill, downstream wire plant and head office.
+ * A separate cement producer shows the platform works for other industries.
+ */
+export function defaultWorkspace(): Workspace {
+  const steel = makeCompany('Malaysia Steel Demo Sdn Bhd', [
     siteFromTemplate('steel', 'Steel mini-mill'),
-    siteFromTemplate('office', 'Head office & R&D lab'),
-    siteFromTemplate('cement', 'Cement plant'),
-  ]
-  return { version: 1, name: 'Malaysia Steel Demo Sdn Bhd', sites, activeId: sites[0].id }
+    siteFromTemplate('steel-downstream', 'Wire & galvanising plant'),
+    siteFromTemplate('office', 'Head office'),
+  ])
+  const cement = makeCompany('Malaysia Cement Demo Sdn Bhd', [siteFromTemplate('cement', 'Cement plant')])
+  return { version: 2, companies: [steel, cement], activeCompanyId: steel.id }
 }
 
 function normalise(parsed: FactoryState): FactoryState {
@@ -70,74 +81,87 @@ function normalise(parsed: FactoryState): FactoryState {
   return { ...parsed, machines: enrich(parsed.machines, industryId), settings: { ...defaultSettings, ...production, ...parsed.settings, fuelPriceRMPerGJ: { ...defaultSettings.fuelPriceRMPerGJ, ...parsed.settings?.fuelPriceRMPerGJ } }, plan: parsed.plan ?? [] }
 }
 
-function loadCompany(): Company {
+function loadWorkspace(): Workspace {
   try {
-    const raw = localStorage.getItem(COMPANY_KEY)
+    const raw = localStorage.getItem(WORKSPACE_KEY)
     if (raw) {
-      const parsed = JSON.parse(raw) as Company
-      if (parsed.version === 1 && Array.isArray(parsed.sites) && parsed.sites.length) {
-        const sites = parsed.sites.filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines)).map((site) => ({ ...site, state: normalise(site.state) }))
-        if (sites.length) return { ...parsed, sites, activeId: sites.some((site) => site.id === parsed.activeId) ? parsed.activeId : sites[0].id }
+      const parsed = JSON.parse(raw) as Workspace
+      if (parsed.version === 2 && Array.isArray(parsed.companies)) {
+        const companies = parsed.companies.map((item) => {
+          // Older saves have no `fixed` flag: treat the sample sites (by industry) as fixed.
+          const sampleIndustries = ['steel', 'steel-downstream', 'office', 'cement']
+          const legacy = (item.sites ?? []).every((site) => site.fixed === undefined)
+          const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines))
+            .map((site, index) => ({ ...site, fixed: legacy ? index < 3 && sampleIndustries.includes(site.state.settings?.industryId) : site.fixed, state: normalise(site.state) }))
+          return { ...item, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
+        }).filter((item) => item.sites.length > 0)
+        if (companies.length) return { version: 2, companies, activeCompanyId: companies.some((item) => item.id === parsed.activeCompanyId) ? parsed.activeCompanyId : companies[0].id }
       }
     }
-  } catch { /* Corrupt or unavailable storage: start with the sample company. */ }
-  // Carry over a sorbent capacity measured in the earlier single-factory version.
-  const company = defaultCompany()
-  try {
-    const old = localStorage.getItem('chitocapture.v3.factory')
-    const capacity = old ? (JSON.parse(old) as FactoryState).measuredSorbentCapacity : null
-    if (capacity) company.sites.forEach((site) => { site.state.measuredSorbentCapacity = capacity })
-  } catch { /* ignore */ }
-  return company
+  } catch { /* Corrupt or unavailable storage: start with the samples. */ }
+  return defaultWorkspace()
 }
 
-let company: Company = typeof localStorage === 'undefined' ? defaultCompany() : loadCompany()
-const activeSite = () => company.sites.find((site) => site.id === company.activeId) ?? company.sites[0]
+let workspace: Workspace = typeof localStorage === 'undefined' ? defaultWorkspace() : loadWorkspace()
+const activeCompany = () => workspace.companies.find((item) => item.id === workspace.activeCompanyId) ?? workspace.companies[0]
+const activeSite = () => { const company = activeCompany(); return company.sites.find((site) => site.id === company.activeId) ?? company.sites[0] }
+let company: Company = activeCompany()
 let state: FactoryState = activeSite().state
 const listeners = new Set<() => void>()
 
 function save() {
-  try { localStorage.setItem(COMPANY_KEY, JSON.stringify(company)) } catch { /* Private mode: keep in memory only. */ }
+  company = activeCompany()
+  state = activeSite().state
+  try { localStorage.setItem(WORKSPACE_KEY, JSON.stringify(workspace)) } catch { /* Private mode: keep in memory only. */ }
   listeners.forEach((listener) => listener())
+}
+
+function updateCompany(fn: (current: Company) => Company) {
+  workspace = { ...workspace, companies: workspace.companies.map((item) => item.id === workspace.activeCompanyId ? fn(item) : item) }
+  save()
 }
 
 /** Replace the active site's state. All per-site actions go through here. */
 function commit(next: FactoryState) {
-  state = next
-  company = { ...company, sites: company.sites.map((site) => site.id === company.activeId ? { ...site, state: next } : site) }
-  save()
+  updateCompany((current) => ({ ...current, sites: current.sites.map((site) => site.id === current.activeId ? { ...site, state: next } : site) }))
 }
 
 export const getState = () => state
 export const getCompany = () => company
+export const getWorkspace = () => workspace
 export const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
 export const useFactory = () => useSyncExternalStore(subscribe, getState, getState)
 export const useCompany = () => useSyncExternalStore(subscribe, getCompany, getCompany)
+export const useWorkspace = () => useSyncExternalStore(subscribe, getWorkspace, getWorkspace)
 
 export const companyActions = {
-  switchSite: (id: string) => {
-    if (!company.sites.some((site) => site.id === id)) return
-    company = { ...company, activeId: id }
-    state = activeSite().state
+  switchCompany: (id: string) => {
+    if (!workspace.companies.some((item) => item.id === id)) return
+    workspace = { ...workspace, activeCompanyId: id }
     save()
   },
-  /** Add a site that still needs setting up; it becomes the active site. */
-  addSite: (industryId: string) => {
-    const site: Site = { id: newId('site'), state: freshState(industryId) }
-    company = { ...company, sites: [...company.sites, site], activeId: site.id }
-    state = site.state
+  /** Switch to a site in any company. */
+  switchSite: (id: string) => {
+    const owner = workspace.companies.find((item) => item.sites.some((site) => site.id === id))
+    if (!owner) return
+    workspace = { ...workspace, activeCompanyId: owner.id, companies: workspace.companies.map((item) => item.id === owner.id ? { ...item, activeId: id } : item) }
     save()
+  },
+  /** Add a site that still needs setting up to the active company; it becomes the active site. */
+  addSite: (industryId: string) => {
+    const site: Site = { id: newId('site'), fixed: false, state: freshState(industryId) }
+    updateCompany((current) => ({ ...current, sites: [...current.sites, site], activeId: site.id }))
     return site.id
   },
   removeSite: (id: string) => {
-    if (company.sites.length <= 1) return
-    const sites = company.sites.filter((site) => site.id !== id)
-    company = { ...company, sites, activeId: company.activeId === id ? sites[0].id : company.activeId }
-    state = activeSite().state
-    save()
+    updateCompany((current) => {
+      if (current.sites.length <= 1 || current.sites.find((site) => site.id === id)?.fixed) return current
+      const sites = current.sites.filter((site) => site.id !== id)
+      return { ...current, sites, activeId: current.activeId === id ? sites[0].id : current.activeId }
+    })
   },
-  rename: (name: string) => { company = { ...company, name }; save() },
-  resetToSample: () => { company = defaultCompany(); state = activeSite().state; save() },
+  rename: (name: string) => updateCompany((current) => ({ ...current, name })),
+  resetToSample: () => { workspace = defaultWorkspace(); save() },
 }
 
 export const actions = {
@@ -158,10 +182,9 @@ export const actions = {
     ...state,
     machines: state.machines.map((item) => item.id === machineId ? { ...item, sensorChannel: channel } : item.sensorChannel === channel ? { ...item, sensorChannel: undefined } : item),
   }),
-  /** The sorbent capacity is a property of the material, so it applies to every site. */
+  /** The sorbent capacity is a property of ChitoCapture's material, so it applies to every site. */
   setMeasuredSorbentCapacity: (value: number | null) => {
-    state = { ...state, measuredSorbentCapacity: value }
-    company = { ...company, sites: company.sites.map((site) => ({ ...site, state: { ...site.state, measuredSorbentCapacity: value } })) }
+    workspace = { ...workspace, companies: workspace.companies.map((item) => ({ ...item, sites: item.sites.map((site) => ({ ...site, state: { ...site.state, measuredSorbentCapacity: value } })) })) }
     save()
   },
 }

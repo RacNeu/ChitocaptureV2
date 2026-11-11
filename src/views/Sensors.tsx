@@ -67,7 +67,7 @@ export default function Sensors() {
     </div>
 
     <section className="card rig">
-      <header><div><h2>🧪 Chitosan capture lab</h2><p className="muted">Measure your real sorbent capacity on a benchtop column with CO₂ sensors before and after it. The result replaces the assumed capacity in every capture estimate in the app.</p></div></header>
+      <header><div><h2>🧪 ChitoCapture pilot rig</h2><p className="muted">ChitoCapture’s own benchtop column, used to measure the chitosan sorbent before and during the pilot at the steel mill. CO₂ sensors before and after the column give the capture curve; the measured capacity then replaces the assumed value in every capture estimate in the app.</p></div></header>
       <div className="rig-grid">
         <div className="rig-controls">
           <label className="field">Gas flow (standard L/min)<input type="number" min="0" step="0.05" value={flow} onChange={(event) => setFlow(Number(event.target.value))} /></label>
