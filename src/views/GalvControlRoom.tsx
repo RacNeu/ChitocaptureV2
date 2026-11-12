@@ -8,6 +8,7 @@ import { useFactory } from '../model/store'
 import { cbamPhaseIn } from '../model/steel'
 import { galvFromSite } from '../model/siteLink'
 import DataLinkNote from '../components/DataLinkNote'
+import FullscreenButton from '../components/FullscreenButton'
 import { SIM_EVENT, type SimCommand } from '../model/simEvents'
 import {
   dieSchedule, drawMachineTph, galvAnnual, galvCbamDirectKgPerT, galvIntensity, galvLive, galvTonnesPerHour, galvUnitCo2,
@@ -48,6 +49,7 @@ export default function GalvControlRoom({ onChooseSite }: { onChooseSite: () => 
   const [carbonPrice, setCarbonPrice] = useState(35)
   const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 30_000, euPriceEUR: 75, rmPerEUR: 5, year: 2030 })
 
+  const hallCardRef = useRef<HTMLDivElement>(null)
   const frame = useRef<GalvFrame>({ minutes: 0, live: galvLive(params, upgrades, 0), upgrades, params })
   const totals = useRef({ wireT: 0, co2T: 0, zincKg: 0, history: [] as { mw: number; co2: number }[] })
   const [, setTick] = useState(0)
@@ -192,13 +194,14 @@ export default function GalvControlRoom({ onChooseSite }: { onChooseSite: () => 
     </div>
 
     <div className="control-main">
-      <div className="hall-card">
+      <div className="hall-card" ref={hallCardRef}>
         <Suspense fallback={<div className="plant3d loading">Loading…</div>}>
           {inside
             ? <KettleDeepDive frame={frame} onClose={() => setInside(false)} />
             : <GalvHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} onDive={() => { setSelected('kettle'); setInside(true) }} heatmap={heatmap} co2Of={unitCo2} labels={labels} describe={describe} />}
         </Suspense>
         {showFlows && !inside && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span><span><i className="fl-smoke" />CO₂ to air</span></div>}
+        <FullscreenButton target={hallCardRef} />
       </div>
       <aside className="panel live-panel">
         {!selected && <p className="pick-hint">Click a unit in the plant to see its details: the drawing machines show their die schedule, the zinc kettles their bath temperatures. Double-click the zinc kettles to go inside.</p>}

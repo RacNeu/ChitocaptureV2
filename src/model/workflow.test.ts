@@ -45,3 +45,16 @@ describe('plan workflow and history', () => {
     expect(store.getState().history!.filter((entry) => entry.text.includes('electricityMWh'))).toHaveLength(1)
   })
 })
+
+describe('clearing the plan', () => {
+  it('removes every action and logs it', async () => {
+    vi.resetModules()
+    const store = await import('./store')
+    const { autoPlan } = await import('./copilot')
+    store.actions.setPlan(autoPlan(store.getState()))
+    expect(store.getState().plan.length).toBeGreaterThan(0)
+    store.actions.clearPlan()
+    expect(store.getState().plan).toHaveLength(0)
+    expect(store.getState().history?.at(-1)?.text).toMatch(/Cleared the plan/)
+  })
+})

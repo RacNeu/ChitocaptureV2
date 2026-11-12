@@ -9,6 +9,7 @@ import { useFactory } from '../model/store'
 import { takePendingUnit } from '../model/focus'
 import { steelFromSite } from '../model/siteLink'
 import DataLinkNote from '../components/DataLinkNote'
+import FullscreenButton from '../components/FullscreenButton'
 import { annual, cbam, steelTargets, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
 
 /** Share of the reheat stack gas treated by the ChitoCapture pilot unit. */
@@ -52,6 +53,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
   const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 100_000, euPriceEUR: 75, rmPerEUR: 5, year: 2030 })
 
   // Simulation clock: advanced every animation frame, published to React four times a second.
+  const hallCardRef = useRef<HTMLDivElement>(null)
   const frame = useRef<SimFrame>({ minutes: 0, live: liveState(params, upgrades, 0), upgrades, params })
   const totals = useRef({ steelT: 0, co2T: 0, history: [] as { mw: number; co2: number }[] })
   const [, setTick] = useState(0)
@@ -166,7 +168,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     </div>
 
     <div className="control-main">
-      <div className="hall-card">
+      <div className="hall-card" ref={hallCardRef}>
         <Suspense fallback={<div className="plant3d loading">Loading…</div>}>
           {deepDive === 'eaf'
             ? <EafDeepDive frame={frame} onClose={() => setDeepDive(null)} />
@@ -175,6 +177,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
             : <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} onDive={setDeepDive} heatmap={heatmap} co2Of={unitCo2} labels={upgrades.captureShare > 0 ? [...labels, { id: 'capture' as const, text: '🧪 ChitoCapture unit', hot: false }] : labels} describe={describe} />}
         </Suspense>
         {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
+        <FullscreenButton target={hallCardRef} />
       </div>
       <aside className="panel live-panel">
         {!selected && !deepDive && <p className="pick-hint">Click a unit in the mill to see its details. Double-click the arc furnace or the green ChitoCapture unit to go inside.</p>}

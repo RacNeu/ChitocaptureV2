@@ -19,6 +19,11 @@ export type HallHandles = {
   ladle: THREE.Group
   ladleGlow: THREE.MeshStandardMaterial
   crane: THREE.Group
+  magnetCrane: THREE.Group
+  magnet: THREE.Group
+  slagCarrier: THREE.Group
+  slagPath: THREE.CatmullRomCurve3
+  preheatFlames: THREE.MeshStandardMaterial[]
   billets: THREE.Mesh[]
   bar: THREE.Mesh
   reheatGlow: THREE.MeshStandardMaterial
@@ -27,7 +32,7 @@ export type HallHandles = {
   /** Where the ChitoCapture unit's label floats. */
   captureAnchor: THREE.Vector3
   flows: { mesh: THREE.Mesh; texture: THREE.Texture; kind: 'power' | 'gas' | 'capture'; unit: UnitId }[]
-  stacks: { origin: THREE.Vector3; unit: 'fume' | 'reheat' }[]
+  stacks: { origin: THREE.Vector3; unit: 'fume' | 'reheat' | 'steam' }[]
   size: number
 }
 
@@ -221,6 +226,90 @@ export function buildSteelHall(): HallHandles {
   put(oxygen, new THREE.CylinderGeometry(1.2, 1.2, 16, 16), white, -81, 8, 27)
   put(oxygen, box(6, 4, 5), m(0x2f6fb0), -84, 2, 21)
 
+  /* ---- More of a real melt shop: detail around the arc furnace ---- */
+  // Water-cooled panel rings on the shell, a domed roof and a railing round the furnace platform.
+  for (const y of [5.5, 7.5, 9.5]) put(eaf, new THREE.TorusGeometry(6.55, 0.18, 8, 40), m(0x1f4fa8, { metalness: 0.5 }), -55, y, 0, false).rotation.x = Math.PI / 2
+  const roof = put(eaf, new THREE.SphereGeometry(6.8, 32, 12, 0, Math.PI * 2, 0, Math.PI / 5), m(0x3b424b, { metalness: 0.5, side: THREE.DoubleSide }), -55, 9.4, 0)
+  roof.castShadow = false
+  for (let k = 0; k < 16; k += 1) {
+    const angle = k / 16 * Math.PI * 2
+    put(eaf, box(0.18, 1.6, 0.18), yellow, -55 + Math.cos(angle) * 8.6, 4.8, Math.sin(angle) * 8.6, false)
+  }
+  put(eaf, new THREE.TorusGeometry(8.6, 0.09, 6, 48), yellow, -55, 5.6, 0, false).rotation.x = Math.PI / 2
+  // Transformer house behind the furnace, with water-cooled cables to the electrode arms.
+  put(eaf, box(10, 9, 8), m(0x8f9aa3, { map: textures.corrugated() }), -66, 4.5, -10)
+  for (let k = 0; k < 3; k += 1) put(eaf, new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(-62, 8 + k * 0.6, -6.5), new THREE.Vector3(-58, 14, -4), new THREE.Vector3(-49, 21, -1 + k)]), 24, 0.22, 8), m(0x111827), 0, 0, 0, false)
+  // Scrap charging buckets waiting beside the furnace.
+  for (const [x, z] of [[-70, 10], [-76, 4]] as const) {
+    put(scrap, new THREE.CylinderGeometry(2.6, 2.2, 4, 18, 1, true), m(0x4b5563, { metalness: 0.5, side: THREE.DoubleSide }), x, 2, z)
+    put(scrap, new THREE.IcosahedronGeometry(2.2, 0), m(0x6b4a32, { flatShading: true, roughness: 1 }), x, 3.4, z).scale.y = 0.45
+  }
+
+  /* ---- Ladles: spare ladles on stands and gas preheaters ---- */
+  const preheatFlames: THREE.MeshStandardMaterial[] = []
+  for (let k = 0; k < 3; k += 1) {
+    const x = -36 + k * 7
+    put(lf, box(5, 2, 5), darkSteel, x, 1, -24)
+    const spare = put(lf, new THREE.CylinderGeometry(2.4, 1.9, 4, 20), m(0x3b2f2a, { metalness: 0.4 }), x, 4, -24)
+    spare.rotation.z = k === 0 ? Math.PI / 2 : 0
+    if (k > 0) {
+      put(lf, box(5.4, 0.6, 5.4), m(0x52525b), x, 8, -24) // preheater hood
+      const flame = m(0xff6a1a, { emissive: new THREE.Color(0xff4a00), emissiveIntensity: 1.6, transparent: true, opacity: 0.9 })
+      put(lf, new THREE.ConeGeometry(0.9, 2.4, 12), flame, x, 6.6, -24, false).rotation.x = Math.PI
+      preheatFlames.push(flame)
+    }
+  }
+
+  /* ---- Billet store with a magnet crane ---- */
+  const billetStock = m(0x4b4f54, { metalness: 0.5, roughness: 0.6 })
+  for (let pile = 0; pile < 4; pile += 1) for (let layer = 0; layer < 4; layer += 1) for (let k = 0; k < 6; k += 1) {
+    const b = put(root, box(9, 0.8, 0.8), billetStock, -10 + pile * 11, 0.45 + layer * 0.85, 20 + k * 0.9 - (layer % 2) * 0.2, false)
+    b.castShadow = layer === 3
+  }
+  const magnetCrane = new THREE.Group()
+  put(magnetCrane, box(2, 1.6, 22), m(0xf2c230), 0, 19.5, 22)
+  put(magnetCrane, box(3, 1.6, 3), darkSteel, 0, 18.4, 23)
+  const magnet = new THREE.Group()
+  put(magnet, new THREE.CylinderGeometry(0.06, 0.06, 1, 6), darkSteel, 0, 0, 0)
+  put(magnet, new THREE.CylinderGeometry(1.4, 1.4, 0.6, 20), m(0x1f2937, { metalness: 0.6 }), 0, -0.8, 0)
+  magnet.position.set(0, 12, 23)
+  magnetCrane.add(magnet)
+  root.add(magnetCrane)
+  for (const z of [11.5, 33]) put(root, box(120, 0.6, 0.6), darkSteel, 10, 19, z, false)
+
+  /* ---- Rolling mill drive motors and finished rebar bundles ---- */
+  for (let k = 0; k < 7; k += 1) {
+    const x = 58 + k * 4.4
+    const motor = put(rolling, new THREE.CylinderGeometry(1.3, 1.3, 3, 18), m(0x2f6fb0, { metalness: 0.4 }), x, 1.6, -2)
+    motor.rotation.x = Math.PI / 2
+    const shaft = put(rolling, new THREE.CylinderGeometry(0.25, 0.25, 4, 8), grey, x, 2.2, 2)
+    shaft.rotation.x = Math.PI / 2
+  }
+  const rebar = m(0x7c5a45, { metalness: 0.5, roughness: 0.55 })
+  for (let k = 0; k < 10; k += 1) {
+    // Bundles lie flat, side by side, along the front aisle.
+    const bundle = put(root, new THREE.CylinderGeometry(0.55, 0.55, 12, 10), rebar, 74 + (k % 5) * 1.2 + Math.floor(k / 5) * 0.6, 0.6 + Math.floor(k / 5) * 1.0, 22)
+    bundle.rotation.x = Math.PI / 2
+    for (const dz of [-3.5, 0, 3.5]) put(bundle, new THREE.TorusGeometry(0.58, 0.06, 6, 16), m(0x1d4ed8), 0, dz, 0, false).rotation.x = Math.PI / 2
+  }
+
+  /* ---- Building services: pipe racks along the back wall ---- */
+  const pipes: [number, number][] = [[0x2563eb, 13], [0x0ea5e9, 14.1], [0xf28c28, 15.2], [0x9ca3af, 16.3]]
+  for (const [colour, y] of pipes) { const pipe = put(root, new THREE.CylinderGeometry(0.35, 0.35, 190, 12), m(colour, { metalness: 0.4, roughness: 0.4 }), 0, y, -32, false); pipe.rotation.z = Math.PI / 2 }
+  for (let x = -92; x <= 92; x += 16) put(root, box(0.3, 4.6, 1.6), darkSteel, x, 14.6, -32.2, false)
+
+  /* ---- Slag pot carrier: drives slag from under the furnace to the slag yard ---- */
+  const slagCarrier = new THREE.Group()
+  put(slagCarrier, box(5, 1.4, 3), m(0xf2c230), 0, 1.1, 0)
+  put(slagCarrier, box(1.6, 2, 2.6), m(0x111827, { transparent: true, opacity: 0.7 }), 2.4, 2.4, 0)
+  put(slagCarrier, new THREE.CylinderGeometry(1.4, 1, 2, 16), m(0x3b2f2a, { metalness: 0.4 }), -0.8, 2.8, 0)
+  const slagGlow = m(0xff7a1a, { emissive: new THREE.Color(0xff5a00), emissiveIntensity: 1.4 })
+  put(slagCarrier, new THREE.CylinderGeometry(1.25, 1.25, 0.1, 16), slagGlow, -0.8, 3.8, 0, false)
+  root.add(slagCarrier)
+  const slagPath = new THREE.CatmullRomCurve3([[-55, -13], [-70, -18], [-86, -24], [-92, -16], [-80, -12], [-62, -11]].map(([x, z]) => new THREE.Vector3(x, 0, z)), true, 'catmullrom', 0.3)
+  // Slag yard: dark heaps.
+  for (let k = 0; k < 4; k += 1) put(root, new THREE.IcosahedronGeometry(2.4 + (k % 2), 0), m(0x3f3f46, { flatShading: true, roughness: 1 }), -92 + k * 3.5, 0.9, -28).scale.y = 0.5
+
   /* ---- Substation, gas station and animated supply lines ---- */
   const substation = new THREE.Group()
   for (let k = 0; k < 3; k += 1) put(substation, box(4, 5, 4), m(0x6a7480), -74 + k * 6, 2.5, 46)
@@ -258,8 +347,8 @@ export function buildSteelHall(): HallHandles {
   root.traverse((object) => { if ((object as THREE.Mesh).isMesh && !object.userData.unitId) { let parent = object.parent; while (parent && !parent.userData.unitId) parent = parent.parent; if (parent) object.userData.unitId = parent.userData.unitId } })
 
   return {
-    root, units, eafLight, eafGlow, electrodes, sparks, ladle, ladleGlow, crane, billets, bar, reheatGlow, reheatLight, captureUnit, captureAnchor: new THREE.Vector3(35, 17, -22), flows,
-    stacks: [{ origin: new THREE.Vector3(-46, 47, -28), unit: 'fume' }, { origin: new THREE.Vector3(44, 41, -10), unit: 'reheat' }],
+    root, units, eafLight, eafGlow, electrodes, sparks, ladle, ladleGlow, crane, billets, bar, reheatGlow, reheatLight, captureUnit, captureAnchor: new THREE.Vector3(35, 17, -22), flows, magnetCrane, magnet, slagCarrier, slagPath, preheatFlames,
+    stacks: [{ origin: new THREE.Vector3(-46, 47, -28), unit: 'fume' }, { origin: new THREE.Vector3(44, 41, -10), unit: 'reheat' }, { origin: new THREE.Vector3(-12, 10.5, 3), unit: 'steam' }],
     size: 200,
   }
 }

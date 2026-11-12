@@ -229,6 +229,8 @@ export const actions = {
     const action = state.plan.find((item) => item.id === actionId)
     commit(logged({ ...state, plan: state.plan.filter((item) => item.id !== actionId) }, `Removed ${action ? actionName(state, action) : 'an action'}`))
   },
+  /** Remove every action from this site's plan, e.g. to start a demo again. */
+  clearPlan: () => commit(logged({ ...state, plan: [] }, `Cleared the plan (${state.plan.length} actions)`)),
   setActionYear: (actionId: string, startYear: number) => commit({ ...state, plan: state.plan.map((item) => item.id === actionId ? { ...item, startYear } : item) }),
   setPlan: (plan: PlanAction[]) => {
     const owner = roleById(getRole()).person

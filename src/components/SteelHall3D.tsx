@@ -157,6 +157,14 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, onDi
       hall.ladleGlow.emissiveIntensity = 0.2 + 1.8 * Math.max(0, Math.min(1, fill))
 
       hall.crane.position.x = Math.sin(elapsed * 0.08) * 70
+      // Billet-yard magnet crane travels and lifts; the slag carrier drives its loop; ladle preheaters flicker.
+      hall.magnetCrane.position.x = -2 + Math.sin(elapsed * 0.11) * 20
+      hall.magnet.position.y = 9 + Math.max(0, Math.sin(elapsed * 0.33)) * 5
+      const slagT = (elapsed * 0.012) % 1
+      hall.slagCarrier.position.copy(hall.slagPath.getPointAt(slagT))
+      const slagTangent = hall.slagPath.getTangentAt(slagT)
+      hall.slagCarrier.rotation.y = Math.atan2(-slagTangent.z, slagTangent.x)
+      hall.preheatFlames.forEach((flame, index) => { flame.emissiveIntensity = 1.2 + Math.sin(elapsed * 13 + index * 2) * 0.3 + Math.random() * 0.3 })
 
       // Billets travel down the roller table and cool from orange to dark red.
       hall.billets.forEach((billet, index) => {
@@ -187,13 +195,14 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, onDi
       // Smoke: the fume stack follows EAF direct emissions; the reheat stack follows gas burnt, minus capture.
       const reheatShare = (1 - 0.9 * upgrades.captureShare) * live.reheatGJPerH / 144
       for (const puff of puffs) {
-        const amount = puff.stack.unit === 'fume' ? (melting ? 0.9 : 0.25) : Math.min(1, reheatShare)
+        const amount = puff.stack.unit === 'fume' ? (melting ? 0.9 : 0.25) : puff.stack.unit === 'steam' ? 0.7 : Math.min(1, reheatShare)
         const active = (puff.phase * 7.13) % 1 < amount
         puff.sprite.visible = active
         if (!active) continue
         const cycle = (elapsed * 0.18 + puff.phase) % 1
-        puff.sprite.position.set(puff.stack.origin.x + cycle * 10, puff.stack.origin.y + cycle * 24, puff.stack.origin.z + cycle * 3)
-        const size = 3 + cycle * 12
+        const steam = puff.stack.unit === 'steam'
+        puff.sprite.position.set(puff.stack.origin.x + cycle * (steam ? 3 : 10), puff.stack.origin.y + cycle * (steam ? 10 : 24), puff.stack.origin.z + cycle * (steam ? 1 : 3))
+        const size = steam ? 2 + cycle * 6 : 3 + cycle * 12
         puff.sprite.scale.set(size, size, 1)
         ;(puff.sprite.material as THREE.SpriteMaterial).opacity = (1 - cycle) * 0.5
       }

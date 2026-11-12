@@ -46,6 +46,7 @@ export default function Plan({ onShowTwin }: { onShowTwin: () => void }) {
       <div className="row-actions no-print">
         {can.propose(role) && state.plan.every((item) => (item.status ?? 'proposed') === 'proposed') && <button type="button" className="btn ghost" onClick={() => actions.setPlan(autoPlan(state))}>✦ Re-plan with copilot</button>}
         <button type="button" className="btn" onClick={() => window.print()}>Save as PDF</button>
+        <button type="button" className="btn ghost danger" title="Remove every action and start again" onClick={() => { if (confirm(`Clear all ${state.plan.length} actions from the plan for ${state.settings.factoryName}? This cannot be undone.`)) actions.clearPlan() }}>🗑 Clear plan</button>
       </div>
     </header>
 

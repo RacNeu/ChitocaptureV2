@@ -1049,3 +1049,16 @@ fieldset.lock:disabled { opacity: .6; }
 @keyframes badge-pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
 /* On phones keep the 3D badges to one line so they don't cover the plant. */
 @media (max-width: 720px) { .hall-label.badge small { display: none; } .hall-label.badge { padding: 4px 8px 4px 20px; } .hall-label.badge::before { top: 8px; } }
+.btn.ghost.danger { color: #be123c; border-color: #fecdd3; }
+.btn.ghost.danger:hover { background: #fff1f2; border-color: #fda4af; }
+
+/* Full-screen 3D */
+.fullscreen-btn { position: absolute; left: 14px; bottom: 14px; z-index: 5; display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #ffffff55; border-radius: 999px; background: #0f172acc; color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; backdrop-filter: blur(6px); }
+.fullscreen-btn:hover { background: #059669; }
+.fullscreen-btn span { font-size: 15px; line-height: 1; }
+.hall-card:fullscreen, .hall-card.pseudo-full { width: 100vw; height: 100vh; border-radius: 0; border: 0; }
+.hall-card.pseudo-full { position: fixed; inset: 0; z-index: 1000; }
+.hall-card:fullscreen .hall3d, .hall-card.pseudo-full .hall3d, .hall-card:fullscreen .deepdive, .hall-card.pseudo-full .deepdive { height: 100vh; }
+.hall-card:fullscreen .deepdive-canvas, .hall-card.pseudo-full .deepdive-canvas { position: absolute; height: auto; }
+body.no-scroll { overflow: hidden; }
+.hall-card.pseudo-full { overflow-y: auto; }
