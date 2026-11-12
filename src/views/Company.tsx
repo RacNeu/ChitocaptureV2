@@ -5,6 +5,7 @@ import { companyActions, useCompany, useRole, useWorkspace } from '../model/stor
 import { roleById, waitingFor } from '../model/roles'
 import { industryTemplates, templateById } from '../model/templates'
 import { visibleCompanies } from '../model/auth'
+import { simulatedIndustries } from './SimulationPicker'
 
 type Props = { onOpen: (view: 'twin' | 'control' | 'analysis') => void; onAddSite: () => void }
 
@@ -76,7 +77,7 @@ export default function Company({ onOpen, onAddSite }: Props) {
 
     <div className="site-grid">
       {rows.map((row) => {
-        const isSteel = row.site.state.settings.industryId === 'steel'
+        const isSteel = simulatedIndustries.has(row.site.state.settings.industryId)
         const active = row.site.id === company.activeId
         return <article key={row.site.id} className={`site-card${active ? ' active' : ''}`} style={{ borderTopColor: row.colour }}>
           <header>

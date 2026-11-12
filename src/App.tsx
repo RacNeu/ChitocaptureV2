@@ -12,6 +12,8 @@ import { MAX_ADDED_COMPANIES } from './model/store'
 import { useSensor } from './sensor/hub'
 import Analysis from './views/Analysis'
 import ControlRoom from './views/ControlRoom'
+import GalvControlRoom from './views/GalvControlRoom'
+import { simulatedIndustries } from './views/SimulationPicker'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import Sensors from './views/Sensors'
@@ -70,7 +72,7 @@ export default function App() {
   const finishSetup = () => {
     const next = getCompany().sites.find((site) => !site.state.onboarded)
     if (next) { companyActions.switchSite(next.id); return }
-    go(getState().settings.industryId === 'steel' ? 'control' : 'twin')
+    go(simulatedIndustries.has(getState().settings.industryId) ? 'control' : 'twin')
   }
   const cancelSetup = () => {
     const id = company.activeId
@@ -99,7 +101,7 @@ export default function App() {
             const value = event.target.value
             if (value === '__add') { go('add-company'); return }
             companyActions.switchCompany(value)
-            if (view === 'control' && getState().settings.industryId !== 'steel') go('simulate')
+            if (view === 'control' && !simulatedIndustries.has(getState().settings.industryId)) go('simulate')
             if (view === 'add-company') go('company')
           }}>
             {companies.map((item) => <option key={item.id} value={item.id}>🏢 {item.name}</option>)}
@@ -137,7 +139,7 @@ export default function App() {
       {view === 'company' && <Company onOpen={go} onAddSite={() => setPreviousSite(company.activeId)} />}
       {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
       {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />}
-      {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />)}
+      {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />)}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
       {view === 'sensors' && <Sensors />}

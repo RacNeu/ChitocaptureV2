@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { box } from './shapes'
 import { textures, worldUVs } from './textures'
 
 /**
@@ -59,23 +60,23 @@ export function buildEaf(): EafHandles {
   const grating = m(0x7d868f, { map: textures.slabs(), metalness: 0.4, roughness: 0.7 })
 
   /* ---- Building floor, pit and operating platform ---- */
-  const floorGeo = new THREE.BoxGeometry(70, 1, 50)
+  const floorGeo = box(70, 1, 50)
   worldUVs(floorGeo, 6)
   put(root, floorGeo, m(0x9aa2a8, { map: textures.slabs(), metalness: 0, roughness: 0.95 }), 0, -9.5, 0)
-  const platformGeo = new THREE.BoxGeometry(30, 0.6, 26)
+  const platformGeo = box(30, 0.6, 26)
   worldUVs(platformGeo, 3)
   const platform = put(root, platformGeo, grating, 4, -0.3, -2)
   platform.receiveShadow = true
   // Platform legs, handrails and stairs.
-  for (const [x, z] of [[-10, -14], [18, -14], [18, 10], [-10, 10]]) put(root, new THREE.BoxGeometry(0.6, 9, 0.6), blue, x, -4.8, z)
+  for (const [x, z] of [[-10, -14], [18, -14], [18, 10], [-10, 10]]) put(root, box(0.6, 9, 0.6), blue, x, -4.8, z)
   const railPosts: [number, number][] = []
   for (let x = -10; x <= 18; x += 2.8) railPosts.push([x, 10.6])
   for (let z = -14; z <= 10; z += 2.8) railPosts.push([18.6, z])
-  for (const [x, z] of railPosts) put(root, new THREE.BoxGeometry(0.15, 1.1, 0.15), yellow, x, 0.55, z)
-  put(root, new THREE.BoxGeometry(28.6, 0.12, 0.12), yellow, 4.3, 1.1, 10.6)
-  put(root, new THREE.BoxGeometry(0.12, 0.12, 24.6), yellow, 18.6, 1.1, -1.7)
-  put(root, new THREE.BoxGeometry(28.6, 0.1, 0.1), yellow, 4.3, 0.6, 10.6)
-  for (let k = 0; k < 12; k += 1) put(root, new THREE.BoxGeometry(3, 0.25, 0.8), grating, 21 + k * 0.0, -0.6 - k * 0.72, 9 - k * 0.8)
+  for (const [x, z] of railPosts) put(root, box(0.15, 1.1, 0.15), yellow, x, 0.55, z)
+  put(root, box(28.6, 0.12, 0.12), yellow, 4.3, 1.1, 10.6)
+  put(root, box(0.12, 0.12, 24.6), yellow, 18.6, 1.1, -1.7)
+  put(root, box(28.6, 0.1, 0.1), yellow, 4.3, 0.6, 10.6)
+  for (let k = 0; k < 12; k += 1) put(root, box(3, 0.25, 0.8), grating, 21 + k * 0.0, -0.6 - k * 0.72, 9 - k * 0.8)
 
   /* ---- Furnace (tilts as one group around a pivot near the tap hole) ---- */
   const furnace = new THREE.Group()
@@ -100,7 +101,7 @@ export function buildEaf(): EafHandles {
   put(furnace, lowerInner, new THREE.MeshStandardMaterial({ color: 0x9a6a52, map: textures.brick(), roughness: 0.95, side: THREE.BackSide }), 0, 1.9, 0)
   // Cut faces showing the wall thickness.
   for (const angle of [CUT_START, CUT_START + CUT_LEN]) {
-    const face = put(furnace, new THREE.BoxGeometry(0.7, 2.2, 0.15), refractory, Math.sin(angle) * (SHELL_R - 0.35), 1.9, Math.cos(angle) * (SHELL_R - 0.35))
+    const face = put(furnace, box(0.7, 2.2, 0.15), refractory, Math.sin(angle) * (SHELL_R - 0.35), 1.9, Math.cos(angle) * (SHELL_R - 0.35))
     face.rotation.y = angle
   }
   // Water-cooled panels: vertical tubes around the upper shell.
@@ -124,8 +125,8 @@ export function buildEaf(): EafHandles {
   // Panel headers (cooling-water manifolds) top and bottom.
   for (const y of [3.0, 7.2]) put(furnace, new THREE.TorusGeometry(SHELL_R - 0.25, 0.28, 8, 64, CUT_LEN), m(0x2f6fb0, { metalness: 0.6 }), 0, y, 0).rotation.set(Math.PI / 2, 0, Math.PI / 2 - CUT_START - CUT_LEN)
   // Slag door and tapping spout (eccentric bottom tap).
-  put(furnace, new THREE.BoxGeometry(2.4, 2, 1), steel, 0, 2.6, -SHELL_R)
-  put(furnace, new THREE.BoxGeometry(3, 2.2, 3), m(0x3a4048, { metalness: 0.6 }), -SHELL_R - 0.6, 1.4, 0)
+  put(furnace, box(2.4, 2, 1), steel, 0, 2.6, -SHELL_R)
+  put(furnace, box(3, 2.2, 3), m(0x3a4048, { metalness: 0.6 }), -SHELL_R - 0.6, 1.4, 0)
 
   /* ---- Contents: scrap, molten bath, foaming slag, bubbles ---- */
   const scrapCount = 150
@@ -178,8 +179,8 @@ export function buildEaf(): EafHandles {
     const angle = k / 3 * Math.PI * 2 + Math.PI / 2
     const ex = Math.cos(angle) * 1.4, ez = Math.sin(angle) * 1.4
     put(electrodes, new THREE.CylinderGeometry(0.55, 0.55, 15, 18), graphite, ex, 9.5, ez)
-    put(electrodes, new THREE.BoxGeometry(1.5, 1.6, 1.5), copper, ex, 15.4, ez) // clamp
-    const arm = put(electrodes, new THREE.BoxGeometry(10, 1, 1.1), blue, ex + 5, 16.2, ez)
+    put(electrodes, box(1.5, 1.6, 1.5), copper, ex, 15.4, ez) // clamp
+    const arm = put(electrodes, box(10, 1, 1.1), blue, ex + 5, 16.2, ez)
     arm.castShadow = true
     put(electrodes, new THREE.CylinderGeometry(0.22, 0.22, 10, 10), copper, ex + 5, 16.9, ez).rotation.z = Math.PI / 2 // bus tube
     const arcMat = new THREE.MeshBasicMaterial({ color: 0xfff3c4, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })
@@ -189,7 +190,7 @@ export function buildEaf(): EafHandles {
     arcs.push(arc)
   }
   // Masts and the electrode column structure.
-  for (let k = 0; k < 3; k += 1) put(furnace, new THREE.BoxGeometry(1.2, 18, 1.2), blue, 10.5, 7, -1.6 + k * 1.6)
+  for (let k = 0; k < 3; k += 1) put(furnace, box(1.2, 18, 1.2), blue, 10.5, 7, -1.6 + k * 1.6)
   const arcLight = new THREE.PointLight(0xfff0c0, 0, 40, 1.4)
   arcLight.position.set(0, 2.2, 0)
   furnace.add(arcLight)
@@ -199,10 +200,10 @@ export function buildEaf(): EafHandles {
 
   /* ---- Transformer house and flexible cables ---- */
   const transformer = new THREE.Group()
-  const thGeo = new THREE.BoxGeometry(9, 9, 8)
+  const thGeo = box(9, 9, 8)
   worldUVs(thGeo, 2.5)
   put(transformer, thGeo, m(0xb8bec4, { map: textures.corrugated(), metalness: 0.2 }), 16, -4.5, -16)
-  put(transformer, new THREE.BoxGeometry(5, 4, 4), m(0x6a7480, { metalness: 0.5 }), 16, 2, -16)
+  put(transformer, box(5, 4, 4), m(0x6a7480, { metalness: 0.5 }), 16, 2, -16)
   for (let k = 0; k < 4; k += 1) put(transformer, new THREE.CylinderGeometry(0.3, 0.3, 3, 10), m(0xcfd5da), 14.6 + k, 5.4, -16)
   root.add(transformer)
   for (let k = 0; k < 3; k += 1) {
@@ -212,7 +213,7 @@ export function buildEaf(): EafHandles {
 
   /* ---- Pit: ladle on transfer car and the tap stream ---- */
   const ladle = new THREE.Group()
-  put(ladle, new THREE.BoxGeometry(7, 1.2, 6), yellow, 0, -8.4, 0)
+  put(ladle, box(7, 1.2, 6), yellow, 0, -8.4, 0)
   put(ladle, new THREE.CylinderGeometry(2.8, 2.3, 5, 28, 1, true), m(0x3b2f2a, { metalness: 0.5, side: THREE.DoubleSide }), 0, -5.3, 0)
   const ladleFill = put(ladle, new THREE.CylinderGeometry(2.5, 2.5, 0.2, 28), new THREE.MeshStandardMaterial({ color: 0xffb347, emissive: new THREE.Color(0xff6a00), emissiveIntensity: 2.2 }), 0, -7.4, 0)
   ladle.position.set(-10.5, 0, 0)
@@ -238,7 +239,7 @@ export function buildEaf(): EafHandles {
   const sensorMat = m(0x7c3aed, { emissive: new THREE.Color(0x4c1d95), emissiveIntensity: 0.6, metalness: 0.2 })
   const pickables: EafHandles['pickables'] = [{ object: furnace, id: 'furnace' }, { object: ladle, id: 'ladle' }, { object: transformer, id: 'transformer' }]
   for (const [id, point] of Object.entries(sensors) as [SensorId, THREE.Vector3][]) {
-    const housing = put(root, new THREE.BoxGeometry(0.9, 0.9, 0.9), sensorMat, point.x, point.y - 0.6, point.z)
+    const housing = put(root, box(0.9, 0.9, 0.9), sensorMat, point.x, point.y - 0.6, point.z)
     pickables.push({ object: housing, id })
   }
 

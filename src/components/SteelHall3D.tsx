@@ -4,17 +4,30 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { LiveState, SteelParams, UnitId, Upgrades } from '../model/steel'
 import { buildSteelHall, type HallHandles } from '../three/steelHall'
 import { createComposer } from '../three/post'
+import { createHeatmap } from '../three/heatmap'
 
 export type SimFrame = { minutes: number; live: LiveState; upgrades: Upgrades; params: SteelParams }
 export type UnitTooltip = { title: string; rows: [string, string][]; note?: string }
+/** Anything you can point at in the hall: a process unit, or the ChitoCapture unit. */
+export type PickId = UnitId | 'capture'
+/** Units with a zoomed-in view; double-click or double-tap takes you inside. */
+export type { DiveId } from '../model/simEvents'
+import type { DiveId } from '../model/simEvents'
+const diveable = (id: PickId): id is DiveId => id === 'eaf' || id === 'capture'
 
 type Props = {
   frame: MutableRefObject<SimFrame>
   showFlows: boolean
-  selected: UnitId | null
-  onSelect: (id: UnitId) => void
-  labels: { id: UnitId; text: string; hot: boolean }[]
-  describe: (id: UnitId) => UnitTooltip | null
+  selected: PickId | null
+  onSelect: (id: PickId) => void
+  /** Double-click or double-tap on a unit that has a zoomed-in view. */
+  onDive?: (id: DiveId) => void
+  labels: { id: PickId; text: string; hot: boolean; sub?: string; above?: boolean }[]
+  describe: (id: PickId) => UnitTooltip | null
+  /** Show the CO₂ heat map on the floor. */
+  heatmap?: boolean
+  /** Live CO₂ of a unit (t/h), for the heat map. */
+  co2Of?: (id: UnitId) => number
 }
 
 function smokeTexture() {
@@ -27,14 +40,18 @@ function smokeTexture() {
   return new THREE.CanvasTexture(canvas)
 }
 
-export default function SteelHall3D({ frame, showFlows, selected, onSelect, labels, describe }: Props) {
+export default function SteelHall3D({ frame, showFlows, selected, onSelect, onDive, labels, describe, heatmap = false, co2Of }: Props) {
+  const heatRef = useRef(heatmap)
+  heatRef.current = heatmap
+  const co2Ref = useRef(co2Of)
+  co2Ref.current = co2Of
   const mountRef = useRef<HTMLDivElement>(null)
-  const labelRefs = useRef(new Map<UnitId, HTMLDivElement>())
+  const labelRefs = useRef(new Map<PickId, HTMLDivElement>())
   const hallRef = useRef<HallHandles | null>(null)
   const flowsRef = useRef(showFlows)
   const selectedRef = useRef(selected)
   const cameraRef = useRef<{ camera: THREE.PerspectiveCamera; controls: OrbitControls } | null>(null)
-  const [hover, setHover] = useState<{ id: UnitId; x: number; y: number } | null>(null)
+  const [hover, setHover] = useState<{ id: PickId; x: number; y: number } | null>(null)
   const [touched, setTouched] = useState(false)
   flowsRef.current = showFlows
   selectedRef.current = selected
@@ -72,6 +89,9 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
     const hall = buildSteelHall()
     hallRef.current = hall
     scene.add(hall.root)
+    const heat = createHeatmap(200, 70)
+    scene.add(heat.mesh)
+    let lastHeat = -1
     const post = createComposer(renderer, scene, camera, { bloomStrength: 0.55, bloomThreshold: 0.95 })
 
     const texture = smokeTexture()
@@ -178,6 +198,11 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
         ;(puff.sprite.material as THREE.SpriteMaterial).opacity = (1 - cycle) * 0.5
       }
 
+      heat.mesh.visible = heatRef.current
+      if (heatRef.current && co2Ref.current && elapsed - lastHeat > 0.5) {
+        lastHeat = elapsed
+        heat.update([...hall.units].map(([id, { anchor }]) => ({ x: anchor.x, z: anchor.z, value: co2Ref.current!(id) })))
+      }
       controls.update()
       post.render()
 
@@ -187,6 +212,12 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
         projected.copy(anchor).project(camera)
         element.style.transform = `translate(-50%, -100%) translate(${(projected.x + 1) / 2 * mount.clientWidth}px, ${(1 - projected.y) / 2 * mount.clientHeight}px)`
         element.style.opacity = projected.z < 1 ? '1' : '0'
+      }
+      const captureLabel = labelRefs.current.get('capture')
+      if (captureLabel) {
+        projected.copy(hall.captureAnchor).project(camera)
+        captureLabel.style.transform = `translate(-50%, -100%) translate(${(projected.x + 1) / 2 * mount.clientWidth}px, ${(1 - projected.y) / 2 * mount.clientHeight}px)`
+        captureLabel.style.opacity = projected.z < 1 && hall.captureUnit.scale.x > 0.5 ? '1' : '0'
       }
     }
     tick()
@@ -199,12 +230,29 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
       pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1)
       raycaster.setFromCamera(pointer, camera)
       const hit = raycaster.intersectObjects([...hall.units.values()].map((item) => item.group), true).find((item) => item.object.userData.unitId && item.object.visible)
-      return hit ? { id: hit.object.userData.unitId as UnitId, x: event.clientX - rect.left, y: event.clientY - rect.top } : null
+      // The capture unit is hidden (scaled to nothing) when capture is off.
+      if (hit?.object.userData.unitId === 'capture' && hall.captureUnit.scale.x < 0.5) return null
+      return hit ? { id: hit.object.userData.unitId as PickId, x: event.clientX - rect.left, y: event.clientY - rect.top } : null
     }
     let pending = false, last: PointerEvent | null = null, down: { x: number; y: number } | null = null
-    const onMove = (event: PointerEvent) => { last = event; if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; if (last) { const found = pick(last); setHover(found); post.outline.selectedObjects = found ? [hall.units.get(found.id)!.group] : []; mount.style.cursor = found ? 'pointer' : 'grab' } }) }
+    let lastTap: { id: PickId; at: number } | null = null
+    const onMove = (event: PointerEvent) => { last = event; if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; if (last) { const found = pick(last); setHover(found); post.outline.selectedObjects = found ? [found.id === 'capture' ? hall.captureUnit : hall.units.get(found.id)!.group] : []; mount.style.cursor = found ? 'pointer' : 'grab' } }) }
     const onDown = (event: PointerEvent) => { down = { x: event.clientX, y: event.clientY } }
-    const onUp = (event: PointerEvent) => { if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 5) { const found = pick(event); if (found) onSelectRef.current(found.id) } down = null }
+    // A tap selects the unit; a second tap on the same unit within 400 ms goes inside it.
+    const onUp = (event: PointerEvent) => {
+      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 8) {
+        const found = pick(event)
+        if (found) {
+          const now = performance.now()
+          if (lastTap && lastTap.id === found.id && now - lastTap.at < 400 && diveable(found.id)) { lastTap = null; onDiveRef.current?.(found.id) }
+          else {
+            lastTap = { id: found.id, at: now }
+            onSelectRef.current(found.id)
+          }
+        }
+      }
+      down = null
+    }
     const onLeave = () => setHover(null)
     mount.addEventListener('pointermove', onMove); mount.addEventListener('pointerdown', onDown); mount.addEventListener('pointerup', onUp); mount.addEventListener('pointerleave', onLeave)
 
@@ -214,6 +262,7 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
       mount.removeEventListener('pointermove', onMove); mount.removeEventListener('pointerdown', onDown); mount.removeEventListener('pointerup', onUp); mount.removeEventListener('pointerleave', onLeave)
       controls.dispose()
       post.dispose()
+      heat.dispose()
       scene.traverse((object) => { const mesh = object as THREE.Mesh; mesh.geometry?.dispose(); const material = mesh.material as THREE.Material | undefined; material?.dispose?.() })
       renderer.dispose()
       mount.removeChild(renderer.domElement)
@@ -225,12 +274,14 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
 
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
+  const onDiveRef = useRef(onDive)
+  onDiveRef.current = onDive
 
   // Fly towards the selected unit.
   useEffect(() => {
     const hall = hallRef.current, cam = cameraRef.current
     if (!hall || !cam || !selected) return
-    const target = hall.units.get(selected)?.anchor
+    const target = selected === 'capture' ? hall.captureAnchor : hall.units.get(selected)?.anchor
     if (!target) return
     const goal = new THREE.Vector3(target.x, 4, target.z)
     let raf = 0
@@ -244,13 +295,14 @@ export default function SteelHall3D({ frame, showFlows, selected, onSelect, labe
     <div ref={mountRef} className="plant3d-canvas" role="img" aria-label="Live 3D view inside the steel mill. Hover a unit for live readings; click to select it." />
     <div className="plant3d-labels" aria-hidden="true">
       {labels.map((label) => <div key={label.id} ref={(element) => { if (element) labelRefs.current.set(label.id, element); else labelRefs.current.delete(label.id) }}
-        className={`p3-label hall-label${label.id === selected ? ' selected' : ''}${label.id === hover?.id ? ' hovered' : ''}${label.hot ? ' hot' : ''}`}>{label.text}</div>)}
+        className={`p3-label hall-label${label.id === 'capture' ? ' capture' : ''}${label.id === selected ? ' selected' : ''}${label.id === hover?.id ? ' hovered' : ''}${label.hot ? ' hot' : ''}${label.sub ? ' badge' : ''}${label.above ? ' above' : ''}`}><span className="badge-main">{label.text}</span>{label.sub && <small>{label.sub}</small>}</div>)}
     </div>
     {hover && info && <div className="p3-tooltip" style={{ left: Math.min(hover.x + 16, (mountRef.current?.clientWidth ?? 800) - 290), top: hover.y + 16 }}>
       <strong>{info.title}</strong>
       <dl>{info.rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       {info.note && <p>{info.note}</p>}
+      {onDive && diveable(hover.id) && <p className="p3-dive-hint">Double-click or double-tap to go inside ↘</p>}
     </div>}
-    {!touched && <div className="p3-hint">Drag to orbit · scroll to zoom · hover any unit for live readings</div>}
+    {!touched && <div className="p3-hint">Drag to orbit · scroll to zoom · hover for live readings · double-click or double-tap the arc furnace or ChitoCapture unit to go inside</div>}
   </div>
 }

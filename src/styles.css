@@ -1004,3 +1004,48 @@ fieldset.lock:disabled { opacity: .6; }
   .chat-panel { right: 8px; left: 8px; width: auto; bottom: calc(140px + env(safe-area-inset-bottom)); height: min(560px, calc(100vh - 220px)); }
 }
 @media print { .chat-fab, .chat-panel, .account-btn { display: none !important; } }
+
+/* ChitoCapture unit label in the steel hall, and the "go inside" hint on hover cards */
+.p3-dive-hint { margin: 6px 0 0 !important; color: #059669 !important; font-weight: 800; }
+.hall-label.capture { background: #059669; color: #fff; box-shadow: 0 0 0 3px #34d39955, 0 4px 14px #05966966; }
+.pick-hint { margin: 0 0 14px; padding: 10px 12px; border: 1px dashed #a7f3d0; border-radius: 12px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+.pilot-head .icon-btn { margin-left: 4px; }
+.eaf-card { border-color: #fdba74; background: linear-gradient(135deg, #fff7ed, #fff); }
+.eaf-card .pilot-head em { background: #ffedd5; color: #c2410c; }
+.eaf-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, #fb923c, #e11d48); font-size: 14px; }
+.pilot-card small { display: block; } .pilot-card .pilot-dive { display: inline-flex; }
+.die-table { margin: 8px 0 6px; font-size: 12px; }
+.die-table th, .die-table td { padding: 4px 6px; }
+.kettle-lines { display: grid; gap: 6px; margin-top: 8px; }
+.kettle-lines > div { display: grid; grid-template-columns: 52px 1fr 64px; align-items: center; gap: 8px; font-size: 12.5px; }
+.kettle-lines b { text-align: right; font-variant-numeric: tabular-nums; }
+.kettle-lines .sharebar { height: 8px; }
+.line-pick { display: flex; gap: 4px; margin: 8px 0 10px; }
+.line-pick button { flex: 1; padding: 6px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-2); color: var(--ink); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.line-pick button.active { background: #10b981; border-color: #10b981; color: #fff; }
+.spec-line { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.heat-split { margin: 12px 0; }
+.heat-bar { display: flex; height: 12px; overflow: hidden; margin: 6px 0 8px; border-radius: 6px; }
+.heat-bar i { display: block; height: 100%; }
+.heat-split ul { display: grid; gap: 4px; margin: 0 0 6px; padding: 0; list-style: none; font-size: 12px; }
+.heat-split li { display: flex; align-items: center; gap: 8px; }
+.heat-split li i { width: 10px; height: 10px; border-radius: 3px; }
+.heat-split li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.data-link { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 0; color: #047857; font-size: 12.5px; font-weight: 600; }
+.data-link i { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 3px #10b98133; }
+.data-link span { padding: 1px 8px; border-radius: 999px; font-weight: 700; }
+.data-link span.up { background: #fff1f2; color: #be123c; }
+.data-link span.down { background: #ecfdf5; color: #047857; }
+.data-link.off { color: var(--muted); }
+
+/* Live sensor badges over each unit in the 3D plants */
+.hall-label.badge { flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 10px 5px 22px; border-radius: 10px; position: absolute; }
+.hall-label.badge::before { content: ''; position: absolute; left: 9px; top: 9px; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 3px #10b98133; animation: badge-pulse 2s ease-in-out infinite; }
+.hall-label.badge.above::before { background: #e11d48; box-shadow: 0 0 0 3px #e11d4833; }
+.hall-label.badge small { font-size: 10.5px; font-weight: 600; color: #047857; }
+.hall-label.badge.above small { color: #be123c; }
+.hall-label.badge.hot small, .hall-label.badge.capture small { color: #ffffffd9; }
+.hall-label.badge .badge-main { font-weight: 700; }
+@keyframes badge-pulse { 50% { box-shadow: 0 0 0 6px transparent; } }
+/* On phones keep the 3D badges to one line so they don't cover the plant. */
+@media (max-width: 720px) { .hall-label.badge small { display: none; } .hall-label.badge { padding: 4px 8px 4px 20px; } .hall-label.badge::before { top: 8px; } }

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { box as roundedBox } from './shapes'
 import type { Machine, MachineKind } from '../model/types'
 import { textures, worldUVs, type TextureName } from './textures'
 
@@ -93,7 +94,7 @@ function add(b: Builder, geometry: THREE.BufferGeometry, material: THREE.MeshSta
   return mesh
 }
 
-const box = (b: Builder, w: number, h: number, d: number, x: number, z: number, m: THREE.MeshStandardMaterial, y = 0) => add(b, new THREE.BoxGeometry(w, h, d), m, x, y + h / 2, z)
+const box = (b: Builder, w: number, h: number, d: number, x: number, z: number, m: THREE.MeshStandardMaterial, y = 0) => add(b, roundedBox(w, h, d), m, x, y + h / 2, z)
 const cyl = (b: Builder, r: number, h: number, x: number, z: number, m: THREE.MeshStandardMaterial, y = 0, seg = 24) => add(b, new THREE.CylinderGeometry(r, r, h, seg), m, x, y + h / 2, z, true)
 
 function gableRoof(b: Builder, w: number, d: number, rise: number, x: number, z: number, y: number, m: THREE.MeshStandardMaterial, alongX = true) {
@@ -147,7 +148,7 @@ function pipe(b: Builder, from: THREE.Vector3, to: THREE.Vector3, r: number, m: 
 
 function windows(b: Builder, w: number, d: number, floors: number, floorH: number, x: number, z: number) {
   const glass = mat('glass', { roughness: 0.25, metalness: 0.4 })
-  for (let f = 0; f < floors; f += 1) add(b, new THREE.BoxGeometry(w + 0.08, floorH * 0.38, d + 0.08), glass, x, f * floorH + floorH * 0.55, z, false, false)
+  for (let f = 0; f < floors; f += 1) add(b, roundedBox(w + 0.08, floorH * 0.38, d + 0.08), glass, x, f * floorH + floorH * 0.55, z, false, false)
 }
 
 /** One builder per machine kind. All fit inside roughly 36 × 26 units. */
@@ -189,7 +190,7 @@ const archetypes: Record<MachineKind, (b: Builder, m: () => THREE.MeshStandardMa
     box(b, 14, 15, 11, -8, 0, clay)
     gableRoof(b, 14, 11, 2.5, -8, 0, 15, mat('roof'))
     silo(b, 7, -6, 3.2, 16, m()); silo(b, 14, -6, 3.2, 16, clay); silo(b, 10.5, 3, 3.2, 16, m())
-    const conveyor = add(b, new THREE.BoxGeometry(16, 1, 1.4), mat('metal'), 2, 13, 6)
+    const conveyor = add(b, roundedBox(16, 1, 1.4), mat('metal'), 2, 13, 6)
     conveyor.rotation.z = 0.35
   },
   fan: (b, m) => {
@@ -280,16 +281,16 @@ export function buildCampus(machines: Machine[]) {
   const siteW = cols * (PLOT_W + ROAD) + ROAD, siteD = rows * (PLOT_D + ROAD) + ROAD
 
   // Site slab, perimeter road and lane markings.
-  const asphalt = new THREE.Mesh(new THREE.BoxGeometry(siteW + 24, 1, siteD + 24), mat('asphalt', { roughness: 0.95 }))
+  const asphalt = new THREE.Mesh(roundedBox(siteW + 24, 1, siteD + 24), mat('asphalt', { roughness: 0.95 }))
   asphalt.position.y = -0.55; asphalt.receiveShadow = true
   root.add(asphalt)
-  const grass = new THREE.Mesh(new THREE.BoxGeometry(siteW + 60, 0.6, siteD + 60), mat('ground', { roughness: 1 }))
+  const grass = new THREE.Mesh(roundedBox(siteW + 60, 0.6, siteD + 60), mat('ground', { roughness: 1 }))
   grass.position.y = -1.1; grass.receiveShadow = true
   root.add(grass)
   const marking = mat('marking')
   for (let x = -siteW / 2; x < siteW / 2; x += 6) {
     for (let r = 0; r <= rows; r += 1) {
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 0.35), marking)
+      const dash = new THREE.Mesh(roundedBox(2.6, 0.05, 0.35), marking)
       dash.position.set(x, 0.01, -siteD / 2 + ROAD / 2 + r * (PLOT_D + ROAD))
       root.add(dash)
     }
@@ -300,7 +301,7 @@ export function buildCampus(machines: Machine[]) {
   const rackZ = rows > 1 ? -siteD / 2 + ROAD / 2 + (PLOT_D + ROAD) : -siteD / 2 + ROAD / 2
   for (let x = -siteW / 2 + 8; x <= siteW / 2 - 8; x += 8) {
     for (const dz of [-1.6, 1.6]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 6, 0.4), rackMat)
+      const post = new THREE.Mesh(roundedBox(0.4, 6, 0.4), rackMat)
       post.position.set(x, 3, rackZ + dz); post.castShadow = true
       root.add(post)
     }
@@ -318,10 +319,10 @@ export function buildCampus(machines: Machine[]) {
   // Perimeter fence and street lamps.
   const fence = mat('fence')
   const fenceW = siteW + 20, fenceD = siteD + 20
-  for (let x = -fenceW / 2; x <= fenceW / 2; x += 5) for (const z of [-fenceD / 2, fenceD / 2]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 0.3), fence); post.position.set(x, 1.1, z); root.add(post) }
-  for (let z = -fenceD / 2; z <= fenceD / 2; z += 5) for (const x of [-fenceW / 2, fenceW / 2]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.2, 0.3), fence); post.position.set(x, 1.1, z); root.add(post) }
-  for (const z of [-fenceD / 2, fenceD / 2]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(fenceW, 0.12, 0.12), fence); rail.position.set(0, 1.9, z); root.add(rail) }
-  for (const x of [-fenceW / 2, fenceW / 2]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, fenceD), fence); rail.position.set(x, 1.9, 0); root.add(rail) }
+  for (let x = -fenceW / 2; x <= fenceW / 2; x += 5) for (const z of [-fenceD / 2, fenceD / 2]) { const post = new THREE.Mesh(roundedBox(0.3, 2.2, 0.3), fence); post.position.set(x, 1.1, z); root.add(post) }
+  for (let z = -fenceD / 2; z <= fenceD / 2; z += 5) for (const x of [-fenceW / 2, fenceW / 2]) { const post = new THREE.Mesh(roundedBox(0.3, 2.2, 0.3), fence); post.position.set(x, 1.1, z); root.add(post) }
+  for (const z of [-fenceD / 2, fenceD / 2]) { const rail = new THREE.Mesh(roundedBox(fenceW, 0.12, 0.12), fence); rail.position.set(0, 1.9, z); root.add(rail) }
+  for (const x of [-fenceW / 2, fenceW / 2]) { const rail = new THREE.Mesh(roundedBox(0.12, 0.12, fenceD), fence); rail.position.set(x, 1.9, 0); root.add(rail) }
   const lamp = mat('lamp')
   for (let x = -siteW / 2 + 4; x <= siteW / 2; x += 16) for (let r = 0; r <= rows; r += 1) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 5, 6), lamp)
@@ -343,16 +344,16 @@ export function buildCampus(machines: Machine[]) {
     const clayFactory = () => { toggle = !toggle; return toggle ? shared : mat('wall2') }
     archetypes[machine.kind](b, clayFactory)
 
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(PLOT_W, 0.5, PLOT_D), mat('grass', { roughness: 0.9 }))
+    const pad = new THREE.Mesh(roundedBox(PLOT_W, 0.5, PLOT_D), mat('grass', { roughness: 0.9 }))
     pad.position.y = -0.2; pad.receiveShadow = true
     b.group.add(pad)
     // Concrete apron in front of the buildings.
-    const apron = new THREE.Mesh(new THREE.BoxGeometry(PLOT_W - 4, 0.52, 7), mat('concrete'))
+    const apron = new THREE.Mesh(roundedBox(PLOT_W - 4, 0.52, 7), mat('concrete'))
     apron.position.set(0, -0.19, PLOT_D / 2 - 5); apron.receiveShadow = true
     b.group.add(apron)
     if (machine.kind === 'office') {
       const stripe = mat('marking')
-      for (let i = 0; i < 10; i += 1) { const line = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 4), stripe); line.position.set(-15 + i * 3, 0.1, PLOT_D / 2 - 5); b.group.add(line) }
+      for (let i = 0; i < 10; i += 1) { const line = new THREE.Mesh(roundedBox(0.2, 0.05, 4), stripe); line.position.set(-15 + i * 3, 0.1, PLOT_D / 2 - 5); b.group.add(line) }
     }
     for (const [tx, tz] of [[-PLOT_W / 2 + 2, PLOT_D / 2 - 2], [PLOT_W / 2 - 2, PLOT_D / 2 - 2], [-PLOT_W / 2 + 2, -PLOT_D / 2 + 2]]) treeAt(b.group, tx, tz, 0.8)
 

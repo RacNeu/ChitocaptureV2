@@ -1,6 +1,5 @@
 /**
- * The ChitoCapture mark: a leaf whose vein curls into a capture ring around a CO₂ molecule
- * (one carbon, two oxygens), on an emerald tile.
+ * The ChitoCapture mark: a white leaf with a green vein on an emerald tile.
  */
 export default function BrandLogo({ size = 32, className = '' }: { size?: number; className?: string }) {
   return <svg className={`brand-logo ${className}`} width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="ChitoCapture">
@@ -10,10 +9,6 @@ export default function BrandLogo({ size = 32, className = '' }: { size?: number
     </defs>
     <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#bl-tile)" />
     <path d="M14 48 C12 28 26 14 50 14 C51 36 38 50 18 50 Z" fill="url(#bl-leaf)" />
-    <path d="M17 47 C24 40 30 35 38 30" stroke="#059669" strokeWidth="2.6" strokeLinecap="round" fill="none" />
-    <circle cx="36" cy="29" r="9.5" fill="none" stroke="#059669" strokeWidth="2.2" strokeDasharray="44 9" />
-    <circle cx="36" cy="29" r="3.4" fill="#0f172a" />
-    <circle cx="29.5" cy="29" r="2.2" fill="#e11d48" />
-    <circle cx="42.5" cy="29" r="2.2" fill="#e11d48" />
+    <path d="M17 47 C26 38 34 30 45 20" stroke="#059669" strokeWidth="2.6" strokeLinecap="round" fill="none" />
   </svg>
 }

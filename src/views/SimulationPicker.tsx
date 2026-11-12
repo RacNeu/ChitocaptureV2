@@ -7,7 +7,7 @@ import { templateById } from '../model/templates'
 import { isCompanyAccount, useSession, visibleCompanies } from '../model/auth'
 
 /** Industries that have a live process simulation. Others open in Site 3D. */
-export const simulatedIndustries = new Set(['steel'])
+export const simulatedIndustries = new Set(['steel', 'steel-downstream'])
 
 type Props = { onStart: () => void; onView3D: () => void; onAddCompany: () => void }
 type Step = { kind: 'logos' } | { kind: 'others' } | { kind: 'sites'; companyId: string }

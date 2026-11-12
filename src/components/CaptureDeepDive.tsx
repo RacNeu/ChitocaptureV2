@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import * as THREE from 'three'
+import { box } from '../three/shapes'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { num } from '../format'
 import { DEFAULT_SORBENT_CAPACITY, sorbentInventoryTonnes } from '../model/measures'
@@ -69,14 +70,14 @@ export default function CaptureDeepDive({ frame, capacity, onClose }: Props) {
     const put = (geometry: THREE.BufferGeometry, material: THREE.Material, x = 0, y = 0, z = 0) => {
       const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh); return mesh
     }
-    put(new THREE.BoxGeometry(80, 1, 50), m(0x334155, { roughness: 0.95, metalness: 0 }), 0, -0.5, 0)
-    put(new THREE.BoxGeometry(30, 0.6, 14), m(0x64748b), 0, 0.3, 0)
+    put(box(80, 1, 50), m(0x334155, { roughness: 0.95, metalness: 0 }), 0, -0.5, 0)
+    put(box(30, 0.6, 14), m(0x64748b), 0, 0.3, 0)
 
     // Reheat furnace stack (left) feeding the unit, clean-gas vent (right back), compressor and CO₂ tank (right).
     put(new THREE.CylinderGeometry(1.6, 2, 30, 18), m(0xcbd5e1), -24, 15, -6)
     put(new THREE.CylinderGeometry(1.65, 1.65, 2, 18), m(0xe11d48), -24, 27, -6)
     put(new THREE.CylinderGeometry(0.9, 1, 22, 14), m(0xe2e8f0), 4, 11, -10)
-    put(new THREE.BoxGeometry(5, 4, 4), m(0x1d4ed8), 15, 2.3, 6)
+    put(box(5, 4, 4), m(0x1d4ed8), 15, 2.3, 6)
     const tank = new THREE.Group()
     const tankShell = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 14, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.28, side: THREE.DoubleSide }))
     tankShell.rotation.z = Math.PI / 2
@@ -87,7 +88,7 @@ export default function CaptureDeepDive({ frame, capacity, onClose }: Props) {
     tank.add(tankFill)
     tank.position.set(20, 4.2, -2)
     scene.add(tank)
-    for (const x of [14, 26]) put(new THREE.BoxGeometry(1, 3, 4), m(0x475569), x, 1.5, -2)
+    for (const x of [14, 26]) put(box(1, 3, 4), m(0x475569), x, 1.5, -2)
 
     // Two columns with sorbent granules and waste-heat coils.
     const beds = (['A', 'B'] as const).map((id) => {
