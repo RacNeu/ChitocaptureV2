@@ -17,6 +17,11 @@ import Plan from './views/Plan'
 import Sensors from './views/Sensors'
 import Settings from './views/Settings'
 import Twin from './views/Twin'
+import Login from './views/Login'
+import ChatAssistant from './components/ChatAssistant'
+import BrandLogo from './components/BrandLogo'
+import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
+import { getWorkspace } from './model/store'
 
 type View = 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string }[] = [
@@ -45,6 +50,14 @@ export default function App() {
   const [touring, setTouring] = useState(false)
   const onboarding = !state.onboarded
   const [previousSite, setPreviousSite] = useState<string | null>(null)
+  const session = useSession()
+  const companies = visibleCompanies(workspace, session)
+  const companyAccount = isCompanyAccount(session)
+
+  // A company account only ever opens its own company.
+  useEffect(() => {
+    if (session && !companies.some((item) => item.id === company.id) && companies[0]) companyActions.switchCompany(companies[0].id)
+  }, [session, companies, company.id])
 
   useEffect(() => {
     const onHash = () => setView(readView())
@@ -66,14 +79,20 @@ export default function App() {
     if (fallback) { companyActions.switchSite(fallback); companyActions.removeSite(id) }
     go('company')
   }
+  if (!session) return <Login onSignedIn={(name) => {
+    const match = name ? getWorkspace().companies.find((item) => item.name === name) : null
+    if (match) companyActions.switchCompany(match.id)
+    go('company')
+  }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
   const siteScoped = view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
   const addedCount = workspace.companies.filter((item) => !item.fixed).length
+  const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
   return <div className="app">
     <header className="topbar">
-      <div className="brand"><span className="brand-mark">◭</span> ChitoCapture
+      <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span>
         <label className="site-switch" title="Switch company">
           <span className="sr-only">Company</span>
           <select value={company.id} onChange={(event) => {
@@ -83,15 +102,15 @@ export default function App() {
             if (view === 'control' && getState().settings.industryId !== 'steel') go('simulate')
             if (view === 'add-company') go('company')
           }}>
-            {workspace.companies.map((item) => <option key={item.id} value={item.id}>🏢 {item.name}</option>)}
-            <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>
+            {companies.map((item) => <option key={item.id} value={item.id}>🏢 {item.name}</option>)}
+            {!companyAccount && <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>}
           </select>
         </label>
       </div>
       <nav className="tabs" aria-label="Main">
         {views.map((item) => { const current = view === item.id || (item.id === 'simulate' && view === 'control'); return <button key={item.id} type="button" className={current ? 'active' : ''} aria-current={current ? 'page' : undefined} onClick={() => go(item.id)}><span aria-hidden="true">{item.icon}</span><span className="tab-label">{item.label}</span></button> })}
       </nav>
-      <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">▶ Tour</button>
+      {canTour && <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">▶ Tour</button>}
       <label className="role-switch" title="View the app as a different team">
         <span className="role-label">View as</span>
         <select value={role} onChange={(event) => actions.setRole(event.target.value as typeof role)}>
@@ -100,6 +119,9 @@ export default function App() {
       </label>
       <button type="button" className={`live-pill ${sensor.status}`} onClick={() => go('sensors')} title="Sensor status">
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
+      </button>
+      <button type="button" className="account-btn" onClick={() => { if (confirm(`Sign out of ${session.accountId}?`)) { setTouring(false); signOut() } }} title={`Signed in as ${session.accountId}. Click to sign out.`}>
+        <span className="account-id">{session.accountId}</span><span aria-hidden="true">⎋</span><span className="sr-only">Sign out</span>
       </button>
     </header>
     <main className="content">
@@ -111,7 +133,7 @@ export default function App() {
       </div>}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
-      {view === 'add-company' && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
+      {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
       {view === 'company' && <Company onOpen={go} onAddSite={() => setPreviousSite(company.activeId)} />}
       {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
       {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />}
@@ -122,6 +144,7 @@ export default function App() {
       {view === 'settings' && <Settings onRestart={() => undefined} onRemoved={() => go('company')} />}
     </main>
     {touring && <Tour onClose={() => setTouring(false)} />}
+    {!touring && <ChatAssistant />}
     <footer className="foot">Prototype · sample data are illustrative; default factors are sourced · <a href="#sources">Data & sources</a> · data stays in this browser</footer>
   </div>
 }

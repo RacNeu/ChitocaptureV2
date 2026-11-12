@@ -25,6 +25,9 @@ Malaysian steel faces two carbon prices at once: the EU's Carbon Border Adjustme
 | **5. Sensors** | Plug an ESP32 CO₂ sensor into USB and stream it straight into the browser (Web Serial, in Chrome or Edge), or use the built-in simulation. |
 | **6. Chitosan capture lab** | With sensors before and after a sorbent column, the app draws the breakthrough curve and integrates the CO₂ captured into **mmol/g**. One click feeds that measured capacity into every capture estimate in the app. |
 
+| **Sign-in** | A login page with the ChitoCapture logo. Each subscribing company has its own company ID and password and sees only its own company. Demo accounts: `MSD-001` / `steel2026` (steel group), `MCD-001` / `cement2026` (cement producer), `DEMO` / `demo2026` (all demo companies). *Prototype only:* accounts are built into the app and data stay in the browser; real accounts need a server (for example Supabase Auth with per-company data). |
+| **✦ Ask AI** | A chat box on every page. Ask *“Which process should we cut first?”*, *“Save RM 2 million a year”*, *“Cut emissions by 30%”*, *“What if we shut the ladle furnace?”* or *“Carbon cost at RM 80 per tonne?”*. Built-in answers are calculated from the site's own numbers, with one-click **Add to plan**. Other questions go to Claude when an API key is set (below). |
+
 ### Honest numbers
 - Every action is **net**: savings minus the action's own energy use. Carbon capture is compared fairly against efficiency, heat recovery, fuel switching and process changes, and is flagged when it does not pay off in CO₂ terms.
 - Each measure shows the **engineering checks** needed before relying on it, and the basis of its indicative estimate.
@@ -45,6 +48,7 @@ Open the address Vite prints (usually http://127.0.0.1:5173).
 ## Deploy
 
 - **Vercel:** import the repository with the **Vite** preset. Leave Root Directory empty, since the app is at the repository root.
+- **Real AI in the chat (optional):** in Vercel → your project → **Settings → Environment Variables**, add `ANTHROPIC_API_KEY` with a key from console.anthropic.com, then redeploy. The key stays on the server (`api/chat.ts`); each AI answer costs a few cents. Without a key, the chat uses its built-in answers only.
 - **GitHub Pages:** in **Settings → Pages**, set the source to **GitHub Actions**. The workflow tests, builds and publishes to `https://<user>.github.io/ChitocaptureV2/`.
 
 ## Hardware

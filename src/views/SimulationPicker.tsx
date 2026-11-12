@@ -4,6 +4,7 @@ import { tonnes } from '../format'
 import { summarise } from '../model/calc'
 import { companyActions, MAX_ADDED_COMPANIES, useCompany, useWorkspace, type Company } from '../model/store'
 import { templateById } from '../model/templates'
+import { isCompanyAccount, useSession, visibleCompanies } from '../model/auth'
 
 /** Industries that have a live process simulation. Others open in Site 3D. */
 export const simulatedIndustries = new Set(['steel'])
@@ -17,8 +18,11 @@ export default function SimulationPicker({ onStart, onView3D, onAddCompany }: Pr
   const workspace = useWorkspace()
   const active = useCompany()
   const [step, setStep] = useState<Step>({ kind: 'logos' })
-  const samples = workspace.companies.filter((item) => item.fixed)
-  const added = workspace.companies.filter((item) => !item.fixed)
+  const session = useSession()
+  const companies = visibleCompanies(workspace, session)
+  const companyAccount = isCompanyAccount(session)
+  const samples = companies.filter((item) => item.fixed)
+  const added = companies.filter((item) => !item.fixed)
   const otherIsCurrent = added.some((item) => item.id === active.id)
 
   const Back = ({ to }: { to: Step }) => <button type="button" className="sim-back" onClick={() => setStep(to)}>← Back</button>
@@ -32,12 +36,12 @@ export default function SimulationPicker({ onStart, onView3D, onAddCompany }: Pr
           <strong>{company.name}</strong>
           {company.id === active.id && <em>(current)</em>}
         </button>)}
-        <button type="button" className="logo-card other" style={{ animationDelay: `${samples.length * 120}ms` }} onClick={() => setStep({ kind: 'others' })}>
+        {!companyAccount && <button type="button" className="logo-card other" style={{ animationDelay: `${samples.length * 120}ms` }} onClick={() => setStep({ kind: 'others' })}>
           <CompanyLogo kind="factory" />
           <strong>Other companies</strong>
           <span className="logo-sub">{added.length ? `${added.length} added` : 'none added yet'}</span>
           {otherIsCurrent && <em>(current)</em>}
-        </button>
+        </button>}
       </div>
     </div>}
 

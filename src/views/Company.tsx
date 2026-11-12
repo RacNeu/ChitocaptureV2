@@ -4,6 +4,7 @@ import { summarise } from '../model/calc'
 import { companyActions, useCompany, useRole, useWorkspace } from '../model/store'
 import { roleById, waitingFor } from '../model/roles'
 import { industryTemplates, templateById } from '../model/templates'
+import { visibleCompanies } from '../model/auth'
 
 type Props = { onOpen: (view: 'twin' | 'control' | 'analysis') => void; onAddSite: () => void }
 
@@ -28,10 +29,10 @@ export default function Company({ onOpen, onAddSite }: Props) {
   return <div className="company">
     <header className="plan-head">
       <div>
-        <div className="demo-switch" role="tablist" aria-label="Demo company">
+        {visibleCompanies(workspace).length > 1 && <div className="demo-switch" role="tablist" aria-label="Demo company">
           <span className="eyebrow">Demo customer</span>
-          {workspace.companies.map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === company.id} className={item.id === company.id ? 'active' : ''} onClick={() => companyActions.switchCompany(item.id)}>{templateById(item.sites[0]?.state.settings.industryId ?? '')?.icon} {item.name}</button>)}
-        </div>
+          {visibleCompanies(workspace).map((item) => <button key={item.id} type="button" role="tab" aria-selected={item.id === company.id} className={item.id === company.id ? 'active' : ''} onClick={() => companyActions.switchCompany(item.id)}>{templateById(item.sites[0]?.state.settings.industryId ?? '')?.icon} {item.name}</button>)}
+        </div>}
         <h1 className="company-name">{company.name}</h1>
         <p className="muted">{company.sites.length} site{company.sites.length === 1 ? '' : 's'} · every figure is the sum of the sites below · sample data, illustrative only</p>
       </div>
