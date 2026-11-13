@@ -1062,3 +1062,15 @@ fieldset.lock:disabled { opacity: .6; }
 .hall-card:fullscreen .deepdive-canvas, .hall-card.pseudo-full .deepdive-canvas { position: absolute; height: auto; }
 body.no-scroll { overflow: hidden; }
 .hall-card.pseudo-full { overflow-y: auto; }
+
+/* Malaysia: rules panel and cross-check */
+.my-rules, .cross-check { margin: 16px 0; }
+.my-rules header h2, .cross-check header h2 { margin: 0 0 4px; }
+small.block { display: block; margin-top: 4px; }
+.my-status { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--bg-2); color: var(--muted); }
+.my-status.applies { background: #ffe4e6; color: #be123c; }
+.my-status.likely { background: #fef3c7; color: #b45309; }
+.my-status.check { background: #e0f2fe; color: #0369a1; }
+.cross-check td.good { color: #047857; font-weight: 700; }
+.cross-check td.fair { color: #b45309; font-weight: 700; }
+.cross-check td.weak { color: #be123c; font-weight: 700; }

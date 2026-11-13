@@ -1,3 +1,4 @@
+import { GET_PREMIUM_RM_PER_MWH } from './prices'
 /**
  * Illustrative steel mini-mill model: scrap-based electric arc furnace (EAF) → ladle furnace →
  * continuous caster → reheating furnace → rolling mill.
@@ -83,7 +84,7 @@ export const upgradeInfo: UpgradeInfo[] = [
   { key: 'fumeVsd', name: 'Variable-speed fume fans', what: 'Run the extraction fans only as hard as the fumes need.', basis: '−30% fume-fan electricity; capex RM 4m', capexRM: () => 4_000_000 },
   { key: 'hotCharging', name: 'Hot charging', what: 'Send billets straight from the caster to the reheating furnace while still hot.', basis: '−30% reheating gas; capex RM 15m', capexRM: () => 15_000_000 },
   { key: 'regenBurners', name: 'Regenerative burners', what: 'Recover exhaust heat to preheat combustion air in the reheating furnace.', basis: '−15% reheating gas; capex RM 20m', capexRM: () => 20_000_000 },
-  { key: 'greenShare', name: 'Green electricity', what: 'Rooftop solar plus a renewable electricity tariff or power purchase agreement.', basis: 'Cuts grid CO₂ in proportion to the green share; tariff premium not modelled', capexRM: () => 0 },
+  { key: 'greenShare', name: 'Green electricity', what: 'Rooftop solar plus a renewable electricity tariff or power purchase agreement.', basis: 'Cuts grid CO₂ in proportion to the green share; adds TNB’s Green Electricity Tariff premium of 3 sen/kWh (3-year subscription)', capexRM: () => 0 },
   { key: 'captureShare', name: 'ChitoCapture chitosan capture', what: 'ChitoCapture’s chitosan sorbent unit on the reheating-furnace stack. A 5% pilot is running; slide right to see a full-scale installation. The sorbent is regenerated with furnace waste heat.', basis: '90% capture of the treated gas; 0.25 MWh electricity per t captured; RM 1,000 per t/yr capacity',
     capexRM: (p, annualT, u) => Math.round(intensity(p, u).capturedKgPerT * annualT / 1_000 * 1_000) },
 ]
@@ -138,7 +139,9 @@ export function annual(p: SteelParams, u: Upgrades): AnnualResult {
     indirectT: i.indirectKgPerT * steelT / 1_000,
     electricityMWh,
     gasGJ,
-    energyCostRM: electricityMWh * p.electricityRMPerMWh + gasGJ * p.gasRMPerGJ,
+    energyCostRM: electricityMWh * p.electricityRMPerMWh + gasGJ * p.gasRMPerGJ
+      // Green electricity bought through TNB's Green Electricity Tariff costs a premium per kWh.
+      + electricityMWh * Math.min(1, Math.max(0, u.greenShare)) * GET_PREMIUM_RM_PER_MWH,
   }
 }
 

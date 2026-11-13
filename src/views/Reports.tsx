@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { num, ringgit, tonnes } from '../format'
 import { areaSummary, contextFor, machineEmissions, performance, plannedActions, summarise } from '../model/calc'
 import { fuelLabels, gridFactor } from '../model/factors'
@@ -8,10 +9,12 @@ import { sources } from '../model/sources'
 import { annual, cbam, cbamPhaseIn, defaultSteelParams, intensity, noUpgrades, type Upgrades } from '../model/steel'
 import { useCompany, useFactory, useRole } from '../model/store'
 import { templateById } from '../model/templates'
+import { MalaysiaRules } from '../components/Malaysia'
+import { stateById } from '../model/malaysia'
 
 type Kind = 'site' | 'eeca' | 'cbam'
 const EECA_THRESHOLD_GJ = 21_600
-const today = () => new Date().toISOString().slice(0, 10)
+const today = () => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 function Cite({ ids }: { ids: string[] }) {
   return <sup className="cite">[{ids.map((id) => sources.findIndex((item) => item.id === id) + 1).join(', ')}]</sup>
@@ -25,7 +28,7 @@ export default function Reports() {
   const [kind, setKind] = useState<Kind>('site')
   const [period, setPeriod] = useState(String(new Date().getFullYear()))
   const [exportT, setExportT] = useState(100_000)
-  const [euPrice, setEuPrice] = useState(75)
+  const [euPrice, setEuPrice] = useState(EU_CARBON_PRICE_EUR)
   const ctx = contextFor(state)
   const summary = summarise(state)
   const production = state.settings.productionTPerYear
@@ -87,7 +90,7 @@ export default function Reports() {
         <tr><td>Electricity</td><td>{num(elecGJ / 3.6)} MWh ({num(elecGJ)} GJ)</td></tr>
         <tr><td>Fuel{fuels.length ? ` (${fuels.join(', ')})` : ''}</td><td>{num(fuelGJ)} GJ</td></tr>
         <tr><td><b>Total energy</b></td><td><b>{num(total)} GJ per year</b></td></tr>
-        <tr><td>EECA threshold<Cite ids={['eeca']} /></td><td>{num(EECA_THRESHOLD_GJ)} GJ per year: this site is <b>{total >= EECA_THRESHOLD_GJ ? 'above the threshold (registered energy manager and reporting required)' : 'below the threshold'}</b></td></tr>
+        <tr><td>EECA threshold<Cite ids={['eeca']} /></td><td>{num(EECA_THRESHOLD_GJ)} GJ per year: this site is <b>{total >= EECA_THRESHOLD_GJ ? 'above the threshold' : 'below the threshold'}</b>{['my-sabah', 'my-sarawak'].includes(stateById(state.settings.stateId)?.gridRegionId ?? '') && state.settings.stateId !== 'labuan' ? '. The Act covers Peninsular Malaysia and Labuan only, so it does not apply at this site.' : total >= EECA_THRESHOLD_GJ ? ' (registered energy manager, energy audit and reporting required).' : '.'}</td></tr>
         {production && <tr><td>Specific energy</td><td>{num(total / production, 2)} GJ per tonne of {unit}</td></tr>}
       </tbody></table>
       <h2>2. Energy by equipment</h2>
@@ -121,10 +124,10 @@ export default function Reports() {
         <tr><td>Annual production</td><td className="num" colSpan={2}>{num(steelT)} t</td></tr>
       </tbody></table>
       <h2>2. Estimated CBAM cost by year</h2>
-      <p>Assumes {num(exportT)} t a year exported to the EU, EU carbon price €{euPrice}/t at RM 5 per €, and no carbon price paid in Malaysia.<Cite ids={['cbam', 'tax']} /></p>
+      <p>Assumes {num(exportT)} t a year exported to the EU, EU carbon price €{euPrice}/t at RM {RM_PER_EUR} per €, and no carbon price paid in Malaysia.<Cite ids={['cbam', 'tax']} /></p>
       <table className="rep-table"><thead><tr><th>Year</th><th className="num">Phase-in</th><th className="num">RM per tonne (verified data)</th><th className="num">RM per year (verified)</th><th className="num">RM per year (EU default {DEFAULT_T} t/t)</th></tr></thead>
-        <tbody>{years.map((year) => { const result = cbam(base, { exportTPerYear: exportT, euPriceEUR: euPrice, rmPerEUR: 5, malaysiaPriceRM: 0, year }); return <tr key={year}>
-          <td>{year}</td><td className="num">{num(result.phaseIn * 100, 1)}%</td><td className="num">{ringgit(result.costRMPerT)}</td><td className="num">{ringgit(result.costRMPerYear)}</td><td className="num muted-cell">{ringgit(DEFAULT_T * euPrice * 5 * result.phaseIn * exportT)}</td></tr> })}</tbody></table>
+        <tbody>{years.map((year) => { const result = cbam(base, { exportTPerYear: exportT, euPriceEUR: euPrice, rmPerEUR: RM_PER_EUR, malaysiaPriceRM: 0, year }); return <tr key={year}>
+          <td>{year}</td><td className="num">{num(result.phaseIn * 100, 1)}%</td><td className="num">{ringgit(result.costRMPerT)}</td><td className="num">{ringgit(result.costRMPerYear)}</td><td className="num muted-cell">{ringgit(DEFAULT_T * euPrice * RM_PER_EUR * result.phaseIn * exportT)}</td></tr> })}</tbody></table>
       <p><b>Why tracking pays:</b> with verified plant data this mill’s direct emissions are {num(base.directKgPerT / 1_000, 3)} t/t. Without them, an EU importer may have to use a default value such as {DEFAULT_T} t/t<Cite ids={['cbam-default']} />, about {num(DEFAULT_T / (base.directKgPerT / 1_000), 0)}× higher, and the cost passes back to the exporter in price negotiations.</p>
       <p className="rep-note">Simplified estimate. Real CBAM declarations use verified installation data, product-specific rules, precursor emissions and EU default values. Captured CO₂ reduces direct emissions only if it is stored or used under the EU’s rules.</p>
     </>
@@ -148,10 +151,11 @@ export default function Reports() {
         <label className="field">EU carbon price (€/t)<input type="number" min="0" value={euPrice} onChange={(event) => setEuPrice(Number(event.target.value))} /></label></>}
     </div>
 
+    <div className="no-print"><MalaysiaRules state={state} /></div>
     <article className="report-paper">
       <header className="rep-head">
         <div className="rep-brand"><span className="brand-mark">◭</span><div><b>ChitoCapture</b><small>Carbon tracking platform</small></div></div>
-        <div className="rep-meta"><span>{company.name}</span><span>{templateById(state.settings.industryId)?.icon} {state.settings.factoryName}</span></div>
+        <div className="rep-meta"><span>{company.name}</span><span>{templateById(state.settings.industryId)?.icon} {state.settings.factoryName}</span>{stateById(state.settings.stateId) && <span>{state.settings.industrialPark ? `${state.settings.industrialPark}, ` : ''}{stateById(state.settings.stateId)?.label}, Malaysia</span>}</div>
       </header>
       <h1>{titles[kind]}</h1>
       <p className="rep-sub">Reporting period: {period} · Generated {today()} · Prepared by {preparedBy}</p>

@@ -1,4 +1,5 @@
 import { sources } from '../model/sources'
+import { SteelCrossCheck } from '../components/Malaysia'
 
 export default function Sources() {
   return <div className="sources-page">
@@ -11,5 +12,6 @@ export default function Sources() {
         <td>{item.url ? <a href={item.url} target="_blank" rel="noreferrer">{item.source} ↗</a> : item.source}</td>
       </tr>)}</tbody>
     </table></div>
+    <SteelCrossCheck />
   </div>
 }

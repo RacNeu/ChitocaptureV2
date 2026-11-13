@@ -2,7 +2,8 @@ import { fuelLabels, gridRegions } from '../model/factors'
 import { actions, companyActions, useCompany, useFactory, useRole } from '../model/store'
 import { can, roleById } from '../model/roles'
 import type { FuelType, MachineKind } from '../model/types'
-import { kindIcon } from '../format'
+import { kindIcon, num } from '../format'
+import { gridHint, LocationFields } from '../components/Malaysia'
 
 const kinds: MachineKind[] = ['kiln', 'boiler', 'furnace', 'mill', 'fan', 'pump', 'compressor', 'chiller', 'production-line', 'genset', 'wastewater', 'cold-room', 'office']
 const fuels = Object.keys(fuelLabels) as FuelType[]
@@ -25,9 +26,10 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
       <div className="form-grid">
         <label className="field">Company name<input value={company.name} onChange={(event) => companyActions.rename(event.target.value)} /></label>
         <label className="field">Site name<input value={settings.factoryName} onChange={(event) => set({ factoryName: event.target.value })} /></label>
+        <LocationFields settings={settings} onChange={set} />
         <label className="field">Electricity grid<select value={settings.gridRegionId} onChange={(event) => set({ gridRegionId: event.target.value })}>{gridRegions.map((item) => <option key={item.id} value={item.id}>{item.label}{item.id !== 'custom' ? ` · ${item.kgPerKWh} kg/kWh` : ''}</option>)}</select></label>
         {settings.gridRegionId === 'custom' && <label className="field">Grid factor (kg CO₂e/kWh)<input type="number" step="0.001" min="0" value={settings.customGridKgPerKWh} onChange={(event) => set({ customGridKgPerKWh: Number(event.target.value) })} /></label>}
-        <label className="field">Electricity price (RM/MWh)<input type="number" min="0" value={settings.electricityPriceRMPerMWh} onChange={(event) => set({ electricityPriceRMPerMWh: Number(event.target.value) })} /></label>
+        <label className="field">Electricity price (RM/MWh, all-in)<input type="number" min="0" value={settings.electricityPriceRMPerMWh} onChange={(event) => set({ electricityPriceRMPerMWh: Number(event.target.value) })} /><small className="muted">= {num(settings.electricityPriceRMPerMWh / 10, 2)} sen/kWh including maximum-demand charges</small></label>
         {(Object.keys(settings.fuelPriceRMPerGJ) as (keyof typeof settings.fuelPriceRMPerGJ)[]).map((fuel) => <label key={fuel} className="field">{fuelLabels[fuel]} price (RM/GJ)<input type="number" min="0" value={settings.fuelPriceRMPerGJ[fuel]} onChange={(event) => set({ fuelPriceRMPerGJ: { ...settings.fuelPriceRMPerGJ, [fuel]: Number(event.target.value) } })} /></label>)}
         <label className="field">Discount rate (%)<input type="number" min="0" max="30" value={settings.discountRatePct} onChange={(event) => set({ discountRatePct: Number(event.target.value) })} /></label>
         <label className="field">Baseline year<input type="number" value={settings.baselineYear} onChange={(event) => set({ baselineYear: Number(event.target.value) })} /></label>
@@ -36,7 +38,7 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
         <label className="field">Product (what one tonne is)<input value={settings.productUnit} onChange={(event) => set({ productUnit: event.target.value })} /></label>
         <label className="field">Target reduction (%)<input type="number" min="0" max="100" value={settings.targetReductionPct} onChange={(event) => set({ targetReductionPct: Number(event.target.value) })} /></label>
       </div>
-      <p className="note">{region?.note} Fuel factors use common IPCC 2006 default CO₂ values (coal 94.6, natural gas 56.1, diesel 74.1, fuel oil 77.4 kg/GJ). Biomass CO₂ is biogenic and reported separately. Prices are demo placeholders.</p>
+      <p className="note">{gridHint(settings)} {region?.note} Fuel factors use common IPCC 2006 default CO₂ values (coal 94.6, natural gas 56.1, diesel 74.1, fuel oil 77.4 kg/GJ). Biomass CO₂ is biogenic and reported separately. Default prices are Malaysian: electricity from TNB’s medium-voltage tariff (about 45 sen/kWh all-in), zinc from the LME price in ringgit; the gas price (RM 40/GJ) is an assumption until replaced with the site’s Gas Malaysia invoice.</p>
     </fieldset></section>
 
     <section className="card">

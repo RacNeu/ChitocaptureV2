@@ -40,6 +40,10 @@ export type Settings = {
   factoryName: string
   industryId: string
   gridRegionId: string
+  /** Malaysian state or federal territory (sets the grid region). */
+  stateId?: string
+  /** Industrial park or area, e.g. "Prai Industrial Estate". */
+  industrialPark?: string
   /** Used when gridRegionId is 'custom'. */
   customGridKgPerKWh: number
   electricityPriceRMPerMWh: number

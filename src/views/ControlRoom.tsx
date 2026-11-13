@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { Sparkline } from '../components/Charts'
 import BrandLogo from '../components/BrandLogo'
 import type { PickId, SimFrame, UnitTooltip } from '../components/SteelHall3D'
@@ -50,7 +51,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     return () => window.removeEventListener(SIM_EVENT, onCommand)
   }, [])
   const [carbonPrice, setCarbonPrice] = useState(35)
-  const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 100_000, euPriceEUR: 75, rmPerEUR: 5, year: 2030 })
+  const [cbamInputs, setCbamInputs] = useState({ exportTPerYear: 100_000, euPriceEUR: EU_CARBON_PRICE_EUR, rmPerEUR: RM_PER_EUR, year: 2030 })
 
   // Simulation clock: advanced every animation frame, published to React four times a second.
   const hallCardRef = useRef<HTMLDivElement>(null)

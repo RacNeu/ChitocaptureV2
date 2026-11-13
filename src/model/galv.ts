@@ -1,3 +1,5 @@
+import { GET_PREMIUM_RM_PER_MWH, ZINC_RM_PER_T } from './prices'
+
 /**
  * Process model of a wire drawing & continuous hot-dip galvanising plant (illustrative sample site).
  *
@@ -108,7 +110,7 @@ export const defaultGalvParams: GalvParams = {
   zincKgCO2PerKg: 3.5,
   electricityRMPerMWh: 450,
   gasRMPerGJ: 40,
-  zincRMPerT: 13_000,
+  zincRMPerT: ZINC_RM_PER_T,
   rodDirectKgPerT: 137,
 }
 
@@ -210,7 +212,8 @@ export function galvAnnual(p: GalvParams, u: GalvUpgrades): GalvAnnual {
     zincCO2T: i.zincKgCO2PerT * wireT / 1_000,
     electricityMWh,
     gasGJ,
-    costRM: electricityMWh * p.electricityRMPerMWh + gasGJ * p.gasRMPerGJ + zincT * p.zincRMPerT,
+    costRM: electricityMWh * p.electricityRMPerMWh + gasGJ * p.gasRMPerGJ + zincT * p.zincRMPerT
+      + electricityMWh * Math.min(1, Math.max(0, u.greenShare)) * GET_PREMIUM_RM_PER_MWH,
   }
 }
 
@@ -222,7 +225,7 @@ export const galvUpgradeInfo: GalvUpgradeInfo[] = [
   { key: 'kettleCover', name: 'Kettle covers & high-efficiency burners', what: 'Insulated covers over the idle zinc surface, better kettle insulation and pulse-fired burners: surface and wall losses drop by a third and burners run more efficiently.', basis: 'Most of a zinc kettle’s gas keeps the bath hot rather than heating the wire.', capexRM: (p) => 1.1e6 * p.galvLines },
   { key: 'recuperator', name: 'Annealing furnace recuperators', what: 'Preheat the combustion air with the furnace’s own flue gas: furnace efficiency from about 50 % to 62 %.', basis: 'Recuperative burners typically save 15–25 % of fuel on 700–900 °C furnaces.', capexRM: (p) => 1.4e6 * p.galvLines },
   { key: 'induction', name: 'Electric induction annealing', what: 'Replace the gas furnaces with induction heaters. This removes the gas, but adds electricity, so whether it cuts CO₂ depends on how clean the electricity is.', basis: 'Induction heats wire at about 85 % efficiency. On Peninsular Malaysia’s grid it can raise CO₂ unless paired with green power.', capexRM: (p) => 6e6 * p.galvLines },
-  { key: 'greenShare', name: 'Renewable electricity (green tariff or solar)', what: 'Share of electricity from renewables, for example the Green Electricity Tariff or rooftop solar on the large wire-plant roofs.', basis: 'Cuts Scope 2 emissions in proportion.', capexRM: () => 0 },
+  { key: 'greenShare', name: 'Renewable electricity (green tariff or solar)', what: 'Share of electricity from renewables, for example the Green Electricity Tariff or rooftop solar on the large wire-plant roofs.', basis: 'Cuts Scope 2 emissions in proportion; adds TNB’s Green Electricity Tariff premium of 3 sen/kWh (3-year subscription).', capexRM: () => 0 },
 ]
 
 export type GalvUpgradeImpact = { info: GalvUpgradeInfo; savedKgPerT: number; savedTPerYear: number; zincSavedT: number; capexRM: number; annualSavingRM: number; paybackYears: number | null }
@@ -230,11 +233,11 @@ export type GalvUpgradeImpact = { info: GalvUpgradeInfo; savedKgPerT: number; sa
 /** Effect of each active upgrade on its own, against today. */
 export function galvUpgradeImpacts(p: GalvParams, u: GalvUpgrades): GalvUpgradeImpact[] {
   const base = galvAnnual(p, noGalvUpgrades)
-  const baseCost = base.electricityMWh * p.electricityRMPerMWh + base.gasGJ * p.gasRMPerGJ + base.zincT * p.zincRMPerT
+  const baseCost = base.costRM
   return galvUpgradeInfo.filter((info) => Boolean(u[info.key])).map((info) => {
     const only = { ...noGalvUpgrades, [info.key]: u[info.key] } as GalvUpgrades
     const after = galvAnnual(p, only)
-    const cost = after.electricityMWh * p.electricityRMPerMWh + after.gasGJ * p.gasRMPerGJ + after.zincT * p.zincRMPerT
+    const cost = after.costRM
     const capexRM = info.capexRM(p)
     const annualSavingRM = baseCost - cost
     return {

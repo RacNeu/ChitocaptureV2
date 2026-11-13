@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { fuelLabels, gridRegions } from '../model/factors'
+import { gridHint, LocationFields } from '../components/Malaysia'
 import { actions, defaultSettings, getState, machinesFromTemplate, newId, productionFor } from '../model/store'
 import { industryTemplates } from '../model/templates'
 import type { FuelType, Machine, MachineKind, Settings } from '../model/types'
@@ -115,14 +116,15 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
 
     {step === 3 && <section className="onboard-body narrow">
       <h1>Your target</h1>
-      <p className="lead">Choose where your electricity comes from, so grid emissions are counted correctly, and how far you want to go.</p>
+      <p className="lead">Tell us where the site is, so grid emissions and Malaysian rules are applied correctly, and how far you want to go.</p>
       <div className="form-grid">
+        <LocationFields settings={settings} onChange={(patch) => setSettings({ ...settings, ...patch })} />
         <label className="field">Electricity grid<select value={settings.gridRegionId} onChange={(event) => setSettings({ ...settings, gridRegionId: event.target.value })}>{gridRegions.map((region) => <option key={region.id} value={region.id}>{region.label}{region.id !== 'custom' ? ` · ${region.kgPerKWh} kg/kWh` : ''}</option>)}</select></label>
         {settings.gridRegionId === 'custom' && <label className="field">Grid factor (kg CO₂e/kWh)<input type="number" step="0.001" min="0" value={settings.customGridKgPerKWh} onChange={(event) => setSettings({ ...settings, customGridKgPerKWh: Number(event.target.value) })} /></label>}
         <label className="field">Reduce emissions by (%)<input type="range" min="5" max="60" step="5" value={settings.targetReductionPct} onChange={(event) => setSettings({ ...settings, targetReductionPct: Number(event.target.value) })} /><output>{settings.targetReductionPct}%</output></label>
         <label className="field">By the year<select value={settings.targetYear} onChange={(event) => setSettings({ ...settings, targetYear: Number(event.target.value) })}>{[2028, 2030, 2032, 2035].map((year) => <option key={year}>{year}</option>)}</select></label>
       </div>
-      <p className="muted">{gridRegions.find((region) => region.id === settings.gridRegionId)?.note}</p>
+      <p className="muted">{gridHint(settings)} {gridRegions.find((region) => region.id === settings.gridRegionId)?.note}</p>
       <nav className="onboard-nav"><button type="button" className="btn ghost" onClick={() => setStep(2)}>← Back</button><button type="button" className="btn big" onClick={finish}>Build my carbon twin →</button></nav>
     </section>}
   </div>

@@ -1,4 +1,5 @@
 import { tonnes, ringgit } from '../format'
+import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from './prices'
 import { contextFor, machineEmissions, optionsFor, summarise, type Option } from './calc'
 import { answer as copilotAnswer, allOptions } from './copilot'
 import { measureById } from './measures'
@@ -182,10 +183,10 @@ export function reply(question: string, state: FactoryState): AssistantReply {
     const directT = state.machines.reduce((sum, item) => { const e = machineEmissions(item, ctx); return sum + e.fuelT + e.processT }, 0)
     const directPerT = directT / production
     const perT = summary.baselineT / production
-    const cost2034 = 100_000 * directPerT * 75 * 5 * cbamPhaseIn[2034]
+    const cost2034 = 100_000 * directPerT * EU_CARBON_PRICE_EUR * RM_PER_EUR * cbamPhaseIn[2034]
     return { understood: true, lines: [
       `${site} emits ${(perT * 1000).toFixed(0)} kg CO₂ per tonne of ${state.settings.productUnit} in total, of which ${(directPerT * 1000).toFixed(0)} kg is direct (fuel and process).`,
-      `For 100,000 t exported to the EU at €75/t and RM 5/€, CBAM on the direct figure would be about ${ringgit(cost2034)} a year by 2034 (full phase-in). The Simulation page has the detailed steel CBAM view.`,
+      `For 100,000 t exported to the EU at €${EU_CARBON_PRICE_EUR}/t (RM ${Math.round(EU_CARBON_PRICE_EUR * RM_PER_EUR)}/t), CBAM on the direct figure would be about ${ringgit(cost2034)} a year by 2034 (full phase-in). The Simulation page has the detailed steel CBAM view.`,
       'Verified data matter: if the importer must use an EU default value instead, the charge can be many times higher.',
     ] }
   }

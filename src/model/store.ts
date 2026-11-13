@@ -3,6 +3,7 @@ import { templateById } from './templates'
 import type { ActionStatus, FactoryState, HistoryEntry, Machine, PlanAction, Role, Settings } from './types'
 import { roleById, statusInfo } from './roles'
 import { measureById } from './measures'
+import { sampleLocations } from './malaysia'
 
 export const defaultSettings: Settings = {
   factoryName: 'My factory',
@@ -59,7 +60,8 @@ export const MAX_ADDED_COMPANIES = 3
 
 function siteFromTemplate(industryId: string, name: string): Site {
   const fresh = freshState(industryId)
-  return { id: newId('site'), fixed: true, state: { ...fresh, onboarded: true, settings: { ...fresh.settings, factoryName: name } } }
+  const where = sampleLocations[industryId]
+  return { id: newId('site'), fixed: true, state: { ...fresh, onboarded: true, settings: { ...fresh.settings, factoryName: name, ...(where ? { stateId: where.stateId, industrialPark: where.park } : {}) } } }
 }
 
 function makeCompany(name: string, sites: Site[], fixed = true): Company {
@@ -98,6 +100,11 @@ function loadWorkspace(): Workspace {
           const legacy = (item.sites ?? []).every((site) => site.fixed === undefined)
           const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines))
             .map((site, index) => ({ ...site, fixed: legacy ? index < 3 && sampleIndustries.includes(site.state.settings?.industryId) : site.fixed, state: normalise(site.state) }))
+            .map((site) => {
+              // Sample sites saved before locations existed get their sample location.
+              const where = site.fixed ? sampleLocations[site.state.settings.industryId] : undefined
+              return where && !site.state.settings.stateId ? { ...site, state: { ...site.state, settings: { ...site.state.settings, stateId: where.stateId, industrialPark: where.park } } } : site
+            })
           const fixed = item.fixed ?? ['Malaysia Steel Demo Sdn Bhd', 'Malaysia Cement Demo Sdn Bhd'].includes(item.name)
           return { ...item, fixed, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
         }).filter((item) => item.sites.length > 0)
