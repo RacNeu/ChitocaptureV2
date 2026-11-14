@@ -1,6 +1,7 @@
-import { LineChart, Waterfall, type WaterfallStep } from '../components/Charts'
+import { LineChart } from '../components/Charts'
+import ReductionWaterfall from '../components/ReductionWaterfall'
 import { num, ringgit, tonnes } from '../format'
-import { plannedActions, summarise, trajectory } from '../model/calc'
+import { contextFor, plannedActions, summarise, trajectory } from '../model/calc'
 import { autoPlan } from '../model/copilot'
 import { measureById } from '../model/measures'
 import { actions, useFactory, useRole } from '../model/store'
@@ -30,16 +31,6 @@ export default function Plan({ onShowTwin }: { onShowTwin: () => void }) {
     </div>
   }
 
-  const top = [...planned].sort((a, b) => b.economics.netT - a.economics.netT)
-  const shown = top.slice(0, 7)
-  const restT = top.slice(7).reduce((sum, item) => sum + Math.max(0, item.economics.netT), 0)
-  const steps: WaterfallStep[] = [
-    { label: 'Today', value: summary.baselineT, kind: 'start' },
-    ...shown.map((item) => ({ label: measureById(item.action.measureId)?.short ?? 'Action', value: Math.max(0, item.economics.netT), kind: 'cut' as const })),
-    ...(restT > 0 ? [{ label: `${top.length - 7} more`, value: restT, kind: 'cut' as const }] : []),
-    { label: 'With plan', value: summary.afterPlanT, kind: 'end' },
-  ]
-
   return <div className="plan">
     <header className="plan-head">
       <div><h1>Reduction plan · {state.settings.factoryName}</h1><p className="muted">{state.settings.baselineYear} → {state.settings.targetYear} · target −{state.settings.targetReductionPct}% · {planned.length} actions</p></div>
@@ -58,7 +49,7 @@ export default function Plan({ onShowTwin }: { onShowTwin: () => void }) {
     </div>
 
     <div className="plan-charts">
-      <section className="card"><h2>From today to target</h2><Waterfall steps={steps} target={summary.targetT} /></section>
+      <section className="card wf-card"><h2>From today to target</h2><ReductionWaterfall state={state} planned={planned} baselineT={summary.baselineT} afterT={summary.afterPlanT} targetT={summary.targetT} gridKgPerKWh={contextFor(state).gridKgPerKWh} /></section>
       <section className="card"><h2>Year by year</h2><LineChart labels={path.map((point) => point.year)} yLabel="Emissions trajectory compared with the target path"
         series={[{ label: 'Planned', values: path.map((point) => point.emissionsT), className: 's-plan' }, { label: 'Target path', values: path.map((point) => point.targetPathT), className: 's-target', dashed: true }]} />
         <div className="legend"><span><i className="s-plan" />Planned emissions</span><span><i className="s-target" />Straight-line path to target</span></div></section>

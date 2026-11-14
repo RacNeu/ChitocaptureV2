@@ -29,7 +29,8 @@ const fuelShare = (share: number, paybackYears: number, lifetimeYears: number) =
 /** Default sorbent working capacity, used until the capture rig measures a real value (mmol/g). */
 export const DEFAULT_SORBENT_CAPACITY = 1.5
 const CAPTURE_SLIPSTREAM = 0.05
-const CAPTURE_EFFICIENCY = 0.9
+/** Assumed share of the treated CO₂ captured, used until the rig measures it. */
+export const DEFAULT_CAPTURE_EFFICIENCY = 0.9
 const CYCLES_PER_YEAR = 6 * 330
 const SORBENT_RM_PER_KG = 60
 
@@ -148,11 +149,11 @@ export const measures: readonly Measure[] = [
     id: 'chitosan-capture', name: 'Chitosan sorbent CO₂ capture', short: 'Chitosan capture', category: 'Carbon capture', appliesTo: ['kiln', 'boiler', 'furnace'],
     explain: 'Pass a slipstream of the flue gas through an amine-modified chitosan sorbent that holds CO₂, then heat it with waste heat to release concentrated CO₂ for use or storage.',
     checks: ['Measure the sorbent capacity on the bench rig (Sensors page)', 'Confirm waste heat is available for regeneration', 'Identify a CO₂ use or storage route'],
-    basis: '5% slipstream at 90% capture; 0.25 MWh/t electricity penalty with regeneration heat from waste heat; sorbent at RM 60/kg sized from the measured capacity, plus RM 1,000 per t/yr of equipment',
+    basis: '5% slipstream at 90% capture (or the efficiency measured on the rig); 0.25 MWh/t electricity penalty with regeneration heat from waste heat; sorbent at RM 60/kg sized from the measured capacity, plus RM 1,000 per t/yr of equipment',
     estimate: (machine, ctx) => {
       const pointSource = machine.processT + machine.fuelGJ * ctx.fuelKgPerGJ(machine.fuel) / 1_000
       if (pointSource <= 0) return null
-      const captured = pointSource * CAPTURE_SLIPSTREAM * CAPTURE_EFFICIENCY
+      const captured = pointSource * CAPTURE_SLIPSTREAM * (ctx.measuredCaptureEfficiency ?? DEFAULT_CAPTURE_EFFICIENCY)
       const sorbentT = sorbentInventoryTonnes(captured, ctx.measuredSorbentCapacity ?? DEFAULT_SORBENT_CAPACITY)
       return { ...none, directT: captured, addedElectricityMWh: captured * 0.25, capexRM: Math.round(captured * 1_000 + sorbentT * 1_000 * SORBENT_RM_PER_KG), opexChangeRM: Math.round(captured * 60), lifetimeYears: 15 }
     },

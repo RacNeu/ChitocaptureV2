@@ -91,6 +91,8 @@ export type FactoryState = {
   history?: HistoryEntry[]
   /** Sorbent capacity measured on the capture rig, in mmol CO₂ per g; null until measured. */
   measuredSorbentCapacity: number | null
+  /** Capture efficiency measured on the rig (0–1, before breakthrough); null until measured. */
+  measuredCaptureEfficiency?: number | null
 }
 
 /** Per-year effect of a measure on one machine. Positive numbers are reductions. */
@@ -127,4 +129,5 @@ export type EstimateContext = {
   electricityPriceRMPerMWh: number
   fuelPriceRMPerGJ: (fuel: FuelType) => number
   measuredSorbentCapacity: number | null
+  measuredCaptureEfficiency: number | null
 }

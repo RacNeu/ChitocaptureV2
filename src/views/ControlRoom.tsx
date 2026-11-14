@@ -31,7 +31,8 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh),
     electricityRMPerMWh: state.settings.electricityPriceRMPerMWh,
     gasRMPerGJ: state.settings.fuelPriceRMPerGJ['natural-gas'],
-  }), [state.settings, link])
+    captureEfficiency: state.measuredCaptureEfficiency ?? undefined,
+  }), [state.settings, state.measuredCaptureEfficiency, link])
   const [upgrades, setUpgrades] = useState<Upgrades>({ ...noUpgrades, captureShare: PILOT_SHARE })
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
@@ -235,7 +236,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
         elec('Ladle furnace · electricity', 'lf'),
         elec('Continuous caster · electricity', 'caster'),
         { step: 'Reheating furnace · natural gas', activity: `${num(now.reheatGJPerT, 2)} GJ/t`, factor: `${params.gasKgPerGJ} kg CO₂/GJ`, today: base.reheatKgPerT, withUp: now.reheatGJPerT * params.gasKgPerGJ, scope: 1, target: `${steelTargets.reheat} GJ/t`, above: now.reheatGJPerT > steelTargets.reheat * 1.02 },
-        ...(now.capturedKgPerT > 0 ? [{ step: 'Chitosan capture on reheat stack', activity: `${num(upgrades.captureShare * 100)}% of flue gas treated, 90% captured`, factor: 'removed', today: 0, withUp: -now.capturedKgPerT, scope: 1 as const }] : []),
+        ...(now.capturedKgPerT > 0 ? [{ step: 'Chitosan capture on reheat stack', activity: `${num(upgrades.captureShare * 100)}% of flue gas treated, ${num((params.captureEfficiency ?? 0.9) * 100)}% captured${state.measuredCaptureEfficiency ? ' (measured on the rig)' : ' (assumed)'}`, factor: 'removed', today: 0, withUp: -now.capturedKgPerT, scope: 1 as const }] : []),
         elec('Rolling mill · electricity', 'rolling'),
         elec('Fume extraction fans · electricity', 'fume'),
         elec('Compressed air, water' + (now.capturedKgPerT > 0 ? ' & capture' : '') + ' · electricity', 'utilities'),
@@ -296,7 +297,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
               <span><b>{impact.capexRM ? ringgit(impact.capexRM) : '—'}</b> capex</span>
               <span><b>{impact.paybackYears ? `${num(impact.paybackYears, 1)} yr` : impact.annualSavingRM < 0 ? 'costs more' : '—'}</b> payback</span>
             </div> : <small className="muted">{info.basis}</small>}
-            {info.key === 'captureShare' && <small className="muted">{state.measuredSorbentCapacity ? `Sorbent capacity measured on the ChitoCapture rig: ${num(state.measuredSorbentCapacity, 2)} mmol/g.` : 'Measure the sorbent capacity on the ChitoCapture rig (Sensors tab) to firm up this estimate.'} It only treats the reheating furnace exhaust. Most mini-mill CO₂ comes from grid electricity.</small>}
+            {info.key === 'captureShare' && <small className="muted">{state.measuredSorbentCapacity ? `Sorbent capacity measured on the ChitoCapture rig: ${num(state.measuredSorbentCapacity, 2)} mmol/g.` : 'Measure the sorbent capacity on the ChitoCapture rig (Sensors tab) to firm up this estimate.'} {state.measuredCaptureEfficiency ? `Capture efficiency measured on the rig: ${num(state.measuredCaptureEfficiency * 100, 1)}%.` : 'Capture efficiency is assumed at 90% until measured.'} It only treats the reheating furnace exhaust. Most mini-mill CO₂ comes from grid electricity.</small>}
           </article>
         })}
       </div>

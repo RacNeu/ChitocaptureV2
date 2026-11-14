@@ -110,7 +110,7 @@ export default function Reports() {
   const cbamReport = () => {
     usedSources.add('cbam'); usedSources.add('eaf-kwh'); usedSources.add('eaf-co2'); usedSources.add('cbam-default'); usedSources.add('tax')
     const DEFAULT_T = 2.31
-    const params = { ...defaultSteelParams, gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh) }
+    const params = { ...defaultSteelParams, gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh), captureEfficiency: state.measuredCaptureEfficiency ?? undefined }
     const pilot: Upgrades = { ...noUpgrades, captureShare: 0.05 }
     const base = intensity(params, noUpgrades), withPilot = intensity(params, pilot)
     const steelT = annual(params, noUpgrades).steelT

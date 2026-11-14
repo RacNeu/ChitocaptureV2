@@ -41,10 +41,13 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
   const [settings, setSettings] = useState<Settings>(() => { const current = getState().settings; const generic = current.factoryName === 'My factory' || !current.factoryName; return { ...current, factoryName: generic ? industryTemplates.find((item) => item.id === current.industryId)?.label ?? current.factoryName : current.factoryName } })
   const [machines, setMachines] = useState<Machine[]>(() => machinesFromTemplate(getState().settings.industryId))
   const [csvErrors, setCsvErrors] = useState<string[]>([])
+  // The site type chosen when the site was added leads; steel is only the default for a brand-new company.
+  const [chosenId] = useState(() => getState().settings.industryId)
+  const chosen = industryTemplates.find((item) => item.id === chosenId) ?? industryTemplates.find((item) => item.id === 'steel')!
 
   const pickIndustry = (industryId: string) => {
     const template = industryTemplates.find((item) => item.id === industryId)
-    setSettings({ ...settings, industryId, ...productionFor(industryId), factoryName: settings.factoryName === defaultSettings.factoryName || industryTemplates.some((item) => `Sample ${item.label.toLowerCase()}` === settings.factoryName) ? `Sample ${template?.label.toLowerCase()}` : settings.factoryName })
+    setSettings({ ...settings, industryId, ...productionFor(industryId), factoryName: settings.factoryName === defaultSettings.factoryName || industryTemplates.some((item) => `Sample ${item.label.toLowerCase()}` === settings.factoryName) ? `Sample ${template?.label.toLowerCase()}` : industryTemplates.some((item) => item.label === settings.factoryName) ? template?.label ?? settings.factoryName : settings.factoryName })
     setMachines(machinesFromTemplate(industryId))
     setStep(2)
   }
@@ -68,15 +71,15 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
       <h1>See your factory’s carbon, live.</h1>
       <p className="lead">In three steps you get a living map of your factory, your biggest CO₂ sources, and a costed plan to cut them that engineers and the sustainability team can both work from.</p>
       <label className="field wide">Factory name<input value={settings.factoryName} onChange={(event) => setSettings({ ...settings, factoryName: event.target.value })} /></label>
-      <h2>Start with our flagship: a steel mini-mill</h2>
-      {industryTemplates.filter((template) => template.id === 'steel').map((template) => <button key={template.id} type="button" className="industry hero" onClick={() => pickIndustry(template.id)}>
+      <h2>{chosen.id === 'steel' ? 'Start with our flagship: a steel mini-mill' : `You are setting up: ${chosen.label}`}</h2>
+      {[chosen].map((template) => <button key={template.id} type="button" className="industry hero" onClick={() => pickIndustry(template.id)}>
         <span className="industry-icon">{template.icon}</span>
-        <span><strong>{template.label}</strong><small>{template.blurb} Includes a live 3D simulation of the process line, a carbon ledger per tonne of steel and CBAM exposure.</small></span>
-        <span className="hero-cta">Recommended →</span>
+        <span><strong>{template.label}</strong><small>{template.blurb}{template.id === 'steel' ? ' Includes a live 3D simulation of the process line, a carbon ledger per tonne of steel and CBAM exposure.' : ''}</small></span>
+        <span className="hero-cta">{template.id === 'steel' ? 'Recommended →' : 'Continue →'}</span>
       </button>)}
-      <h2 className="sub">Also supported</h2>
+      <h2 className="sub">{chosen.id === 'steel' ? 'Also supported' : 'Or choose a different type'}</h2>
       <div className="industry-grid small">
-        {industryTemplates.filter((template) => template.id !== 'steel').map((template) => <button key={template.id} type="button" className={`industry${settings.industryId === template.id ? ' active' : ''}`} onClick={() => pickIndustry(template.id)}>
+        {industryTemplates.filter((template) => template.id !== chosen.id).map((template) => <button key={template.id} type="button" className={`industry${settings.industryId === template.id ? ' active' : ''}`} onClick={() => pickIndustry(template.id)}>
           <span className="industry-icon">{template.icon}</span><strong>{template.label}</strong><small>{template.blurb}</small>
         </button>)}
       </div>

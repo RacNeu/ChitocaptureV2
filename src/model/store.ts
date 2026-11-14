@@ -215,7 +215,7 @@ export const companyActions = {
 export const actions = {
   replace: (next: FactoryState) => commit(next),
   finishOnboarding: (settings: Settings, machines: Machine[]) => commit({ ...state, onboarded: true, settings, machines, plan: [] }),
-  restart: () => commit({ ...freshState(state.settings.industryId), measuredSorbentCapacity: state.measuredSorbentCapacity }),
+  restart: () => commit({ ...freshState(state.settings.industryId), measuredSorbentCapacity: state.measuredSorbentCapacity, measuredCaptureEfficiency: state.measuredCaptureEfficiency ?? null }),
   updateSettings: (patch: Partial<Settings>) => {
     const fields = Object.keys(patch).filter((key) => JSON.stringify(patch[key as keyof Settings]) !== JSON.stringify(state.settings[key as keyof Settings]))
     const next = { ...state, settings: { ...state.settings, ...patch } }
@@ -269,6 +269,11 @@ export const actions = {
     machines: state.machines.map((item) => item.id === machineId ? { ...item, sensorChannel: channel } : item.sensorChannel === channel ? { ...item, sensorChannel: undefined } : item),
   }),
   /** The sorbent capacity is a property of ChitoCapture's material, so it applies to every site. */
+  /** Capture efficiency from the rig (0–1). Like capacity, it describes the sorbent, so every site uses it. */
+  setMeasuredCaptureEfficiency: (value: number | null) => {
+    workspace = { ...workspace, companies: workspace.companies.map((item) => ({ ...item, sites: item.sites.map((site) => ({ ...site, state: { ...site.state, measuredCaptureEfficiency: value } })) })) }
+    save()
+  },
   setMeasuredSorbentCapacity: (value: number | null) => {
     workspace = { ...workspace, companies: workspace.companies.map((item) => ({ ...item, sites: item.sites.map((site) => ({ ...site, state: { ...site.state, measuredSorbentCapacity: value } })) })) }
     save()

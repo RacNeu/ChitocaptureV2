@@ -30,3 +30,16 @@ describe('Malaysia context', () => {
     expect(green.energyCostRM - base.energyCostRM).toBeCloseTo(base.electricityMWh * 30, 0)
   })
 })
+
+describe('measured capture efficiency', () => {
+  it('replaces the assumed 90% in the capture estimate', async () => {
+    const { measureById } = await import('./measures')
+    const { contextFor } = await import('./calc')
+    const mill = freshState('steel')
+    const furnace = mill.machines.find((m) => m.fuelGJ > 0)!
+    const capture = measureById('chitosan-capture')!
+    const assumed = capture.estimate(furnace, contextFor(mill))!.directT
+    const measured = capture.estimate(furnace, contextFor({ ...mill, measuredCaptureEfficiency: 0.8 }))!.directT
+    expect(measured / assumed).toBeCloseTo(0.8 / 0.9, 5)
+  })
+})

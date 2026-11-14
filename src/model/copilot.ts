@@ -108,6 +108,7 @@ export function answer(question: CopilotQuestion, state: FactoryState): CopilotA
         `A 5% slipstream pilot on ${capture.machine.name} captures ${t(capture.economics.grossT)} a year, but its own electricity use emits ${t(capture.economics.penaltyT)} at your grid factor (${ctx.gridKgPerKWh} kg/kWh). The net result is −${t(capture.economics.netT)}.`,
         capture.economics.costPerTonneRM !== null ? `It costs about ${rm(capture.economics.costPerTonneRM)} per net tonne. ${cheaper.length} other options are cheaper per tonne, so do those first.` : 'At these settings it does not cut CO₂e overall.',
         state.measuredSorbentCapacity ? `This estimate uses your measured sorbent capacity of ${state.measuredSorbentCapacity.toFixed(2)} mmol/g.` : 'Sorbent capacity is still an assumption. Measure it on the Sensors page to make this estimate real.',
+        state.measuredCaptureEfficiency ? `It uses the capture efficiency measured on the rig: ${(state.measuredCaptureEfficiency * 100).toFixed(1)}%.` : 'Capture efficiency is assumed at 90% until the rig measures it.',
         'Where capture fits: unavoidable process CO₂ (such as cement calcination) that efficiency cannot remove, with regeneration heat taken from waste heat.',
       ],
     }

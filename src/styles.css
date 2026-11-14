@@ -1074,3 +1074,41 @@ small.block { display: block; margin-top: 4px; }
 .cross-check td.good { color: #047857; font-weight: 700; }
 .cross-check td.fair { color: #b45309; font-weight: 700; }
 .cross-check td.weak { color: #be123c; font-weight: 700; }
+
+/* Reduction waterfall with evidence tooltips */
+.plan-charts { grid-template-columns: 3fr 2fr; }
+.rwf-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; margin: 2px 0 8px; align-items: center; }
+.rwf-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rwf-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.rwf-plot { position: relative; }
+.wf-start, .rwf-bar.wf-start .rwf-rect { background: #94a3b8; fill: #94a3b8; }
+.wf-pays, .rwf-bar.wf-pays .rwf-rect { background: #059669; fill: #059669; }
+.wf-low, .rwf-bar.wf-low .rwf-rect { background: #34d399; fill: #34d399; }
+.wf-high, .rwf-bar.wf-high .rwf-rect { background: #f59e0b; fill: #f59e0b; }
+.wf-none, .rwf-bar.wf-none .rwf-rect { background: #cbd5e1; fill: #cbd5e1; }
+.rwf-bar.wf-rest .rwf-rect { fill: #a7f3d0; }
+.wf-end-met, .rwf-bar.wf-end-met .rwf-rect { background: #2563eb; fill: #2563eb; }
+.wf-end-short, .rwf-bar.wf-end-short .rwf-rect { background: #dc2626; fill: #dc2626; }
+.rwf-bar { cursor: pointer; outline: none; }
+.rwf-hit { fill: transparent; }
+.rwf-bar.on .rwf-hit, .rwf-bar:focus-visible .rwf-hit { fill: #0f172a0a; }
+.rwf-bar .rwf-rect { transition: opacity .15s; }
+.rwf-plot:hover .rwf-bar:not(.on) .rwf-rect { opacity: .55; }
+.rwf-bar.on .rwf-rect { stroke: #0f172a; stroke-width: 1.5; }
+.rwf-value { font-size: 11px; font-weight: 700; fill: #0f172a; }
+.rwf-connector { stroke: #94a3b8; stroke-dasharray: 3 3; }
+.rwf-labels { display: flex; margin-top: -4px; }
+.rwf-labels span { flex: 1; text-align: center; font-size: 11px; line-height: 1.2; color: var(--muted); padding: 0 2px; overflow-wrap: anywhere; }
+.rwf-labels span.on { color: var(--ink, #0f172a); font-weight: 700; }
+.rwf-tip { position: absolute; top: 4px; z-index: 5; width: 47%; min-width: 280px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px #0f172a2e; padding: 12px 14px; font-size: 12.5px; pointer-events: auto; }
+.rwf-tip h4 { margin: 0 22px 4px 0; font-size: 14px; }
+.rwf-tip p { margin: 4px 0; }
+.rwf-tip dl { display: grid; grid-template-columns: 112px 1fr; gap: 4px 10px; margin: 8px 0 4px; }
+.rwf-tip dt { color: var(--muted); font-weight: 600; }
+.rwf-tip dd { margin: 0; }
+.rwf-tip ul { margin: 6px 0; padding-left: 18px; }
+.rwf-check { background: #fffbeb; border-radius: 8px; padding: 6px 8px; color: #92400e; }
+.rwf-close { position: absolute; top: 6px; right: 6px; }
+.rwf-summary { margin: 8px 0 0; font-size: 13px; }
+@media (max-width: 900px) { .plan-charts { grid-template-columns: 1fr; } }
+.wf-card { position: relative; overflow: visible; z-index: 2; }

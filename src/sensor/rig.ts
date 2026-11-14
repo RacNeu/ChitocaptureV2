@@ -1,5 +1,7 @@
 /** Molar volume of an ideal gas at 0 °C and 1 atm (L/mol), matching a flow meter calibrated to standard litres. */
 const MOLAR_VOLUME_L = 22.414
+/** Breakthrough point: the outlet has reached 10% of the inlet concentration. */
+export const BREAKTHROUGH = 0.1
 
 export type RigSample = { at: number; co2_in: number; co2_out: number }
 
@@ -7,6 +9,9 @@ export type RigResult = {
   capturedMmol: number
   capacityMmolPerG: number
   captureEfficiencyPct: number
+  /** Share of the inlet CO₂ captured before breakthrough (outlet reaching 10% of inlet), in %.
+   *  This is how a real unit runs: columns switch to regeneration at breakthrough. */
+  workingEfficiencyPct: number
   /** Outlet/inlet ratio of the latest sample: 0 = everything captured, 1 = bed saturated. */
   breakthrough: number
 }
@@ -19,6 +24,7 @@ export type RigResult = {
 export function analyseRig(samples: RigSample[], flowLPerMin: number, sorbentMassG: number): RigResult {
   let capturedMol = 0
   let inletMol = 0
+  let workCaptured = 0, workInlet = 0, brokenThrough = false
   for (let index = 1; index < samples.length; index += 1) {
     const previous = samples[index - 1], current = samples[index]
     const minutes = (current.at - previous.at) / 60_000
@@ -27,12 +33,18 @@ export function analyseRig(samples: RigSample[], flowLPerMin: number, sorbentMas
     const inletPpm = (previous.co2_in + current.co2_in) / 2
     capturedMol += deltaPpm * 1e-6 * flowLPerMin / MOLAR_VOLUME_L * minutes
     inletMol += inletPpm * 1e-6 * flowLPerMin / MOLAR_VOLUME_L * minutes
+    if (!brokenThrough && current.co2_in > 0 && current.co2_out / current.co2_in > BREAKTHROUGH) brokenThrough = true
+    if (!brokenThrough) {
+      workCaptured += deltaPpm * minutes
+      workInlet += inletPpm * minutes
+    }
   }
   const last = samples.at(-1)
   return {
     capturedMmol: capturedMol * 1_000,
     capacityMmolPerG: sorbentMassG > 0 ? capturedMol * 1_000 / sorbentMassG : 0,
     captureEfficiencyPct: inletMol > 0 ? capturedMol / inletMol * 100 : 0,
+    workingEfficiencyPct: workInlet > 0 ? workCaptured / workInlet * 100 : 0,
     breakthrough: last && last.co2_in > 0 ? Math.min(1, Math.max(0, last.co2_out / last.co2_in)) : 0,
   }
 }

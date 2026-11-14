@@ -34,3 +34,13 @@ describe('analyseRig', () => {
     expect(result.breakthrough).toBeCloseTo(0.9)
   })
 })
+
+describe('working capture efficiency', () => {
+  it('counts only the part of the run before breakthrough', () => {
+    // 5 minutes at 95% capture, then the outlet breaks through to 60% of the inlet.
+    const samples = Array.from({ length: 11 }, (_, minute) => ({ at: minute * 60_000, co2_in: 5_000, co2_out: minute <= 5 ? 250 : 3_000 }))
+    const result = analyseRig(samples, 1, 1)
+    expect(result.workingEfficiencyPct).toBeCloseTo(95, 0)
+    expect(result.captureEfficiencyPct).toBeLessThan(80)
+  })
+})
