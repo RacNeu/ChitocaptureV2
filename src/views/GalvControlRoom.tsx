@@ -1,3 +1,4 @@
+import { FlagEU } from '../components/Flags'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { Sparkline } from '../components/Charts'
@@ -275,7 +276,7 @@ export default function GalvControlRoom({ onChooseSite }: { onChooseSite: () => 
     </section>
 
     <section className="card cbam">
-      <header><div><h2>🇪🇺 CBAM exposure (simplified)</h2><p className="muted">Steel wire is in CBAM’s scope. Its embedded direct emissions include the plant’s own gas <b>and the wire rod it was made from</b>, so verified data from the rod supplier matter as much as the plant’s own figures.</p></div></header>
+      <header><div><h2><FlagEU /> CBAM exposure (simplified)</h2><p className="muted">Steel wire is in CBAM’s scope. Its embedded direct emissions include the plant’s own gas <b>and the wire rod it was made from</b>, so verified data from the rod supplier matter as much as the plant’s own figures.</p></div></header>
       <div className="cbam-grid">
         <div className="form-grid compact">
           <label className="field">Year<select value={cbamInputs.year} onChange={(event) => setCbamInputs({ ...cbamInputs, year: Number(event.target.value) })}>{[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034].map((year) => <option key={year}>{year}</option>)}</select></label>

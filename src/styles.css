@@ -1112,3 +1112,4 @@ small.block { display: block; margin-top: 4px; }
 .rwf-summary { margin: 8px 0 0; font-size: 13px; }
 @media (max-width: 900px) { .plan-charts { grid-template-columns: 1fr; } }
 .wf-card { position: relative; overflow: visible; z-index: 2; }
+.flag { display: inline-block; vertical-align: -2px; margin-right: 6px; border-radius: 2px; box-shadow: 0 0 0 1px #0f172a1f; }

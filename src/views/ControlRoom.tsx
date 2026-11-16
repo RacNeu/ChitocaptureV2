@@ -1,3 +1,4 @@
+import { FlagEU } from '../components/Flags'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { Sparkline } from '../components/Charts'
@@ -304,7 +305,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     </section>
 
     <section className="card cbam">
-      <header><div><h2>🇪🇺 CBAM exposure (simplified)</h2><p className="muted">The EU carbon border adjustment charges imported steel for the CO₂ embedded in it. For iron and steel the charge is based on <b>direct</b> emissions. Carbon price already paid in Malaysia can be deducted, and the charge phases in as EU free allocation ends.</p></div></header>
+      <header><div><h2><FlagEU /> CBAM exposure (simplified)</h2><p className="muted">The EU carbon border adjustment charges imported steel for the CO₂ embedded in it. For iron and steel the charge is based on <b>direct</b> emissions. Carbon price already paid in Malaysia can be deducted, and the charge phases in as EU free allocation ends.</p></div></header>
       <div className="cbam-grid">
         <div className="form-grid compact">
           <label className="field">Year<select value={cbamInputs.year} onChange={(event) => setCbamInputs({ ...cbamInputs, year: Number(event.target.value) })}>{[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034].map((year) => <option key={year}>{year}</option>)}</select></label>

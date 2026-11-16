@@ -1,3 +1,4 @@
+import { FlagMY } from './Flags'
 import { num } from '../format'
 import { gridRegions } from '../model/factors'
 import { parksIn, programmesFor, stateById, steelCrossCheck, masteelBenchmark, myStates, type Applicability } from '../model/malaysia'
@@ -35,7 +36,7 @@ export function MalaysiaRules({ state }: { state: FactoryState }) {
   const where = stateById(state.settings.stateId)
   const items = programmesFor(state)
   return <section className="card my-rules">
-    <header><h2>🇲🇾 Malaysian rules and programmes for this site</h2>
+    <header><h2><FlagMY /> Malaysian rules and programmes for this site</h2>
       <p className="muted">{where ? `${state.settings.industrialPark ? `${state.settings.industrialPark}, ` : ''}${where.label} · ${where.utility} supply` : 'Set the site’s state in Settings to check which rules apply.'} · checked 13 November 2026</p></header>
     <div className="table-wrap"><table className="grid-table">
       <thead><tr><th>Rule or programme</th><th>Status</th><th>Why</th><th>What to do</th></tr></thead>
