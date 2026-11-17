@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { templateById } from './templates'
-import type { ActionStatus, FactoryState, HistoryEntry, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
+import type { ActionStatus, FactoryState, FindingState, HistoryEntry, IntervalSeries, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
 import { roleById, statusInfo } from './roles'
 import { measureById } from './measures'
 import { sampleLocations } from './malaysia'
@@ -286,4 +286,12 @@ export const actions = {
   }),
   /** Replace this site's uploaded monthly history (bills, fuel and production). */
   setMonthly: (monthly: MonthlyRecord[]) => commit(logged({ ...state, monthly }, `Uploaded ${monthly.length} months of activity data`)),
+  /** Replace this site's half-hourly load profile; null removes it. */
+  setInterval: (interval: IntervalSeries | null) => commit(logged({ ...state, interval: interval ?? undefined }, interval ? `Uploaded ${Math.round(interval.kW.length / 48)} days of half-hourly data (${interval.source})` : 'Removed the half-hourly data')),
+  /** Record what the team did with a finding. */
+  setFinding: (key: string, patch: Partial<FindingState>, title: string) => {
+    const before = state.findings?.[key]
+    const next: FindingState = { status: 'new', ...before, ...patch, updatedAt: new Date().toISOString() }
+    commit(logged({ ...state, findings: { ...state.findings, [key]: next } }, `Finding “${title}”: ${next.status}${next.owner ? ` (${next.owner})` : ''}`, `finding:${key}`))
+  },
 }

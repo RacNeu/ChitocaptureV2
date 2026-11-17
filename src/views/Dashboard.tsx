@@ -6,6 +6,7 @@ import { defaultTaxInputs, singaporePath, type RateCase, type TaxInputs } from '
 import { fuelFactorsKgPerGJ, fuelLabels, gridFactor } from '../model/factors'
 import { fuels, historyFor, monthIndex, monthLabel, type ForecastMonth, type MonthScopes } from '../model/history'
 import { outlook } from '../model/outlook'
+import { siteFindings } from '../model/findings'
 import { actions, useFactory } from '../model/store'
 
 type Mode = 'total' | 'scope1' | 'scope2'
@@ -130,7 +131,7 @@ function TargetChart({ rows, target }: { rows: { year: number; value: number; fo
 
 /* ---------------- Page ---------------- */
 
-export default function Dashboard({ onUpload, onReport }: { onUpload: () => void; onReport: () => void }) {
+export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload: () => void; onReport: () => void; onFindings: () => void }) {
   const state = useFactory()
   const tax: TaxInputs = { ...defaultTaxInputs, ...state.settings.carbonTax }
   const view = useMemo(() => outlook(state, tax), [state, tax.rateCase, tax.rmPerSGD, tax.coverage, tax.exemptShare]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -138,6 +139,7 @@ export default function Dashboard({ onUpload, onReport }: { onUpload: () => void
   const [period, setPeriod] = useState<string>('last12')
   const setTax = (patch: Partial<TaxInputs>) => actions.updateSettings({ carbonTax: { ...tax, ...patch } })
   const { records } = historyFor(state)
+  const found = useMemo(() => siteFindings(state).findings.filter((f) => f.state.status !== 'fixed' && f.state.status !== 'dismissed'), [state])
 
   const fullYears = view.years.filter((y) => y.actualMonths === 12)
   const periodMonths = period === 'last12' ? view.months.slice(-12) : view.months.filter((m) => m.month.startsWith(period))
@@ -218,6 +220,12 @@ export default function Dashboard({ onUpload, onReport }: { onUpload: () => void
         <a className="link" href="#tax">See the calculator ↓</a>
       </div>
     </div>
+
+    {found.length > 0 && <button type="button" className="findings-strip" onClick={onFindings}>
+      <span className="strip-flag" aria-hidden="true">⚑</span>
+      <span><b>{found.length} findings worth {ringgit(found.reduce((s, f) => s + f.rmPerMonth, 0))} a month</b><small>Top: {found[0].title} ({ringgit(found[0].rmPerMonth)}/month)</small></span>
+      <span className="strip-go">Open findings →</span>
+    </button>}
 
     <ExpectedVsActual baseline={view.baseline} productUnit={state.settings.productUnit} />
 

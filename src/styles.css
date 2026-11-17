@@ -1291,3 +1291,50 @@ button.dash-kpi:hover { border-color: #b7c4d3; }
 .chart-tip .tip-expected { height: 0; border-top: 2px dashed #64748b; background: none; width: 12px; }
 @media (max-width: 1000px) { .eva-grid { grid-template-columns: 1fr; } }
 .eva-eq { flex-basis: 100%; font-variant-numeric: tabular-nums; }
+
+/* ---------- Load profile & findings ---------- */
+.dash-kpis.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.state-bar { display: flex; gap: 2px; height: 10px; margin: 6px 0 2px; border-radius: 5px; overflow: hidden; background: var(--bg-2); }
+.state-bar i { display: block; height: 100%; }
+.state-bar .s-run, .legend .s-run { background: #059669; }
+.state-bar .s-idle { background: #d97706; }
+.state-bar .s-off { background: #94a3b8; }
+.dash-kpi strong.state-nums { font-size: 20px; }
+.carpet { max-height: 520px; }
+.md-cell { fill: none; stroke: #dc2626; stroke-width: 2; }
+.mchart .legend .legend-ramp { width: 40px; height: 10px; background: linear-gradient(90deg, rgb(238,244,251), rgb(22,63,122)); }
+.mchart .legend .legend-md { width: 12px; height: 10px; border: 2px solid #dc2626; background: #fff; }
+.mchart .legend .legend-idle { height: 10px; background: #d977061f; }
+.idle-zone { fill: #d97706; fill-opacity: .08; }
+.duration-area { fill: #2a78d61f; stroke: var(--series-s2); stroke-width: 2; }
+.cap-line { stroke: #dc2626; stroke-width: 2; stroke-dasharray: 6 4; }
+.shave-result { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.shave-result div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: #f8fafc; }
+.shave-result span { color: var(--muted); font-size: 12px; }
+.shave-result b.good { color: #047857; }
+.tariff-form { margin-top: 12px; grid-template-columns: repeat(2, minmax(0, 260px)); }
+.findings-strip { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 16px; border: 1px solid #fcd34d; border-radius: 12px; background: #fffbeb; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.findings-strip:hover { border-color: #d97706; }
+.findings-strip > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.findings-strip small { color: var(--ink-2); }
+.strip-flag { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #fde68a; color: #92400e; font-size: 16px; }
+.strip-go { color: #92400e; font-weight: 700; white-space: nowrap; }
+.finding-list { display: flex; flex-direction: column; gap: 12px; }
+.finding { display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--line); }
+.finding.peak { border-left-color: #dc2626; } .finding.idle, .finding.base { border-left-color: #d97706; } .finding.overspend { border-left-color: #7c3aed; } .finding.anomaly { border-left-color: #0284c7; }
+.finding.fixed, .finding.dismissed { opacity: .7; }
+.finding header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.finding header h2 { flex: 1; min-width: 200px; margin: 0; font-size: 16px; }
+.kind-chip { padding: 3px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-2); font-size: 11.5px; font-weight: 700; }
+.kind-chip.peak { background: #fee2e2; color: #991b1b; } .kind-chip.idle, .kind-chip.base { background: #fef3c7; color: #92400e; } .kind-chip.overspend { background: #ede9fe; color: #5b21b6; } .kind-chip.anomaly { background: #e0f2fe; color: #075985; }
+.finding-value { display: flex; flex-direction: column; align-items: flex-end; }
+.finding-value b { font-size: 20px; letter-spacing: -0.02em; }
+.evidence { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.finding-do { padding: 10px 12px; border-radius: 10px; background: #f8fafc; font-size: 13px; }
+.finding-do ol { margin: 4px 0 0; padding-left: 18px; line-height: 1.5; }
+.finding footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.finding-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.finding-controls select, .owner-input { min-height: 32px; padding: 0 10px; border: 1px solid #d5dde6; border-radius: 8px; background: #fff; font-size: 13px; }
+.owner-input { width: 130px; }
+a.btn { text-decoration: none; }
+@media (max-width: 900px) { .dash-kpis.three { grid-template-columns: 1fr; } .shave-result { grid-template-columns: 1fr 1fr; } .tariff-form { grid-template-columns: 1fr; } }
