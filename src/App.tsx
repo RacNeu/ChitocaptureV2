@@ -25,31 +25,47 @@ import DataUpload from './views/DataUpload'
 import LoadProfile from './views/LoadProfile'
 import Findings from './views/Findings'
 import Risks from './views/Risks'
+import Home from './views/Home'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'dashboard' | 'load' | 'findings' | 'risks' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
-const views: { id: View; label: string; icon: string; group?: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▦', group: 'Monitor' },
-  { id: 'load', label: 'Load profile', icon: '⚡' },
-  { id: 'data', label: 'Monthly data', icon: '⇪' },
-  { id: 'findings', label: 'Findings', icon: '⚑', group: 'Act' },
-  { id: 'risks', label: 'Risks', icon: '◬' },
-  { id: 'plan', label: 'Plan', icon: '🗺' },
-  { id: 'simulate', label: 'Simulation', icon: '🔥' },
-  { id: 'reports', label: 'Reports', icon: '📄', group: 'Report' },
-  { id: 'company', label: 'Company', icon: '🏢', group: 'Explore' },
-  { id: 'twin', label: 'Site 3D', icon: '◭' },
-  { id: 'analysis', label: 'Analysis', icon: '📊' },
-  { id: 'sensors', label: 'Sensors', icon: '📡', group: 'Setup' },
-  { id: 'settings', label: 'Settings', icon: '⚙' },
+type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+export type { View }
+
+type MenuItem = { id: View; label: string; icon: string; match: View[] }
+/** Five main places, in the order of the story: see → understand → act → protect → report. */
+const mainMenu: MenuItem[] = [
+  { id: 'home', label: 'Home', icon: '⌂', match: ['home'] },
+  { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'data'] },
+  { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
+  { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
+  { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
+]
+const moreMenu: MenuItem[] = [
+  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
+  { id: 'simulate', label: 'Simulation', icon: '🔥', match: ['simulate', 'control'] },
+  { id: 'company', label: 'Company', icon: '🏢', match: ['company', 'add-company'] },
+  { id: 'analysis', label: 'Analysis', icon: '📊', match: ['analysis'] },
+]
+const setupMenu: MenuItem[] = [
+  { id: 'sensors', label: 'Sensors', icon: '📡', match: ['sensors'] },
+  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
+]
+const allViews = [...mainMenu, ...moreMenu, ...setupMenu].flatMap((item) => item.match)
+
+/** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
+const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
+  { views: ['dashboard', 'load', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'data', label: 'Upload bills' }],
+    flow: { dashboard: 'Uses your monthly bills · leads to Savings and Reports', load: 'Uses half-hourly meter data · leads to Savings', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
+  { views: ['findings', 'plan'], tabs: [{ id: 'findings', label: 'Ways to save' }, { id: 'plan', label: 'Plan' }],
+    flow: { findings: 'Found in your energy data · add the fixes to your Plan', plan: 'Upgrades you’ve chosen · savings checked on Energy & carbon' } },
 ]
 
 const readView = (): View => {
-  const hash = window.location.hash.replace('#', '')
-  return views.some((view) => view.id === hash) || hash === 'control' || hash === 'add-company' || hash === 'sources' ? hash as View : 'dashboard'
+  const hash = window.location.hash.replace('#', '') as View
+  return allViews.includes(hash) ? hash : 'home'
 }
 
 export default function App() {
@@ -94,22 +110,27 @@ export default function App() {
   if (!session) return <Login onSignedIn={(name) => {
     const match = name ? getWorkspace().companies.find((item) => item.name === name) : null
     if (match) companyActions.switchCompany(match.id)
-    go('dashboard')
+    go('home')
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
-  const siteScoped = view === 'dashboard' || view === 'load' || view === 'findings' || view === 'risks' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
+  const siteScoped = view === 'home' || view === 'dashboard' || view === 'load' || view === 'findings' || view === 'risks' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
   const addedCount = workspace.companies.filter((item) => !item.fixed).length
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
   return <div className="app shell">
     <aside className="sidebar" aria-label="Main menu">
       <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span></div>
+      <p className="brand-tag">Find the money your plant wastes. Cut carbon on the way.</p>
       <nav className="side-nav" aria-label="Main">
-        {views.map((item) => { const current = view === item.id || (item.id === 'simulate' && view === 'control'); return <div key={item.id} className="side-item">
-          {item.group && <span className="side-group">{item.group}</span>}
-          <button type="button" className={current ? 'active' : ''} aria-current={current ? 'page' : undefined} onClick={() => go(item.id)} title={item.label}><span className="side-icon" aria-hidden="true">{item.icon}</span><span className="tab-label">{item.label}</span></button>
-        </div> })}
+        {mainMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+        <details className="side-more" open={moreMenu.some((item) => item.match.includes(view))}>
+          <summary><span className="side-icon" aria-hidden="true">⋯</span><span className="tab-label">Plant twin & more</span></summary>
+          {moreMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+        </details>
+      </nav>
+      <nav className="side-nav side-setup" aria-label="Setup">
+        {setupMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
       <button type="button" className="account-btn side-account" onClick={() => { if (confirm(`Sign out of ${session.accountId}?`)) { setTouring(false); signOut() } }} title={`Signed in as ${session.accountId}. Click to sign out.`}>
         <span className="account-id">{session.accountId}</span><span aria-hidden="true">⎋</span><span className="sr-only">Sign out</span>
@@ -149,6 +170,14 @@ export default function App() {
           {templateById(site.state.settings.industryId)?.icon ?? '🏭'} {site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}
         </button>)}
       </div>}
+      {(() => {
+        const section = sections.find((item) => item.views.includes(view))
+        return section && <div className="section-head">
+          <div className="section-tabs" role="tablist">{section.tabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={view === tab.id} className={view === tab.id ? 'active' : ''} onClick={() => go(tab.id)}>{tab.label}</button>)}</div>
+          <span className="flow-line">↳ {section.flow[view]}</span>
+        </div>
+      })()}
+      {view === 'home' && <Home go={go} />}
       {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
       {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
@@ -168,7 +197,16 @@ export default function App() {
     </main>
     {touring && <Tour onClose={() => setTouring(false)} />}
     {!touring && <ChatAssistant />}
-    <footer className="foot">Prototype · sample data are illustrative; default factors are sourced · <a href="#sources">Data & sources</a> · data stays in this browser</footer>
+    <footer className="foot">Prototype · factors are sourced · <a href="#sources">Data & sources</a> · your data stays in this browser</footer>
     </div>
+  </div>
+}
+
+function MenuButton({ item, view, go }: { item: MenuItem; view: View; go: (next: View) => void }) {
+  const current = item.match.includes(view)
+  return <div className="side-item">
+    <button type="button" className={current ? 'active' : ''} aria-current={current ? 'page' : undefined} onClick={() => go(item.id)} title={item.label}>
+      <span className="side-icon" aria-hidden="true">{item.icon}</span><span className="tab-label">{item.label}</span>
+    </button>
   </div>
 }

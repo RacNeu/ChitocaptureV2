@@ -161,7 +161,7 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
 
   const top = <>
     <header className="dash-head">
-      <div><h1>Load profile</h1><p className="muted">{state.settings.factoryName} · half-hourly demand{a ? ` · ${timeLabel(a.from).split(', ')[1]} – ${timeLabel(a.to).split(', ')[1]}` : ''}</p></div>
+      <div><h1>Electricity load</h1><p className="muted">{state.settings.factoryName} · half-hourly demand{a ? ` · ${timeLabel(a.from).split(', ')[1]} – ${timeLabel(a.to).split(', ')[1]}` : ''}</p></div>
       <div className="dash-actions">
         <a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>
         <label className="btn ghost file-btn">⇪ Upload<input type="file" accept=".csv,.txt,.xlsx,.xlsm" onChange={(event) => { void take(event.target.files?.[0]); event.target.value = '' }} /></label>

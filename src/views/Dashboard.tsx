@@ -144,7 +144,7 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
   const found = useMemo(() => siteFindings(state).findings.filter((f) => f.state.status !== 'fixed' && f.state.status !== 'dismissed'), [state])
 
   if (view.empty) return <div className="dashboard">
-    <header className="dash-head"><div><h1>Dashboard</h1><p className="muted">{state.settings.factoryName} · Scope 1 & 2</p></div></header>
+    <header className="dash-head"><div><h1>Emissions</h1><p className="muted">{state.settings.factoryName} · Scope 1 & 2</p></div></header>
     <EmptyState icon="▦" title="No data yet" action={<button type="button" className="btn" onClick={onUpload}>⇪ Upload monthly bills</button>}>Upload 12+ months of electricity bills, fuel invoices and production to see Scope 1 & 2, the forecast and your carbon tax.</EmptyState>
     {found.length > 0 && <button type="button" className="findings-strip" onClick={onFindings}><span className="strip-flag" aria-hidden="true">⚑</span><span><b>{found.length} ways to save {ringgit(found.reduce((s, f) => s + f.rmPerMonth, 0))}/month</b><small>From your half-hourly data</small></span><span className="strip-go">View →</span></button>}
   </div>
@@ -192,7 +192,7 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
   return <div className="dashboard">
     <header className="dash-head">
       <div>
-        <h1>Dashboard</h1>
+        <h1>Emissions</h1>
         <p className="muted">{state.settings.factoryName} · Scope 1 & 2 <Info>Greenhouse gas emissions in tonnes of CO₂e, GHG Protocol. Scope 1: fuel burnt on site and process emissions. Scope 2: grid electricity (location-based).</Info></p>
       </div>
       <div className="dash-actions">

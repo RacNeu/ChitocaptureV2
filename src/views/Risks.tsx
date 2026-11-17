@@ -10,7 +10,7 @@ import type { FindingStatus, RiskChecklist } from '../model/types'
 const statuses: { id: FindingStatus; label: string }[] = [
   { id: 'new', label: 'New' }, { id: 'assigned', label: 'Assigned' }, { id: 'in-progress', label: 'In progress' }, { id: 'fixed', label: 'Mitigated' }, { id: 'dismissed', label: 'Accepted' },
 ]
-const viewLabel: Record<View, string> = { load: 'Load profile', dashboard: 'Dashboard', data: 'Monthly data', findings: 'Findings', plan: 'Plan', settings: 'Checklist' }
+const viewLabel: Record<View, string> = { load: 'Electricity load', dashboard: 'Emissions', data: 'Upload bills', findings: 'Ways to save', plan: 'Plan', settings: 'Checklist' }
 const tone = (score: number) => score >= 15 ? 'r4' : score >= 10 ? 'r3' : score >= 5 ? 'r2' : 'r1'
 
 export default function Risks({ onOpen }: { onOpen: (view: Exclude<View, 'settings'>) => void }) {

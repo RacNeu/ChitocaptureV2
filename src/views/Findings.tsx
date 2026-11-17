@@ -27,7 +27,7 @@ export default function Findings({ onOpen }: { onOpen: (view: 'load' | 'dashboar
 
   return <div className="dashboard findings">
     <header className="dash-head">
-      <div><h1>Findings</h1><p className="muted">{state.settings.factoryName} · where you’re losing money, and what to do</p></div>
+      <div><h1>Ways to save</h1><p className="muted">{state.settings.factoryName} · where you’re losing money, and what to do</p></div>
     </header>
     {!view.load && !view.hasMonthly && <EmptyState icon="⚑" title="Nothing to analyse yet" action={<><button type="button" className="btn" onClick={() => onOpen('load')}>⚡ Upload half-hourly data</button><button type="button" className="btn ghost" onClick={() => onOpen('data')}>⇪ Upload monthly bills</button></>}>Findings come from your own meter readings and bills.</EmptyState>}
     {(view.load || view.hasMonthly) && !(view.load && view.hasMonthly) && <div className="sample-banner">{view.load ? 'Add monthly bills for more findings' : 'Add half-hourly data to find peak and idle savings'} · <button type="button" className="link" onClick={() => onOpen(view.load ? 'data' : 'load')}>Upload</button></div>}

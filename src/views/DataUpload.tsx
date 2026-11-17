@@ -59,7 +59,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
   return <div className="data-upload">
     <header className="dash-head">
       <div>
-        <h1>Monthly data</h1>
+        <h1>Upload bills</h1>
         <p className="muted">{state.settings.factoryName} · one row per month: bills + production</p>
       </div>
       <div className="dash-actions"><a className="btn ghost" href={templateHref} download="chitocapture-monthly-template.csv">⤓ Download template</a></div>
