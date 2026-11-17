@@ -7,25 +7,12 @@ beforeEach(async () => {
 })
 
 describe('company with several sites', () => {
-  it('starts with a steel group and a separate cement producer', () => {
+  it('starts with the steel group only', () => {
     const company = store.getCompany()
     expect(company.name).toBe('Malaysia Steel Demo Sdn Bhd')
     expect(company.sites.map((site) => site.state.settings.industryId)).toEqual(['steel', 'steel-downstream', 'office'])
     expect(company.sites.every((site) => site.state.onboarded)).toBe(true)
-    // The steel group has no kiln; cement is a different demo customer.
-    expect(company.sites.some((site) => site.state.machines.some((machine) => machine.kind === 'kiln'))).toBe(false)
-    const companies = store.getWorkspace().companies
-    expect(companies).toHaveLength(2)
-    expect(companies[1].sites.map((site) => site.state.settings.industryId)).toEqual(['cement'])
-  })
-
-  it('switches between demo companies and keeps each one’s sites separate', () => {
-    const cement = store.getWorkspace().companies[1]
-    store.companyActions.switchCompany(cement.id)
-    expect(store.getCompany().name).toBe('Malaysia Cement Demo Sdn Bhd')
-    expect(store.getState().settings.industryId).toBe('cement')
-    store.companyActions.switchSite(store.getWorkspace().companies[0].sites[0].id)
-    expect(store.getCompany().name).toBe('Malaysia Steel Demo Sdn Bhd')
+    expect(store.getWorkspace().companies).toHaveLength(1)
   })
 
   it('applies edits to the active site only and switches between sites', () => {
@@ -39,17 +26,12 @@ describe('company with several sites', () => {
   })
 
   it('adds a site that needs setting up, and removes it again', () => {
-    const id = store.companyActions.addSite('palm-oil')
+    const id = store.companyActions.addSite('steel')
     expect(store.getState().onboarded).toBe(false)
     expect(store.getCompany().activeId).toBe(id)
     store.companyActions.removeSite(id)
     expect(store.getCompany().sites).toHaveLength(3)
     expect(store.getCompany().sites.some((site) => site.id === id)).toBe(false)
-  })
-
-  it('shares a measured sorbent capacity across every site', () => {
-    store.actions.setMeasuredSorbentCapacity(2.2)
-    expect(store.getWorkspace().companies.every((item) => item.sites.every((site) => site.state.measuredSorbentCapacity === 2.2))).toBe(true)
   })
 })
 
@@ -61,7 +43,7 @@ describe('fixed sample sites and added sites', () => {
     expect(sample.fixed).toBe(true)
     s.companyActions.removeSite(sample.id)
     expect(s.getCompany().sites).toHaveLength(3)
-    const added = s.companyActions.addSite('food')
+    const added = s.companyActions.addSite('steel-downstream')
     expect(s.getCompany().sites.find((site) => site.id === added)!.fixed).toBe(false)
     s.companyActions.removeSite(added)
     expect(s.getCompany().sites).toHaveLength(3)
@@ -72,14 +54,14 @@ describe('adding companies', () => {
   it('adds up to three companies, each with un-set-up sites, and deletes only added ones', async () => {
     vi.resetModules()
     const s = await import('./store')
-    for (let k = 0; k < 3; k += 1) expect(s.companyActions.addCompany(`Co ${k}`, [{ industryId: 'food', name: 'Plant' }])).toBeTruthy()
-    expect(s.companyActions.addCompany('Too many', [{ industryId: 'food', name: 'Plant' }])).toBeNull()
-    expect(s.getWorkspace().companies).toHaveLength(5)
+    for (let k = 0; k < 3; k += 1) expect(s.companyActions.addCompany(`Co ${k}`, [{ industryId: 'steel', name: 'Plant' }])).toBeTruthy()
+    expect(s.companyActions.addCompany('Too many', [{ industryId: 'steel', name: 'Plant' }])).toBeNull()
+    expect(s.getWorkspace().companies).toHaveLength(4)
     expect(s.getState().onboarded).toBe(false)
     const sample = s.getWorkspace().companies[0]
     s.companyActions.removeCompany(sample.id)
-    expect(s.getWorkspace().companies).toHaveLength(5)
-    s.companyActions.removeCompany(s.getCompany().id)
     expect(s.getWorkspace().companies).toHaveLength(4)
+    s.companyActions.removeCompany(s.getCompany().id)
+    expect(s.getWorkspace().companies).toHaveLength(3)
   })
 })

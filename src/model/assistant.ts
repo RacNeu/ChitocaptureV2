@@ -191,7 +191,7 @@ export function reply(question: string, state: FactoryState): AssistantReply {
     ] }
   }
 
-  if (has(q, 'capture', 'chitosan', 'sorbent')) return fromCopilot('capture', state)
+  if (has(q, 'carbon tax', 'tax bill', 'forecast', 'next year')) return fromCopilot('tax', state)
   if (has(q, 'reliable', 'accurate', 'sensor', 'meter', 'data quality')) return fromCopilot('data', state)
 
   // Where does the carbon come from / what should we cut?

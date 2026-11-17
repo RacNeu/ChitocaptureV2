@@ -31,7 +31,6 @@ export function steelScenario(state: FactoryState, u: Upgrades): ScenarioItem[] 
   if (u.fumeVsd) push(items, steelMachine(state, 'fume'), 'vsd', 'Variable-speed fume fans')
   if (u.hotCharging) push(items, steelMachine(state, 'reheat'), 'hot-charging', 'Hot charging')
   if (u.regenBurners) push(items, steelMachine(state, 'reheat'), 'regen-burners', 'Regenerative burners')
-  if (u.captureShare > 0) push(items, steelMachine(state, 'reheat'), 'chitosan-capture', `ChitoCapture on ${Math.round(u.captureShare * 100)}% of the stack`, u.captureShare)
   green(items, state.machines.filter((machine) => machine.unitId), u.greenShare)
   return items
 }

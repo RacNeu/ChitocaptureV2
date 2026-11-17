@@ -1,5 +1,4 @@
 import { GET_PREMIUM_RM_PER_MWH } from './prices'
-import { DEFAULT_SORBENT_CAPACITY, sorbentInventoryTonnes } from './measures'
 /**
  * Illustrative steel mini-mill model: scrap-based electric arc furnace (EAF) → ladle furnace →
  * continuous caster → reheating furnace → rolling mill.
@@ -49,10 +48,6 @@ export type SteelParams = {
   reheatGJPerT: number
   electricityRMPerMWh: number
   gasRMPerGJ: number
-  /** Share of the treated flue-gas CO₂ the capture unit removes (0–1); measured on the rig or assumed 0.9. */
-  captureEfficiency?: number
-  /** Sorbent capacity measured on the rig (mmol/g); the assumed value if absent. */
-  sorbentCapacity?: number
 }
 
 export const defaultSteelParams: SteelParams = {
@@ -80,13 +75,11 @@ export type Upgrades = {
   regenBurners: boolean
   /** Share of electricity from renewables (0–1), e.g. rooftop solar or a green tariff. */
   greenShare: number
-  /** Share of reheating-furnace flue gas treated by chitosan capture (0–1). */
-  captureShare: number
 }
 
-export const noUpgrades: Upgrades = { scrapPreheat: false, eafOptimisation: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0, captureShare: 0 }
+export const noUpgrades: Upgrades = { scrapPreheat: false, eafOptimisation: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0 }
 
-export type UpgradeInfo = { key: keyof Upgrades; name: string; what: string; basis: string; capexRM: (p: SteelParams, annualT: number, u: Upgrades) => number }
+export type UpgradeInfo = { key: keyof Upgrades; name: string; what: string; basis: string; capexRM: (p: SteelParams, annualT: number) => number }
 
 /** Indicative planning assumptions, shown to the user with each upgrade. */
 export const upgradeInfo: UpgradeInfo[] = [
@@ -97,11 +90,6 @@ export const upgradeInfo: UpgradeInfo[] = [
   { key: 'hotCharging', name: 'Hot charging', what: 'Send billets straight from the caster to the reheating furnace while still hot.', basis: '−30% reheating gas; capex RM 15m', capexRM: () => 15_000_000 },
   { key: 'regenBurners', name: 'Regenerative burners', what: 'Recover exhaust heat to preheat combustion air in the reheating furnace.', basis: '−15% reheating gas; capex RM 20m', capexRM: () => 20_000_000 },
   { key: 'greenShare', name: 'Green electricity', what: 'Rooftop solar plus a renewable electricity tariff or power purchase agreement.', basis: 'Cuts grid CO₂ in proportion to the green share; adds TNB’s Green Electricity Tariff premium of 3 sen/kWh (3-year subscription)', capexRM: () => 0 },
-  { key: 'captureShare', name: 'ChitoCapture chitosan capture', what: 'ChitoCapture’s chitosan sorbent unit on the reheating-furnace stack. A 5% pilot is running; slide right to see a full-scale installation. The sorbent is regenerated with furnace waste heat.', basis: '90% capture of the treated gas (or the efficiency measured on the rig); 0.25 MWh electricity per t captured; RM 1,000 per t/yr capacity',
-    capexRM: (p, annualT, u) => {
-      const capturedT = intensity(p, u).capturedKgPerT * annualT / 1_000
-      return Math.round(capturedT * 1_000 + sorbentInventoryTonnes(capturedT, p.sorbentCapacity ?? DEFAULT_SORBENT_CAPACITY) * 1_000 * 60)
-    } },
 ]
 
 export type Intensity = {
@@ -111,8 +99,7 @@ export type Intensity = {
   reheatGJPerT: number
   eafDirectKgPerT: number
   reheatKgPerT: number
-  capturedKgPerT: number
-  /** Scope 1: on-site combustion and process, after capture. */
+  /** Scope 1: on-site combustion and process. */
   directKgPerT: number
   /** Scope 2: purchased grid electricity, after the green share. */
   indirectKgPerT: number
@@ -123,19 +110,16 @@ export function intensity(p: SteelParams, u: Upgrades): Intensity {
   // Savings add up as shares of the plant's own figures, the same way the plan adds up separate measures.
   const reheatGJPerT = p.reheatGJPerT * (1 - (u.hotCharging ? 0.3 : 0) - (u.regenBurners ? 0.15 : 0))
   const reheatGrossKg = reheatGJPerT * p.gasKgPerGJ
-  const capturedKgPerT = reheatGrossKg * Math.min(1, Math.max(0, u.captureShare)) * (p.captureEfficiency ?? 0.9)
   const kwh = {
     ...p.kwhPerT,
     eaf: p.kwhPerT.eaf * (1 - (u.scrapPreheat ? 0.08 : 0) - (u.eafOptimisation ? 0.06 : 0)),
     fume: p.kwhPerT.fume * (u.fumeVsd ? 0.8 : 1),
-    // Capture's own electricity use is counted under utilities.
-    utilities: p.kwhPerT.utilities + capturedKgPerT / 1_000 * 250,
   }
   const totalKwhPerT = Object.values(kwh).reduce((sum, value) => sum + value, 0)
   const indirectKgPerT = totalKwhPerT * p.gridKgPerKWh * (1 - Math.min(1, Math.max(0, u.greenShare)))
-  const reheatKgPerT = reheatGrossKg - capturedKgPerT
+  const reheatKgPerT = reheatGrossKg
   const directKgPerT = p.eafDirectKgPerT + reheatKgPerT
-  return { kwh, totalKwhPerT, reheatGJPerT, eafDirectKgPerT: p.eafDirectKgPerT, reheatKgPerT, capturedKgPerT, directKgPerT, indirectKgPerT, totalKgPerT: directKgPerT + indirectKgPerT }
+  return { kwh, totalKwhPerT, reheatGJPerT, eafDirectKgPerT: p.eafDirectKgPerT, reheatKgPerT, directKgPerT, indirectKgPerT, totalKgPerT: directKgPerT + indirectKgPerT }
 }
 
 export const tonnesPerHour = (p: SteelParams) => p.heatSizeT / (p.cycleMin / 60)
@@ -169,9 +153,8 @@ export function upgradeImpacts(p: SteelParams, u: Upgrades): UpgradeImpact[] {
   return upgradeInfo.filter((info) => Boolean(u[info.key])).map((info) => {
     const only = { ...noUpgrades, [info.key]: u[info.key] } as Upgrades
     const result = annual(p, only)
-    const capexRM = info.capexRM(p, result.steelT, only)
-    const captureOpex = info.key === 'captureShare' ? intensity(p, only).capturedKgPerT * result.steelT / 1_000 * 60 : 0
-    const annualSavingRM = base.energyCostRM - result.energyCostRM - captureOpex
+    const capexRM = info.capexRM(p, result.steelT)
+    const annualSavingRM = base.energyCostRM - result.energyCostRM
     return {
       info,
       savedKgPerT: baseI.totalKgPerT - intensity(p, only).totalKgPerT,
@@ -207,7 +190,6 @@ export type LiveState = {
   co2TPerH: number
   directTPerH: number
   indirectTPerH: number
-  capturedTPerH: number
   rollingOn: boolean
 }
 
@@ -252,7 +234,6 @@ export function liveState(p: SteelParams, u: Upgrades, minutes: number): LiveSta
     co2TPerH: indirectTPerH + eafDirectTPerH + reheatTPerH,
     directTPerH: eafDirectTPerH + reheatTPerH,
     indirectTPerH,
-    capturedTPerH: i.capturedKgPerT * tph / 1_000,
     rollingOn,
   }
 }
@@ -345,65 +326,5 @@ export function eafInternals(p: SteelParams, u: Upgrades, minutes: number): EafI
     heatEnergyMWh,
     heatCO2T: heatEnergyMWh * p.gridKgPerKWh * (1 - u.greenShare) / 1_000 + directSoFar,
     story: stories[live.phase],
-  }
-}
-
-/* ---------------- Inside the ChitoCapture unit ---------------- */
-
-/** Two sorbent columns swap every half cycle: one captures CO₂ while the other is regenerated. */
-export const CAPTURE_CYCLE_MIN = 60
-
-export type CaptureInternals = {
-  /** Which column is capturing now. */
-  activeBed: 'A' | 'B'
-  /** Progress through the current half cycle (0–1). */
-  phaseT: number
-  /** Height of the saturation front in the capturing bed (0 = fresh, 1 = full). */
-  front: number
-  /** Outlet/inlet CO₂ ratio of the capturing bed (breakthrough curve). */
-  breakthrough: number
-  /** CO₂ still held by the regenerating bed (0–1 of capacity). */
-  regenLoading: number
-  /** Temperature of the regenerating bed, °C. */
-  regenTempC: number
-  inletCO2Pct: number
-  outletCO2Pct: number
-  /** CO₂ captured now, kg/h. */
-  capturedKgPerH: number
-  /** CO₂ sent to the storage tank by the regenerating bed now, kg/h. */
-  toTankKgPerH: number
-  /** Storage tank fill, 0–1 (the tank is emptied by truck when full). */
-  tankFill: number
-  stage: string
-}
-
-export function captureInternals(p: SteelParams, u: Upgrades, minutes: number): CaptureInternals {
-  const live = liveState(p, u, minutes)
-  const half = CAPTURE_CYCLE_MIN / 2
-  const m = ((minutes % CAPTURE_CYCLE_MIN) + CAPTURE_CYCLE_MIN) % CAPTURE_CYCLE_MIN
-  const activeBed = m < half ? 'A' : 'B'
-  const phaseT = (m % half) / half
-  const smooth = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t) }
-  const front = smooth(phaseT * 1.05)
-  // Logistic breakthrough: almost nothing slips until the bed nears saturation, then the bed is swapped.
-  const breakthrough = 1 / (1 + Math.exp(-(phaseT - 0.9) * 18))
-  const inletCO2Pct = 8.5 + 0.4 * Math.sin(minutes / 7)
-  const running = u.captureShare > 0
-  const capturedKgPerH = running ? live.capturedTPerH * 1_000 * (1 - breakthrough) / 0.92 : 0
-  // Regeneration: heat up with waste heat (first 25%), release CO₂ (to 80%), then cool for the next swap.
-  const heat = smooth(phaseT / 0.25), cool = smooth((phaseT - 0.8) / 0.2)
-  const regenTempC = 40 + 80 * heat - 80 * cool
-  const regenLoading = 1 - smooth((phaseT - 0.15) / 0.65)
-  const releasing = phaseT > 0.15 && phaseT < 0.8
-  const toTankKgPerH = running && releasing ? live.capturedTPerH * 1_000 / 0.65 : 0
-  const hoursIntoFill = (minutes / 60) % 12
-  return {
-    activeBed, phaseT, front, breakthrough, regenLoading, regenTempC,
-    inletCO2Pct, outletCO2Pct: running ? inletCO2Pct * (1 - 0.9 * (1 - breakthrough)) : inletCO2Pct,
-    capturedKgPerH, toTankKgPerH, tankFill: running ? hoursIntoFill / 12 : 0,
-    stage: !running ? 'The capture unit is switched off. Turn on the ChitoCapture slider in the what-if sandbox.'
-      : phaseT < 0.25 ? `Column ${activeBed} captures CO₂ from the reheat-furnace exhaust. Column ${activeBed === 'A' ? 'B' : 'A'} is heated with furnace waste heat to start releasing its CO₂.`
-        : phaseT < 0.8 ? `Column ${activeBed}’s chitosan sorbent is filling from the bottom up. Column ${activeBed === 'A' ? 'B' : 'A'} releases concentrated CO₂, which is compressed into the storage tank.`
-          : `Column ${activeBed} is nearly full: CO₂ starts to slip through (breakthrough). The columns are about to swap; the regenerated column cools down ready to capture again.`,
   }
 }

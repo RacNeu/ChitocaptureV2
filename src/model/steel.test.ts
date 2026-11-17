@@ -31,13 +31,6 @@ describe('steel mini-mill model', () => {
     expect(melting.mw.eaf).toBeGreaterThan(charging.mw.eaf * 5)
   })
 
-  it('makes capture net-positive only after its own electricity use', () => {
-    const captured = intensity(p, { ...noUpgrades, captureShare: 1 })
-    expect(captured.capturedKgPerT).toBeCloseTo(1.2 * 56.1 * 0.9)
-    const saved = intensity(p, noUpgrades).totalKgPerT - captured.totalKgPerT
-    expect(saved).toBeCloseTo(captured.capturedKgPerT * (1 - 0.25 * 0.74))
-  })
-
   it('green electricity cuts only the indirect part', () => {
     const green = intensity(p, { ...noUpgrades, greenShare: 0.5 })
     expect(green.indirectKgPerT).toBeCloseTo(intensity(p, noUpgrades).indirectKgPerT / 2)
@@ -79,23 +72,5 @@ describe('inside the arc furnace', () => {
     const end = eafInternals(p, noUpgrades, p.cycleMin - 0.001)
     expect(end.heatEnergyMWh).toBeCloseTo(412 * 100 / 1_000, 0)
     expect(end.heatCO2T).toBeGreaterThan(end.heatEnergyMWh * 0.74 / 1_000 * 0.99)
-  })
-})
-
-import { captureInternals } from './steel'
-
-describe('inside the ChitoCapture unit', () => {
-  const on = { ...noUpgrades, captureShare: 0.05 }
-  it('alternates the two columns every half cycle', () => {
-    expect(captureInternals(p, on, 5).activeBed).toBe('A')
-    expect(captureInternals(p, on, 35).activeBed).toBe('B')
-  })
-  it('lets little CO₂ through until the bed nears saturation', () => {
-    expect(captureInternals(p, on, 10).breakthrough).toBeLessThan(0.05)
-    expect(captureInternals(p, on, 29).breakthrough).toBeGreaterThan(0.5)
-    expect(captureInternals(p, on, 10).outletCO2Pct).toBeLessThan(captureInternals(p, on, 10).inletCO2Pct * 0.2)
-  })
-  it('captures nothing when the unit is switched off', () => {
-    expect(captureInternals(p, noUpgrades, 10).capturedKgPerH).toBe(0)
   })
 })

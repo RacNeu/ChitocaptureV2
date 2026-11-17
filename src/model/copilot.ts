@@ -1,4 +1,5 @@
-import { contextFor, optionsFor, summarise, type Option } from './calc'
+import { optionsFor, summarise, type Option } from './calc'
+import { outlook } from './outlook'
 import { measureById } from './measures'
 import type { FactoryState, PlanAction } from './types'
 
@@ -7,13 +8,13 @@ import type { FactoryState, PlanAction } from './types'
  * factory data and the measure library, so it always matches the numbers on screen.
  */
 
-export type CopilotQuestion = 'start' | 'target' | 'capture' | 'data' | 'money'
+export type CopilotQuestion = 'start' | 'target' | 'tax' | 'data' | 'money'
 
 export const copilotQuestions: { id: CopilotQuestion; label: string }[] = [
   { id: 'start', label: 'Where should I start?' },
   { id: 'target', label: 'How do I hit my target?' },
   { id: 'money', label: 'What saves the most money?' },
-  { id: 'capture', label: 'Is carbon capture worth it?' },
+  { id: 'tax', label: 'What will carbon tax cost us?' },
   { id: 'data', label: 'How reliable is my data?' },
 ]
 
@@ -97,20 +98,21 @@ export function answer(question: CopilotQuestion, state: FactoryState): CopilotA
     }
   }
 
-  if (question === 'capture') {
-    const capture = allOptions(state).filter((option) => option.measureId === 'chitosan-capture').sort((a, b) => b.economics.netT - a.economics.netT)[0]
-    const ctx = contextFor(state)
-    if (!capture) return { title: 'Chitosan capture', lines: ['Capture needs a flue-gas source such as a kiln, boiler or furnace. None of your machines has one, or capture is already in your plan.'] }
-    const cheaper = options.filter((option) => option.economics.costPerTonneRM !== null && capture.economics.costPerTonneRM !== null && option.economics.costPerTonneRM < capture.economics.costPerTonneRM)
+  if (question === 'tax') {
+    const view = outlook(state)
+    const next = view.tax.find((item) => item.year > Number(view.last12.to.slice(0, 4))) ?? view.tax.at(-1)
+    const at2030 = view.tax.find((item) => item.year === 2030)
+    const cheapest = options.filter((option) => option.economics.costPerTonneRM !== null && next && option.economics.costPerTonneRM < next.rmPerT).sort((a, b) => b.economics.netT - a.economics.netT).slice(0, 3)
     return {
-      title: 'Chitosan capture: honest numbers',
+      title: 'Carbon tax outlook (Singapore rate as reference)',
       lines: [
-        `A 5% slipstream pilot on ${capture.machine.name} captures ${t(capture.economics.grossT)} a year, but its own electricity use emits ${t(capture.economics.penaltyT)} at your grid factor (${ctx.gridKgPerKWh} kg/kWh). The net result is −${t(capture.economics.netT)}.`,
-        capture.economics.costPerTonneRM !== null ? `It costs about ${rm(capture.economics.costPerTonneRM)} per net tonne. ${cheaper.length} other options are cheaper per tonne, so do those first.` : 'At these settings it does not cut CO₂e overall.',
-        state.measuredSorbentCapacity ? `This estimate uses your measured sorbent capacity of ${state.measuredSorbentCapacity.toFixed(2)} mmol/g.` : 'Sorbent capacity is still an assumption. Measure it on the Sensors page to make this estimate real.',
-        state.measuredCaptureEfficiency ? `It uses the capture efficiency measured on the rig: ${(state.measuredCaptureEfficiency * 100).toFixed(1)}%.` : 'Capture efficiency is assumed at 90% until the rig measures it.',
-        'Where capture fits: unavoidable process CO₂ (such as cement calcination) that efficiency cannot remove, with regeneration heat taken from waste heat.',
-      ],
+        `Last 12 months: Scope 1 ${t(view.last12.scope1T)}, Scope 2 ${t(view.last12.scope2T)}${view.sample ? ' (sample history: upload your bills on the Dashboard)' : ''}.`,
+        next ? `${next.year}: about ${rm(next.billRM)} on ${t(next.taxableT)} of Scope 1 at RM ${Math.round(next.rmPerT)}/t.` : 'Not enough history to project a bill yet.',
+        at2030 ? `2030: about ${rm(at2030.billRM)} at RM ${Math.round(at2030.rmPerT)}/t if emissions follow the forecast.` : '',
+        cheapest.length ? 'Cheaper to cut than to pay the tax:' : '',
+        ...cheapest.map((option) => `• ${measureById(option.measureId)?.name} on ${option.machine.name}: −${t(option.economics.netT)}/yr at ${rm(option.economics.costPerTonneRM!)}/t`),
+        'Malaysia has not confirmed its rate; these use Singapore’s published path converted to RM.',
+      ].filter(Boolean),
     }
   }
 

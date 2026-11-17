@@ -17,7 +17,7 @@ describe('sandbox scenario → plan', () => {
 
   for (const info of upgradeInfo) {
     it(`steel: “${info.name}” saves the same in the plan as in the sandbox`, () => {
-      const value = info.key === 'greenShare' ? 0.4 : info.key === 'captureShare' ? 0.5 : true
+      const value = info.key === 'greenShare' ? 0.4 : true
       const u = { ...noUpgrades, [info.key]: value } as Upgrades
       const sandbox = upgradeImpacts(params, u)[0]
       const items = steelScenario(mill, u)
@@ -44,7 +44,7 @@ describe('sandbox scenario → plan', () => {
   }
 
   it('adds nothing when no upgrade is on', () => {
-    expect(steelScenario(mill, { ...noUpgrades, captureShare: 0 })).toHaveLength(0)
+    expect(steelScenario(mill, noUpgrades)).toHaveLength(0)
     expect(galvScenario(wire, noGalvUpgrades)).toHaveLength(0)
   })
 })

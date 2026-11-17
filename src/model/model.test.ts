@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { capitalRecoveryFactor, contextFor, economics, machineEmissions, optionsFor, summarise, trajectory } from './calc'
 import { answer, autoPlan } from './copilot'
-import { DEFAULT_SORBENT_CAPACITY, measureById, sorbentInventoryTonnes } from './measures'
 import { freshState } from './store'
 import { industryTemplates } from './templates'
 import type { FactoryState, Machine } from './types'
 
 function factory(machines: Partial<Machine>[], grid = 0.5): FactoryState {
-  const base = freshState('cement')
+  const base = freshState('office')
   return {
     ...base,
     settings: { ...base.settings, gridRegionId: 'custom', customGridKgPerKWh: grid, discountRatePct: 0, targetReductionPct: 20 },
@@ -87,27 +86,11 @@ describe('plan', () => {
   })
 })
 
-describe('chitosan capture', () => {
-  it('needs less sorbent when the measured capacity is higher', () => {
-    expect(sorbentInventoryTonnes(1_000, 3)).toBeCloseTo(sorbentInventoryTonnes(1_000, 1.5) / 2)
-  })
-
-  it('uses the measured capacity in the capex', () => {
-    const state = factory([{ kind: 'kiln', processT: 100_000 }])
-    const ctx = contextFor(state)
-    const measure = measureById('chitosan-capture')!
-    const assumed = measure.estimate(state.machines[0], ctx)!
-    const measured = measure.estimate(state.machines[0], { ...ctx, measuredSorbentCapacity: DEFAULT_SORBENT_CAPACITY * 2 })!
-    expect(measured.capexRM).toBeLessThan(assumed.capexRM)
-    expect(measured.directT).toBeCloseTo(assumed.directT)
-  })
-})
-
 describe('copilot and templates', () => {
   it('answers every question for every industry template without errors', () => {
     for (const template of industryTemplates) {
       const state = freshState(template.id)
-      for (const question of ['start', 'target', 'capture', 'data', 'money'] as const) {
+      for (const question of ['start', 'target', 'tax', 'data', 'money'] as const) {
         const result = answer(question, state)
         expect(result.lines.length).toBeGreaterThan(0)
         expect(result.lines.join(' ')).not.toMatch(/NaN|undefined|Infinity/)
@@ -165,13 +148,13 @@ describe('steel-specific measures', () => {
     const steel = freshState('steel')
     const byName = (name: string) => optionsFor(steel.machines.find((machine) => machine.name === name)!, steel).map((option) => option.measureId)
     expect(byName('Electric arc furnace')).toEqual(expect.arrayContaining(['eaf-optimisation', 'scrap-preheat']))
-    expect(byName('Reheating furnace')).toEqual(expect.arrayContaining(['hot-charging', 'regen-burners', 'chitosan-capture']))
+    expect(byName('Reheating furnace')).toEqual(expect.arrayContaining(['hot-charging', 'regen-burners']))
     expect(byName('Rolling mill')).not.toContain('grinding')
     expect(byName('Oxygen plant')).not.toContain('air-leaks')
     expect(byName('Oxygen plant')).toContain('oxygen-turndown')
     // Non-steel sites keep the generic library and never see steel-only measures.
-    const cement = freshState('cement')
-    expect(cement.machines.flatMap((machine) => optionsFor(machine, cement).map((option) => option.measureId))).not.toContain('hot-charging')
+    const office = freshState('office')
+    expect(office.machines.flatMap((machine) => optionsFor(machine, office).map((option) => option.measureId))).not.toContain('hot-charging')
     expect(autoPlan(steel).every((action) => !['grinding'].includes(action.measureId))).toBe(true)
   })
 })

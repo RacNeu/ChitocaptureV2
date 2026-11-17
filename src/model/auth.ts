@@ -19,7 +19,6 @@ export type Account = {
 
 export const demoAccounts: Account[] = [
   { id: 'MSD-001', company: 'Malaysia Steel Demo Sdn Bhd', hash: '2d60455356b2ec976e4c032e2ba0fd92d05ae6cb91a15ac386946a2bf253ae1a', hint: 'steel2026' },
-  { id: 'MCD-001', company: 'Malaysia Cement Demo Sdn Bhd', hash: '752deae2a6b3c77de2c60a8caff271aab6b5533d6099d9a278df6bc890b73124', hint: 'cement2026' },
   { id: 'DEMO', company: null, hash: '45d714d715da1773eda563123432b14e65bd3219ab4541cbea51b89defb9e868', hint: 'demo2026' },
 ]
 

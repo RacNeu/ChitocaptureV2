@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { parseLine } from './parse'
-import { analyseRig } from './rig'
 
 describe('parseLine', () => {
   it('reads JSON, key:value pairs and bare numbers', () => {
@@ -14,33 +13,5 @@ describe('parseLine', () => {
     expect(parseLine('ESP32 booting...')).toBeNull()
     expect(parseLine('{"co2": ')).toBeNull()
     expect(parseLine('')).toBeNull()
-  })
-})
-
-describe('analyseRig', () => {
-  it('integrates captured CO₂ into mmol per gram', () => {
-    // 10 minutes at 1 L/min, inlet 10,000 ppm, outlet 0 → 0.01 × 10 L ÷ 22.414 = 4.4615 mmol
-    const samples = Array.from({ length: 11 }, (_, minute) => ({ at: minute * 60_000, co2_in: 10_000, co2_out: 0 }))
-    const result = analyseRig(samples, 1, 2)
-    expect(result.capturedMmol).toBeCloseTo(4.4615, 3)
-    expect(result.capacityMmolPerG).toBeCloseTo(2.2307, 3)
-    expect(result.captureEfficiencyPct).toBeCloseTo(100)
-    expect(result.breakthrough).toBe(0)
-  })
-
-  it('reports breakthrough and ignores gaps longer than five minutes', () => {
-    const result = analyseRig([{ at: 0, co2_in: 1000, co2_out: 500 }, { at: 600_000, co2_in: 1000, co2_out: 900 }], 1, 1)
-    expect(result.capturedMmol).toBe(0)
-    expect(result.breakthrough).toBeCloseTo(0.9)
-  })
-})
-
-describe('working capture efficiency', () => {
-  it('counts only the part of the run before breakthrough', () => {
-    // 5 minutes at 95% capture, then the outlet breaks through to 60% of the inlet.
-    const samples = Array.from({ length: 11 }, (_, minute) => ({ at: minute * 60_000, co2_in: 5_000, co2_out: minute <= 5 ? 250 : 3_000 }))
-    const result = analyseRig(samples, 1, 1)
-    expect(result.workingEfficiencyPct).toBeCloseTo(95, 0)
-    expect(result.captureEfficiencyPct).toBeLessThan(80)
   })
 })

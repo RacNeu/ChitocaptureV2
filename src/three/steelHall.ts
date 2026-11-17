@@ -28,10 +28,7 @@ export type HallHandles = {
   bar: THREE.Mesh
   reheatGlow: THREE.MeshStandardMaterial
   reheatLight: THREE.PointLight
-  captureUnit: THREE.Group
-  /** Where the ChitoCapture unit's label floats. */
-  captureAnchor: THREE.Vector3
-  flows: { mesh: THREE.Mesh; texture: THREE.Texture; kind: 'power' | 'gas' | 'capture'; unit: UnitId }[]
+  flows: { mesh: THREE.Mesh; texture: THREE.Texture; kind: 'power' | 'gas'; unit: UnitId }[]
   stacks: { origin: THREE.Vector3; unit: 'fume' | 'reheat' | 'steam' }[]
   size: number
 }
@@ -190,17 +187,6 @@ export function buildSteelHall(): HallHandles {
   reheatLight.position.set(52, 4, -2)
   reheat.add(reheatLight)
 
-  // Chitosan capture skid next to the reheat stack (shown when capture is switched on).
-  const captureUnit = new THREE.Group()
-  // Its own pick id, so hovering it shows the capture unit rather than the reheating furnace.
-  captureUnit.userData.unitId = 'capture'
-  put(captureUnit, new THREE.CylinderGeometry(2.2, 2.2, 14, 20), m(0x3ddc97, { roughness: 0.4, emissive: new THREE.Color(0x0d5a3b), emissiveIntensity: 0.6 }), 32, 7, -22)
-  put(captureUnit, new THREE.CylinderGeometry(2.2, 2.2, 14, 20), m(0x3ddc97, { roughness: 0.4, emissive: new THREE.Color(0x0d5a3b), emissiveIntensity: 0.6 }), 38, 7, -22)
-  put(captureUnit, new THREE.CylinderGeometry(1.4, 1.4, 6, 16), m(0xe6e8ea), 26, 3, -22)
-  const captureDuct = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(44, 8, -10), new THREE.Vector3(42, 10, -18), new THREE.Vector3(38, 12, -22)]), 16, 0.6, 8)
-  put(captureUnit, captureDuct, grey, 0, 0, 0)
-  captureUnit.scale.setScalar(0.001)
-  reheat.add(captureUnit)
 
   /* ---- Rolling mill ---- */
   const rolling = unit('rolling', new THREE.Vector3(70, 16, 6))
@@ -328,9 +314,9 @@ export function buildSteelHall(): HallHandles {
     return texture
   }
   const flows: HallHandles['flows'] = []
-  const flow = (points: [number, number, number][], kind: 'power' | 'gas' | 'capture', target: UnitId, radius = 0.45) => {
+  const flow = (points: [number, number, number][], kind: 'power' | 'gas', target: UnitId, radius = 0.45) => {
     const curve = new THREE.CatmullRomCurve3(points.map(([x, y, z]) => new THREE.Vector3(x, y, z)), false, 'catmullrom', 0.1)
-    const texture = stripe(kind === 'power' ? '#ffd23f' : kind === 'gas' ? '#ff8a3d' : '#3ddc97')
+    const texture = stripe(kind === 'power' ? '#ffd23f' : '#ff8a3d')
     texture.repeat.set(Math.max(4, curve.getLength() / 3), 1)
     const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.95, depthWrite: false })
     const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 80, radius, 8), material)
@@ -342,12 +328,11 @@ export function buildSteelHall(): HallHandles {
   flow([[-62, 6, 46], [20, 8, 40], [62, 10, 20], [66, 8, 8]], 'power', 'rolling')
   flow([[-62, 6, 46], [-30, 6, 40], [-50, 6, 30], [-52, 4, -24]], 'power', 'fume', 0.35)
   flow([[40, 6, 48], [40, 8, 30], [38, 10, 10], [38, 10, 4]], 'gas', 'reheat', 0.55)
-  flow([[38, 12, -22], [26, 6, -22], [20, 4, -30], [10, 2, -45]], 'capture', 'reheat', 0.4)
 
   root.traverse((object) => { if ((object as THREE.Mesh).isMesh && !object.userData.unitId) { let parent = object.parent; while (parent && !parent.userData.unitId) parent = parent.parent; if (parent) object.userData.unitId = parent.userData.unitId } })
 
   return {
-    root, units, eafLight, eafGlow, electrodes, sparks, ladle, ladleGlow, crane, billets, bar, reheatGlow, reheatLight, captureUnit, captureAnchor: new THREE.Vector3(35, 17, -22), flows, magnetCrane, magnet, slagCarrier, slagPath, preheatFlames,
+    root, units, eafLight, eafGlow, electrodes, sparks, ladle, ladleGlow, crane, billets, bar, reheatGlow, reheatLight, flows, magnetCrane, magnet, slagCarrier, slagPath, preheatFlames,
     stacks: [{ origin: new THREE.Vector3(-46, 47, -28), unit: 'fume' }, { origin: new THREE.Vector3(44, 41, -10), unit: 'reheat' }, { origin: new THREE.Vector3(-12, 10.5, 3), unit: 'steam' }],
     size: 200,
   }
