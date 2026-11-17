@@ -1,4 +1,6 @@
 import type { EstimateContext, Machine, Measure, MeasureEffect } from './types'
+import { defaultGalvParams, galvAnnualTonnes, galvIntensity, galvUnits, noGalvUpgrades, type GalvUpgrades } from './galv'
+import { GET_PREMIUM_RM_PER_MWH, ZINC_RM_PER_T } from './prices'
 
 /**
  * Reduction-measure library.
@@ -28,7 +30,10 @@ const fuelShare = (share: number, paybackYears: number, lifetimeYears: number) =
 
 /** Default sorbent working capacity, used until the capture rig measures a real value (mmol/g). */
 export const DEFAULT_SORBENT_CAPACITY = 1.5
-const CAPTURE_SLIPSTREAM = 0.05
+/** Share of the flue gas treated by the pilot capture unit. */
+export const CAPTURE_SLIPSTREAM = 0.05
+/** Default share of a machine's electricity switched to the Green Electricity Tariff. */
+export const GREEN_SHARE_DEFAULT = 0.3
 /** Assumed share of the treated CO₂ captured, used until the rig measures it. */
 export const DEFAULT_CAPTURE_EFFICIENCY = 0.9
 const CYCLES_PER_YEAR = 6 * 330
@@ -149,11 +154,11 @@ export const measures: readonly Measure[] = [
     id: 'chitosan-capture', name: 'Chitosan sorbent CO₂ capture', short: 'Chitosan capture', category: 'Carbon capture', appliesTo: ['kiln', 'boiler', 'furnace'],
     explain: 'Pass a slipstream of the flue gas through an amine-modified chitosan sorbent that holds CO₂, then heat it with waste heat to release concentrated CO₂ for use or storage.',
     checks: ['Measure the sorbent capacity on the bench rig (Sensors page)', 'Confirm waste heat is available for regeneration', 'Identify a CO₂ use or storage route'],
-    basis: '5% slipstream at 90% capture (or the efficiency measured on the rig); 0.25 MWh/t electricity penalty with regeneration heat from waste heat; sorbent at RM 60/kg sized from the measured capacity, plus RM 1,000 per t/yr of equipment',
-    estimate: (machine, ctx) => {
+    basis: '5% slipstream (or the share chosen in the simulation) at 90% capture (or the efficiency measured on the rig); 0.25 MWh/t electricity penalty with regeneration heat from waste heat; sorbent at RM 60/kg sized from the measured capacity, plus RM 1,000 per t/yr of equipment',
+    estimate: (machine, ctx, scale) => {
       const pointSource = machine.processT + machine.fuelGJ * ctx.fuelKgPerGJ(machine.fuel) / 1_000
       if (pointSource <= 0) return null
-      const captured = pointSource * CAPTURE_SLIPSTREAM * (ctx.measuredCaptureEfficiency ?? DEFAULT_CAPTURE_EFFICIENCY)
+      const captured = pointSource * Math.min(1, Math.max(0, scale ?? CAPTURE_SLIPSTREAM)) * (ctx.measuredCaptureEfficiency ?? DEFAULT_CAPTURE_EFFICIENCY)
       const sorbentT = sorbentInventoryTonnes(captured, ctx.measuredSorbentCapacity ?? DEFAULT_SORBENT_CAPACITY)
       return { ...none, directT: captured, addedElectricityMWh: captured * 0.25, capexRM: Math.round(captured * 1_000 + sorbentT * 1_000 * SORBENT_RM_PER_KG), opexChangeRM: Math.round(captured * 60), lifetimeYears: 15 }
     },
@@ -174,10 +179,14 @@ export const measures: readonly Measure[] = [
   },
   {
     id: 'green-ppa', name: 'Renewable electricity supply (green tariff or PPA)', short: 'Green power', category: 'Renewables', appliesTo: ['furnace', 'mill', 'production-line'], steelOnly: true,
-    explain: 'Buy part of the plant’s electricity as certified renewable power, for example through a green electricity tariff or a power purchase agreement.',
+    explain: 'Buy part of the plant’s electricity as certified renewable power through TNB’s Green Electricity Tariff (or a power purchase agreement).',
     checks: ['Compare available green tariffs and PPA prices', 'Agree how the certificates are counted in reporting', 'Check contract length and volume'],
-    basis: '30% of the machine’s grid electricity becomes renewable; premium RM 20/MWh',
-    estimate: (machine, ctx) => machine.electricityMWh > 0 ? { ...none, directT: machine.electricityMWh * 0.3 * ctx.gridKgPerKWh, opexChangeRM: Math.round(machine.electricityMWh * 0.3 * 20), lifetimeYears: 10 } : null,
+    basis: '30% of the machine’s grid electricity (or the share chosen in the simulation) bought through TNB’s Green Electricity Tariff at a premium of 3 sen/kWh',
+    estimate: (machine, ctx, scale) => {
+      if (machine.electricityMWh <= 0) return null
+      const share = Math.min(1, Math.max(0, scale ?? GREEN_SHARE_DEFAULT))
+      return { ...none, directT: machine.electricityMWh * share * ctx.gridKgPerKWh, opexChangeRM: Math.round(machine.electricityMWh * share * GET_PREMIUM_RM_PER_MWH), lifetimeYears: 10 }
+    },
   },
   {
     id: 'lf-control', name: 'Ladle furnace heating control & ladle covers', short: 'LF control', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
@@ -209,7 +218,79 @@ export const measures: readonly Measure[] = [
     checks: ['Log oxygen production vs consumption', 'Check the plant’s minimum stable load'],
     basis: '10% of the oxygen plant’s electricity; 2-year payback', estimate: electricShare(0.1, 2, 10),
   },
+
+  /* ---------- Wire & galvanising plant measures: the same physics as the wire-plant simulation ---------- */
+  {
+    id: 'galv-coating', name: 'Coating-weight control', short: 'Coating control', category: 'Process', appliesTo: [], galvUnit: 'kettle',
+    explain: 'Nitrogen wiping with an online coating gauge brings the average zinc coat down to just above the specification, so less zinc is bought and melted.',
+    checks: ['Log coating weight on each line for a month', 'Trial nitrogen wiping on one line', 'Agree the coating tolerance with customers'],
+    basis: 'Average coat to specification + 8 g/m², from the wire-plant model; capex RM 0.8m per line. Zinc saved is costed at the LME price in ringgit',
+    estimate: (machine, ctx) => galvEffect('coatingControl', machine, ctx),
+  },
+  {
+    id: 'galv-drawing', name: 'Drawing machine drives, dies & lubrication', short: 'Drawing drives', category: 'Efficiency', appliesTo: [], galvUnit: 'drawing',
+    explain: 'AC vector drives with regeneration, better die profiles and lubricant, so more of the motor power goes into shaping the wire.',
+    checks: ['Log kWh per tonne on each drawing machine', 'Trial new dies and lubricant on one machine'],
+    basis: 'Drawing efficiency from about 45% to 55% and auxiliaries −25%, from the wire-plant model; capex RM 0.55m per machine',
+    estimate: (machine, ctx) => galvEffect('drawing', machine, ctx),
+  },
+  {
+    id: 'galv-kettle', name: 'Kettle covers & high-efficiency burners', short: 'Kettle covers', category: 'Heat recovery', appliesTo: [], galvUnit: 'kettle',
+    explain: 'Insulated covers over the idle zinc surface, better kettle insulation and pulse-fired burners, so less gas just keeps the bath hot.',
+    checks: ['Measure kettle surface and wall heat losses', 'Check burner condition and air-fuel ratio'],
+    basis: 'Surface and wall losses −38%, burner efficiency from about 45% to 55%, from the wire-plant model; capex RM 1.1m per line',
+    estimate: (machine, ctx) => galvEffect('kettleCover', machine, ctx),
+  },
+  {
+    id: 'galv-recuperator', name: 'Annealing furnace recuperators', short: 'Recuperators', category: 'Heat recovery', appliesTo: [], galvUnit: 'anneal',
+    explain: 'Preheat the combustion air with the furnace’s own flue gas, so less gas is burnt.',
+    checks: ['Measure flue-gas temperature and flow', 'Check space for the recuperator'],
+    basis: 'Furnace efficiency from about 50% to 62%, from the wire-plant model; capex RM 1.4m per line',
+    estimate: (machine, ctx) => galvEffect('recuperator', machine, ctx),
+  },
+  {
+    id: 'galv-induction', name: 'Electric induction annealing', short: 'Induction', category: 'Fuel switch', appliesTo: [], galvUnit: 'anneal',
+    explain: 'Replace the gas furnaces with induction heaters. This removes the gas but adds electricity, so it only cuts CO₂ on a clean grid or with green power.',
+    checks: ['Check the site’s electrical capacity', 'Trial induction on one line'],
+    basis: 'Induction heats the wire at about 85% efficiency, from the wire-plant model; capex RM 6m per line',
+    estimate: (machine, ctx) => galvEffect('induction', machine, ctx),
+  },
 ]
+
+/**
+ * A wire-plant upgrade's effect on one machine, worked out with the same model the wire-plant
+ * simulation uses, so a measure in the plan and the same upgrade in the sandbox give the same figures.
+ */
+function galvEffect(key: Exclude<keyof GalvUpgrades, 'greenShare'>, machine: Machine, ctx: EstimateContext): MeasureEffect | null {
+  const p = ctx.galvParams ?? defaultGalvParams
+  const base = galvIntensity(p, noGalvUpgrades)
+  const after = galvIntensity(p, { ...noGalvUpgrades, [key]: true })
+  const wireT = galvAnnualTonnes(p)
+  const lines = p.galvLines
+  const share = (now: number, was: number) => was > 0 ? Math.max(0, 1 - now / was) : 0
+  switch (key) {
+    case 'drawing':
+      return machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * share(after.kwh.drawing, base.kwh.drawing), capexRM: 550_000 * p.drawMachines, lifetimeYears: 15 } : null
+    case 'recuperator':
+      return machine.fuelGJ > 0 ? { ...none, fuelSavedGJ: machine.fuelGJ * share(after.annealGJPerT, base.annealGJPerT), capexRM: 1_400_000 * lines, lifetimeYears: 15 } : null
+    case 'kettleCover':
+      return machine.fuelGJ > 0 ? { ...none, fuelSavedGJ: machine.fuelGJ * share(after.kettleGJPerT, base.kettleGJPerT), capexRM: 1_100_000 * lines, lifetimeYears: 10 } : null
+    case 'coatingControl': {
+      if (machine.fuelGJ <= 0) return null
+      const zincSavedT = (base.zincKgPerT - after.zincKgPerT) * wireT / 1_000
+      // Less zinc to buy shows as a lower running cost; less zinc to melt saves kettle gas.
+      return { ...none, fuelSavedGJ: machine.fuelGJ * share(after.kettleGJPerT, base.kettleGJPerT), opexChangeRM: -Math.round(zincSavedT * (p.zincRMPerT ?? ZINC_RM_PER_T)), capexRM: 800_000 * lines, lifetimeYears: 10 }
+    }
+    case 'induction':
+      return machine.fuelGJ > 0 ? { ...none, fuelSavedGJ: machine.fuelGJ, addedElectricityMWh: after.kwh.induction * wireT / 1_000, capexRM: 6_000_000 * lines, lifetimeYears: 20 } : null
+  }
+}
+
+/** The wire-plant measures offered for a machine, matched by the machine's name. */
+export function galvMeasuresFor(machineName: string): Measure[] {
+  const unit = galvUnits.find((item) => item.machineName === machineName)
+  return unit ? measures.filter((measure) => measure.galvUnit === unit.id) : []
+}
 
 export const measureById = (id: string) => measures.find((measure) => measure.id === id)
 

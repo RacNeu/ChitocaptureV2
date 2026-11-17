@@ -1,3 +1,5 @@
+import ScenarioToPlan from '../components/ScenarioToPlan'
+import { steelScenario } from '../model/scenario'
 import { FlagEU } from '../components/Flags'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
@@ -33,7 +35,8 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     electricityRMPerMWh: state.settings.electricityPriceRMPerMWh,
     gasRMPerGJ: state.settings.fuelPriceRMPerGJ['natural-gas'],
     captureEfficiency: state.measuredCaptureEfficiency ?? undefined,
-  }), [state.settings, state.measuredCaptureEfficiency, link])
+    sorbentCapacity: state.measuredSorbentCapacity ?? undefined,
+  }), [state.settings, state.measuredCaptureEfficiency, state.measuredSorbentCapacity, link])
   const [upgrades, setUpgrades] = useState<Upgrades>({ ...noUpgrades, captureShare: PILOT_SHARE })
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
@@ -302,6 +305,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
           </article>
         })}
       </div>
+      <ScenarioToPlan items={steelScenario(state, upgrades)} label="steel mill sandbox" />
     </section>
 
     <section className="card cbam">

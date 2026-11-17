@@ -48,7 +48,7 @@ describe('steel mini-mill model', () => {
     const impacts = upgradeImpacts(p, { ...noUpgrades, fumeVsd: true, hotCharging: true })
     expect(impacts).toHaveLength(2)
     const fans = impacts.find((item) => item.info.key === 'fumeVsd')!
-    expect(fans.savedKgPerT).toBeCloseTo(35 * 0.3 * 0.74)
+    expect(fans.savedKgPerT).toBeCloseTo(35 * 0.2 * 0.74)
     expect(fans.paybackYears).toBeGreaterThan(0)
   })
 

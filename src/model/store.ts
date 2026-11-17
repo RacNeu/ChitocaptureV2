@@ -232,6 +232,25 @@ export const actions = {
     const action: PlanAction = { id: newId('a'), machineId, measureId, startYear, status: 'proposed', owner: roleById(getRole()).person, comments: [] }
     commit(logged({ ...state, plan: [...state.plan, action] }, `Proposed ${actionName(state, action)}`))
   },
+  /**
+   * Add a simulation scenario to the plan as proposed actions. An action already in the plan for the
+   * same machine and measure keeps its status; only its size (scale) is updated.
+   */
+  addScenario: (items: { machineId: string; measureId: string; scale?: number }[], label: string) => {
+    let added = 0, updated = 0
+    let plan = state.plan
+    for (const item of items) {
+      const existing = plan.find((action) => action.machineId === item.machineId && action.measureId === item.measureId)
+      if (existing) {
+        if (existing.scale !== item.scale) { plan = plan.map((action) => action === existing ? { ...action, scale: item.scale } : action); updated += 1 }
+        continue
+      }
+      plan = [...plan, { id: newId('a'), machineId: item.machineId, measureId: item.measureId, startYear: state.settings.baselineYear + 1, status: 'proposed', owner: roleById(getRole()).person, comments: [], source: 'sandbox', ...(item.scale !== undefined ? { scale: item.scale } : {}) }]
+      added += 1
+    }
+    if (added || updated) commit(logged({ ...state, plan }, `Added the ${label} scenario to the plan (${added} new, ${updated} updated)`))
+    return { added, updated }
+  },
   removeFromPlan: (actionId: string) => {
     const action = state.plan.find((item) => item.id === actionId)
     commit(logged({ ...state, plan: state.plan.filter((item) => item.id !== actionId) }, `Removed ${action ? actionName(state, action) : 'an action'}`))

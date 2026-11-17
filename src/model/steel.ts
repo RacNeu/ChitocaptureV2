@@ -1,4 +1,5 @@
 import { GET_PREMIUM_RM_PER_MWH } from './prices'
+import { DEFAULT_SORBENT_CAPACITY, sorbentInventoryTonnes } from './measures'
 /**
  * Illustrative steel mini-mill model: scrap-based electric arc furnace (EAF) → ladle furnace →
  * continuous caster → reheating furnace → rolling mill.
@@ -50,6 +51,8 @@ export type SteelParams = {
   gasRMPerGJ: number
   /** Share of the treated flue-gas CO₂ the capture unit removes (0–1); measured on the rig or assumed 0.9. */
   captureEfficiency?: number
+  /** Sorbent capacity measured on the rig (mmol/g); the assumed value if absent. */
+  sorbentCapacity?: number
 }
 
 export const defaultSteelParams: SteelParams = {
@@ -65,7 +68,12 @@ export const defaultSteelParams: SteelParams = {
   gasRMPerGJ: 40,
 }
 
+/**
+ * Sandbox upgrades. Each uses the same saving and cost assumptions as the matching measure in the
+ * plan library (measures.ts), so a scenario turned into a plan gives the same figures.
+ */
 export type Upgrades = {
+  scrapPreheat: boolean
   eafOptimisation: boolean
   fumeVsd: boolean
   hotCharging: boolean
@@ -76,19 +84,24 @@ export type Upgrades = {
   captureShare: number
 }
 
-export const noUpgrades: Upgrades = { eafOptimisation: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0, captureShare: 0 }
+export const noUpgrades: Upgrades = { scrapPreheat: false, eafOptimisation: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0, captureShare: 0 }
 
 export type UpgradeInfo = { key: keyof Upgrades; name: string; what: string; basis: string; capexRM: (p: SteelParams, annualT: number, u: Upgrades) => number }
 
 /** Indicative planning assumptions, shown to the user with each upgrade. */
 export const upgradeInfo: UpgradeInfo[] = [
-  { key: 'eafOptimisation', name: 'EAF optimisation', what: 'Scrap preheating, foamy-slag control and better power programmes.', basis: '−10% EAF electricity; capex RM 25m', capexRM: () => 25_000_000 },
-  { key: 'fumeVsd', name: 'Variable-speed fume fans', what: 'Run the extraction fans only as hard as the fumes need.', basis: '−30% fume-fan electricity; capex RM 4m', capexRM: () => 4_000_000 },
+  { key: 'scrapPreheat', name: 'Scrap preheating', what: 'Pass the hot furnace off-gas through the scrap before it is charged, so the arc has less heating to do.', basis: '−8% arc furnace electricity; capex RM 30m', capexRM: () => 30_000_000 },
+  { key: 'eafOptimisation', name: 'Arc furnace power & foamy slag', what: 'Tune the power programme and keep a foamy slag over the arc, so more energy goes into the steel.', basis: '−6% arc furnace electricity; capex RM 6m', capexRM: () => 6_000_000 },
+  { key: 'fumeVsd', name: 'Variable-speed fume fans', what: 'Run the extraction fans only as hard as the fumes need.', basis: '−20% fume-fan electricity; capex about 2 years of the saving',
+    capexRM: (p, annualT) => Math.round(p.kwhPerT.fume * 0.2 * annualT / 1_000 * p.electricityRMPerMWh * 2) },
   { key: 'hotCharging', name: 'Hot charging', what: 'Send billets straight from the caster to the reheating furnace while still hot.', basis: '−30% reheating gas; capex RM 15m', capexRM: () => 15_000_000 },
   { key: 'regenBurners', name: 'Regenerative burners', what: 'Recover exhaust heat to preheat combustion air in the reheating furnace.', basis: '−15% reheating gas; capex RM 20m', capexRM: () => 20_000_000 },
   { key: 'greenShare', name: 'Green electricity', what: 'Rooftop solar plus a renewable electricity tariff or power purchase agreement.', basis: 'Cuts grid CO₂ in proportion to the green share; adds TNB’s Green Electricity Tariff premium of 3 sen/kWh (3-year subscription)', capexRM: () => 0 },
   { key: 'captureShare', name: 'ChitoCapture chitosan capture', what: 'ChitoCapture’s chitosan sorbent unit on the reheating-furnace stack. A 5% pilot is running; slide right to see a full-scale installation. The sorbent is regenerated with furnace waste heat.', basis: '90% capture of the treated gas (or the efficiency measured on the rig); 0.25 MWh electricity per t captured; RM 1,000 per t/yr capacity',
-    capexRM: (p, annualT, u) => Math.round(intensity(p, u).capturedKgPerT * annualT / 1_000 * 1_000) },
+    capexRM: (p, annualT, u) => {
+      const capturedT = intensity(p, u).capturedKgPerT * annualT / 1_000
+      return Math.round(capturedT * 1_000 + sorbentInventoryTonnes(capturedT, p.sorbentCapacity ?? DEFAULT_SORBENT_CAPACITY) * 1_000 * 60)
+    } },
 ]
 
 export type Intensity = {
@@ -107,13 +120,14 @@ export type Intensity = {
 }
 
 export function intensity(p: SteelParams, u: Upgrades): Intensity {
-  const reheatGJPerT = p.reheatGJPerT * (u.hotCharging ? 0.7 : 1) * (u.regenBurners ? 0.85 : 1)
+  // Savings add up as shares of the plant's own figures, the same way the plan adds up separate measures.
+  const reheatGJPerT = p.reheatGJPerT * (1 - (u.hotCharging ? 0.3 : 0) - (u.regenBurners ? 0.15 : 0))
   const reheatGrossKg = reheatGJPerT * p.gasKgPerGJ
   const capturedKgPerT = reheatGrossKg * Math.min(1, Math.max(0, u.captureShare)) * (p.captureEfficiency ?? 0.9)
   const kwh = {
     ...p.kwhPerT,
-    eaf: p.kwhPerT.eaf * (u.eafOptimisation ? 0.9 : 1),
-    fume: p.kwhPerT.fume * (u.fumeVsd ? 0.7 : 1),
+    eaf: p.kwhPerT.eaf * (1 - (u.scrapPreheat ? 0.08 : 0) - (u.eafOptimisation ? 0.06 : 0)),
+    fume: p.kwhPerT.fume * (u.fumeVsd ? 0.8 : 1),
     // Capture's own electricity use is counted under utilities.
     utilities: p.kwhPerT.utilities + capturedKgPerT / 1_000 * 250,
   }

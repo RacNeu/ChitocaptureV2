@@ -77,6 +77,10 @@ export type PlanAction = {
   /** Saving measured after the work, t CO₂e per year (entered when marking Done). */
   measuredT?: number
   comments?: Comment[]
+  /** Size for measures that come in sizes, e.g. 0.3 = 30% green electricity; the measure's default if absent. */
+  scale?: number
+  /** Where the action came from, e.g. 'sandbox' when it was added from a simulation scenario. */
+  source?: string
 }
 
 export type HistoryEntry = { at: string; who: string; role: Role; text: string }
@@ -120,10 +124,15 @@ export type Measure = {
   checks: readonly string[]
   /** How the indicative estimate is built. */
   basis: string
-  estimate: (machine: Machine, ctx: EstimateContext) => MeasureEffect | null
+  /** scale: an optional size for measures that come in sizes (green share, capture share). */
+  estimate: (machine: Machine, ctx: EstimateContext, scale?: number) => MeasureEffect | null
+  /** Wire-plant measures: the galvanising-plant unit this measure belongs to. */
+  galvUnit?: string
 }
 
 export type EstimateContext = {
+  /** Calibrated wire-plant model for wire & galvanising sites, used by the wire-plant measures. */
+  galvParams?: import('./galv').GalvParams
   gridKgPerKWh: number
   fuelKgPerGJ: (fuel: FuelType) => number
   electricityPriceRMPerMWh: number

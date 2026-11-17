@@ -1,3 +1,5 @@
+import ScenarioToPlan from '../components/ScenarioToPlan'
+import { galvScenario } from '../model/scenario'
 import { FlagEU } from '../components/Flags'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
@@ -273,6 +275,7 @@ export default function GalvControlRoom({ onChooseSite }: { onChooseSite: () => 
           </article>
         })}
       </div>
+      <ScenarioToPlan items={galvScenario(state, upgrades)} label="wire plant sandbox" />
     </section>
 
     <section className="card cbam">

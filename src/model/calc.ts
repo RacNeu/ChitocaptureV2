@@ -1,10 +1,12 @@
 import { fuelFactorsKgPerGJ, gridFactor } from './factors'
-import { measureById, measures, steelUnitMeasures } from './measures'
+import { galvMeasuresFor, measureById, measures, steelUnitMeasures } from './measures'
+import { galvFromSite } from './siteLink'
 import type { EstimateContext, FactoryState, FuelType, Machine, MeasureEffect, PlanAction } from './types'
 
 export function contextFor(state: FactoryState): EstimateContext {
   const { settings } = state
   return {
+    galvParams: settings.industryId === 'steel-downstream' ? galvFromSite(state).params : undefined,
     gridKgPerKWh: gridFactor(settings.gridRegionId, settings.customGridKgPerKWh),
     fuelKgPerGJ: (fuel: FuelType) => fuelFactorsKgPerGJ[fuel],
     electricityPriceRMPerMWh: settings.electricityPriceRMPerMWh,
@@ -71,7 +73,8 @@ export type Option = { machine: Machine; measureId: string; economics: Economics
 export function optionsFor(machine: Machine, state: FactoryState): Option[] {
   const ctx = contextFor(state)
   const steelSet = machine.unitId ? steelUnitMeasures[machine.unitId] : undefined
-  return measures.filter((measure) => steelSet ? steelSet.includes(measure.id) : measure.appliesTo.includes(machine.kind) && !measure.steelOnly)
+  const galvSet = state.settings.industryId === 'steel-downstream' ? galvMeasuresFor(machine.name).map((measure) => measure.id) : []
+  return measures.filter((measure) => steelSet ? steelSet.includes(measure.id) : galvSet.includes(measure.id) || (measure.appliesTo.includes(machine.kind) && !measure.steelOnly))
     .map((measure) => {
       const effect = measure.estimate(machine, ctx)
       return effect ? { machine, measureId: measure.id, economics: economics(effect, machine, ctx, state.settings.discountRatePct) } : null
@@ -91,7 +94,7 @@ export function plannedActions(state: FactoryState): PlannedAction[] {
   return state.plan.filter((action) => action.status !== 'rejected').flatMap((action) => {
     const machine = state.machines.find((item) => item.id === action.machineId)
     const measure = measureById(action.measureId)
-    const effect = machine && measure?.estimate(machine, ctx)
+    const effect = machine && measure?.estimate(machine, ctx, action.scale)
     return machine && effect ? [{ action, machine, economics: economics(effect, machine, ctx, state.settings.discountRatePct) }] : []
   })
 }
