@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Sparkline } from '../components/Charts'
+import ExpectedVsActual from '../components/ExpectedVsActual'
 import { num, ringgit, tonnes } from '../format'
 import { defaultTaxInputs, singaporePath, type RateCase, type TaxInputs } from '../model/carbonTax'
 import { fuelFactorsKgPerGJ, fuelLabels, gridFactor } from '../model/factors'
@@ -217,6 +218,8 @@ export default function Dashboard({ onUpload, onReport }: { onUpload: () => void
         <a className="link" href="#tax">See the calculator ↓</a>
       </div>
     </div>
+
+    <ExpectedVsActual baseline={view.baseline} productUnit={state.settings.productUnit} />
 
     <div className="dash-grid">
       <section className="card">

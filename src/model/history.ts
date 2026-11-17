@@ -175,10 +175,12 @@ export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(mon
     const efficiency = k >= 14 ? 0.96 : 1
     // One month with a faulty fume-fan drive and an air leak: electricity per tonne jumps.
     const fault = k === months - 8 ? 1.18 : 1
-    const fuelGJ = Object.fromEntries(Object.entries(yearly.fuel).map(([fuel, gj]) => [fuel, Math.round(gj / 12 * output * efficiency * (1 + noise()))]))
+    // Part of the energy is drawn whatever the output (base load: lighting, compressors, idle furnaces).
+    const elecLoad = 0.25 + 0.75 * output, fuelLoad = 0.15 + 0.85 * output
+    const fuelGJ = Object.fromEntries(Object.entries(yearly.fuel).map(([fuel, gj]) => [fuel, Math.round(gj / 12 * fuelLoad * efficiency * (1 + noise()))]))
     return {
       month,
-      electricityMWh: Math.round(yearly.electricity / 12 * output * efficiency * fault * (1 + noise())),
+      electricityMWh: Math.round(yearly.electricity / 12 * elecLoad * efficiency * fault * (1 + noise())),
       fuelGJ,
       processT: Math.round(yearly.process / 12 * output * (1 + noise())),
       productionT: Math.round(production / 12 * output),

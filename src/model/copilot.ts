@@ -55,6 +55,17 @@ export function autoPlan(state: FactoryState): PlanAction[] {
     .map((action, index) => ({ ...action, startYear: state.settings.baselineYear + 1 + Math.floor(index * span / Math.max(1, chosen.length)) }))
 }
 
+/** Expected-vs-actual lines, when the site has enough monthly data. */
+function baselineLines(state: FactoryState): string[] {
+  const b = outlook(state).baseline
+  if (!b.available) return []
+  const gap = b.recent.gapRM
+  return [
+    `Last ${b.recent.months} months: ${rm(Math.abs(gap))} ${gap <= 0 ? 'less' : 'more'} on energy than your baseline expects for the tonnes made.`,
+    `Just being switched on costs about ${rm(b.fixedRMPerMonth)} a month (base load). Shutting idle equipment and fixing leaks cuts this every month.`,
+  ]
+}
+
 export function answer(question: CopilotQuestion, state: FactoryState): CopilotAnswer {
   const summary = summarise(state)
   const ranked = [...summary.byMachine].sort((a, b) => b.baselineT - a.baselineT)
@@ -94,7 +105,7 @@ export function answer(question: CopilotQuestion, state: FactoryState): CopilotA
     const best = [...options].sort((a, b) => b.economics.annualSavingRM - a.economics.annualSavingRM).slice(0, 4)
     return {
       title: 'Biggest annual cash savings',
-      lines: best.length ? best.map((option) => `• ${measureById(option.measureId)?.name} on ${option.machine.name}: saves ${rm(option.economics.annualSavingRM)}/yr for ${rm(option.economics.capexRM)} up front`) : ['No money-saving measures found for the current machines.'],
+      lines: [...baselineLines(state), ...(best.length ? best.map((option) => `• ${measureById(option.measureId)?.name} on ${option.machine.name}: saves ${rm(option.economics.annualSavingRM)}/yr for ${rm(option.economics.capexRM)} up front`) : ['No money-saving measures found for the current machines.'])],
     }
   }
 

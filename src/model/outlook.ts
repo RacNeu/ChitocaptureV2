@@ -1,3 +1,4 @@
+import { energyBaseline, type Baseline } from './baseline'
 import { defaultTaxInputs, taxBill, type TaxInputs, type TaxYear } from './carbonTax'
 import { anomalies, forecast, historyFor, monthIndex, scopesFor, targetCheck, yearTotals, type Anomaly, type Forecast, type MonthScopes, type TargetCheck, type YearTotal } from './history'
 import type { FactoryState } from './types'
@@ -15,6 +16,8 @@ export type Outlook = {
   tax: TaxYear[]
   target: TargetCheck
   anomalies: Anomaly[]
+  /** Expected vs actual energy against the first 12 months. */
+  baseline: Baseline
 }
 
 export function outlook(state: FactoryState, taxInputs: TaxInputs = defaultTaxInputs): Outlook {
@@ -38,5 +41,6 @@ export function outlook(state: FactoryState, taxInputs: TaxInputs = defaultTaxIn
     tax: taxBill(years.filter((item) => item.months === 12), taxInputs),
     target: targetCheck(years, state.settings),
     anomalies: anomalies(records),
+    baseline: energyBaseline(records, state.settings),
   }
 }
