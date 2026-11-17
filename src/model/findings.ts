@@ -1,3 +1,4 @@
+import { ringgit as rm } from '../format'
 import { defaultTaxInputs } from './carbonTax'
 import { gridFactor } from './factors'
 import { DEFAULT_TARIFF, analyseInterval, intervalFor, monthsSpanned, timeLabel, type IntervalAnalysis } from './interval'
@@ -35,8 +36,7 @@ export type Finding = {
 
 export const kindLabel: Record<FindingKind, string> = { peak: 'Peak demand', idle: 'Idle load', base: 'Base load', overspend: 'Above expected', anomaly: 'Unusual month' }
 
-const rm = (v: number) => `RM ${Math.round(v).toLocaleString('en-MY')}`
-const kw = (v: number) => `${Math.round(v).toLocaleString('en-MY')} kW`
+const kw = (v: number) => v >= 10_000 ? `${(v / 1_000).toFixed(1)} MW` : `${Math.round(v).toLocaleString('en-MY')} kW`
 
 /** Share of idle energy usually avoidable by switching off auxiliaries during stops (assumption). */
 export const IDLE_AVOIDABLE = 0.2
@@ -55,14 +55,14 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
     const avgShave = load.months.reduce((s, m) => s + m.shave.find((x) => x.hours === SHIFT_HOURS)!.kW, 0) / load.months.length
     if (avgShave * tariff.mdRMPerKW > 1_000) out.push({
       key: 'peak-shave', kind: 'peak', confidence: 'high', view: 'load',
-      title: `${SHIFT_HOURS} hours of peak load set your demand charge`,
+      title: `Move ${SHIFT_HOURS} hours of peak load`,
       rmPerMonth: avgShave * tariff.mdRMPerKW, tPerYear: 0,
       evidence: [
-        `${monthLabel(lastMonth.month)} maximum demand was ${kw(lastMonth.mdKW)} at ${timeLabel(lastMonth.mdAt)}, a demand charge of ${rm(lastMonth.mdRM)}.`,
+        `Peak ${kw(lastMonth.mdKW)} on ${timeLabel(lastMonth.mdAt)} set a ${rm(lastMonth.mdRM)} demand charge.`,
         `Only ${SHIFT_HOURS} hours that month were above ${kw(lastMonth.mdKW - shave.kW)}. Moving about ${Math.round(shave.mwhToMove)} MWh out of them lowers the maximum by ${kw(shave.kW)}.`,
         `Averaged over ${load.months.length} months: −${kw(avgShave)}, at RM ${tariff.mdRMPerKW}/kW.`,
       ],
-      actions: ['Stagger start-ups: don’t restart the rolling mill while the arc furnace is melting.', 'Add a demand alarm a few percent below the target maximum so operators can delay a heat.', 'Check the peak times on the Load profile page and agree a start-up sequence with production.'],
+      actions: ['Don’t restart the rolling mill while the furnace is melting.', 'Add a demand alarm a few percent below the target maximum so operators can delay a heat.', 'Check the peak times on the Load profile page and agree a start-up sequence with production.'],
     })
   }
 
@@ -71,13 +71,13 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
   const idleRM = load.idle.rm / perMonth
   if (load.idle.hours > 0 && idleRM * IDLE_AVOIDABLE > 1_000) out.push({
     key: 'idle-load', kind: 'idle', confidence: 'medium', view: 'load',
-    title: 'Energy used while the plant is not producing',
+    title: 'Cut idle load during stops',
     rmPerMonth: idleRM * IDLE_AVOIDABLE, tPerYear: load.idle.mwh / perMonth * 12 * IDLE_AVOIDABLE * grid,
     evidence: [
-      `The plant was idle (powered but not producing) ${Math.round(load.share.idle * 100)}% of the time: ${Math.round(load.idle.hours / perMonth)} hours a month at about ${kw(load.idle.avgKW)}.`,
+      `Idle ${Math.round(load.idle.hours / perMonth)} h/month at ${kw(load.idle.avgKW)}: ${rm(idleRM)} of energy.`,
       `That is ${Math.round(load.idle.mwh / perMonth).toLocaleString('en-MY')} MWh a month, ${rm(idleRM)} of energy. Cutting it by ${IDLE_AVOIDABLE * 100}% is typical once stops have a shutdown checklist.`,
     ],
-    actions: ['Write a stop checklist: fume fans to minimum, compressors off or unloaded, cooling pumps staged down, lighting off.', 'Fit automatic shutdown on compressors and fans that run during maintenance stops.', 'Check the Sunday profile on the Load profile page after each change.'],
+    actions: ['Use a shutdown checklist at every stop: fans, compressors, pumps, lights.', 'Fit automatic shutdown on compressors and fans that run during maintenance stops.', 'Check the Sunday profile on the Load profile page after each change.'],
     measureIds: ['vsd', 'air-leaks', 'line-idle'],
   })
 
@@ -85,10 +85,10 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
   const baseShare = load.baseKW / Math.max(1, load.avgKW)
   if (baseShare > 0.2) out.push({
     key: 'base-load', kind: 'base', confidence: 'medium', view: 'load',
-    title: 'High always-on load',
+    title: 'Reduce always-on load',
     rmPerMonth: load.baseKW * 0.1 * 730 * tariff.energyRMPerMWh / 1_000, tPerYear: load.baseKW * 0.1 * 8_760 / 1_000 * grid,
-    evidence: [`Even at its quietest the site draws ${kw(load.baseKW)}, ${Math.round(baseShare * 100)}% of its average load.`, 'Trimming 10% of always-on load (leaks, idling drives, lighting, cooling left on) saves energy every hour of the year.'],
-    actions: ['Walk the site during a stop with a clamp meter and list what is still running.', 'Run a compressed-air leak survey (ultrasonic) and fix the largest leaks.'],
+    evidence: [`Never below ${kw(load.baseKW)} (${Math.round(baseShare * 100)}% of average). Savings shown for a 10% cut.`, 'Trimming 10% of always-on load (leaks, idling drives, lighting, cooling left on) saves energy every hour of the year.'],
+    actions: ['Walk the site during a stop and list what is still running.', 'Run a compressed-air leak survey (ultrasonic) and fix the largest leaks.'],
     measureIds: ['air-leaks', 'vsd'],
   })
 
@@ -96,19 +96,19 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
   if (view.baseline.available) {
     for (const m of view.baseline.months.slice(-3)) if (m.gapRM > 50_000) out.push({
       key: `over-${m.month}`, kind: 'overspend', confidence: 'high', view: 'dashboard',
-      title: `${monthLabel(m.month)}: energy above expected`,
+      title: `${monthLabel(m.month)} used more than expected`,
       rmPerMonth: m.gapRM, tPerYear: 0,
-      evidence: [`For the tonnes made, ${monthLabel(m.month)} used ${rm(m.gapRM)} more energy than the baseline expects (+${Math.round(m.gapT).toLocaleString('en-MY')} t CO₂e).`],
-      actions: ['Compare this month’s shift logs and stoppages with a normal month.', 'Check whether a recent change (new product, failed drive, burner tuning) explains it.'],
+      evidence: [`${rm(m.gapRM)} above normal for the tonnes made.`],
+      actions: ['Compare shift logs and stoppages with a normal month.', 'Check whether a recent change (new product, failed drive, burner tuning) explains it.'],
     })
   }
 
   // 5. Unusual months from the energy-per-tonne checks.
   for (const a of view.anomalies.slice(0, 3)) if (a.direction === 'high') out.push({
     key: `anomaly-${a.month}-${a.metric}`, kind: 'anomaly', confidence: 'medium', view: 'dashboard',
-    title: `${monthLabel(a.month)}: ${a.metric.toLowerCase()} unusually high`,
+    title: `${monthLabel(a.month)}: ${a.metric.toLowerCase()} high`,
     rmPerMonth: 0, tPerYear: 0,
-    evidence: [`${a.value.toFixed(a.unit === 'GJ/t' ? 2 : 0)} ${a.unit} against a typical ${a.expected.toFixed(a.unit === 'GJ/t' ? 2 : 0)} ${a.unit}.`],
+    evidence: [`${a.value.toFixed(a.unit === 'GJ/t' ? 2 : 0)} vs typical ${a.expected.toFixed(a.unit === 'GJ/t' ? 2 : 0)} ${a.unit}.`],
     actions: [a.hint],
   })
 

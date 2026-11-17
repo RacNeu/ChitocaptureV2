@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Sparkline } from '../components/Charts'
 import ExpectedVsActual from '../components/ExpectedVsActual'
+import Info from '../components/Info'
 import { num, ringgit, tonnes } from '../format'
-import { defaultTaxInputs, singaporePath, type RateCase, type TaxInputs } from '../model/carbonTax'
+import { defaultTaxInputs, type RateCase, type TaxInputs } from '../model/carbonTax'
 import { fuelFactorsKgPerGJ, fuelLabels, gridFactor } from '../model/factors'
 import { fuels, historyFor, monthIndex, monthLabel, type ForecastMonth, type MonthScopes } from '../model/history'
 import { outlook } from '../model/outlook'
@@ -87,7 +88,7 @@ function MonthlyChart({ actual, projected, mode, flagged }: { actual: MonthScope
       {mode !== 'scope1' && <span><i style={{ background: C.scope2 }} />Scope 2 {tonnes(h.s2)}</span>}
       {mode === 'total' && <span><i style={{ background: C.total }} />Total {tonnes(h.total)}</span>}
       {h.forecast && h.low !== null && <small>80% range {tonnes(band(h, h.low)!)} – {tonnes(band(h, h.high)!)}</small>}
-      {flagged.has(h.month) && !h.forecast && <small className="tip-flag">⚠ Unusual month: see the flags below</small>}
+      {flagged.has(h.month) && !h.forecast && <small className="tip-flag">⚠ Unusual month</small>}
     </div>}
     <div className="legend">
       {lines.map((line) => <span key={line.key}><i style={{ background: line.color }} />{line.label}</span>)}
@@ -147,7 +148,9 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
   const sum = (items: MonthScopes[], key: 'scope1T' | 'scope2T' | 'totalT' | 'productionT') => items.reduce((s, m) => s + m[key], 0)
   const prior = (key: 'scope1T' | 'scope2T' | 'totalT') => priorMonths.length === periodMonths.length && priorMonths.length ? sum(priorMonths, key) : null
   const s1 = sum(periodMonths, 'scope1T'), s2 = sum(periodMonths, 'scope2T'), total = s1 + s2, production = sum(periodMonths, 'productionT')
-  const spark = (key: 'scope1T' | 'scope2T' | 'totalT') => view.months.slice(-24).map((m) => m[key])
+  const s2Market = periodMonths.reduce((s, m) => s + m.scope2MarketT, 0), green = periodMonths.reduce((s, m) => s + m.greenMWh, 0)
+  const sumMWh = periodMonths.reduce((s, m) => s + m.scope2T, 0) / Math.max(1e-9, gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh))
+  const spark = (key: 'scope1T' | 'scope2T' | 'totalT') =>view.months.slice(-24).map((m) => m[key])
   const lastYear = Number(view.months.at(-1)?.month.slice(0, 4) ?? new Date().getFullYear())
   const nextTax = view.tax.find((t) => t.year === lastYear + 1) ?? view.tax.find((t) => t.year > lastYear)
   const flagged = new Set(view.anomalies.map((a) => a.month))
@@ -176,142 +179,133 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
     return { year: row.year, value: base * (1 - share) }
   }) : []
 
+  const drivers = view.forecast.drivers
+  const stale = monthIndex(view.months.at(-1)?.month ?? '2025-01') < monthIndex(new Date().toISOString().slice(0, 7)) - 3
+
   return <div className="dashboard">
     <header className="dash-head">
       <div>
         <h1>Dashboard</h1>
-        <p className="muted">{state.settings.factoryName} · Scope 1 and 2 greenhouse gas emissions (tCO₂e), GHG Protocol, location-based Scope 2</p>
+        <p className="muted">{state.settings.factoryName} · Scope 1 & 2 <Info>Greenhouse gas emissions in tonnes of CO₂e, GHG Protocol. Scope 1: fuel burnt on site and process emissions. Scope 2: grid electricity (location-based).</Info></p>
       </div>
       <div className="dash-actions">
         <label className="field inline"><span className="sr-only">Period</span>
           <select value={period} onChange={(event) => setPeriod(event.target.value)}>
             <option value="last12">Last 12 months</option>
-            {fullYears.slice().reverse().map((y) => <option key={y.year} value={String(y.year)}>Calendar year {y.year}</option>)}
+            {fullYears.slice().reverse().map((y) => <option key={y.year} value={String(y.year)}>{y.year}</option>)}
           </select>
         </label>
         <button type="button" className="btn ghost" onClick={onUpload}>⇪ Upload data</button>
-        <button type="button" className="btn" onClick={onReport}>⤓ Bursa report</button>
+        <button type="button" className="btn" onClick={onReport}>⤓ Report</button>
       </div>
     </header>
 
-    {view.sample && <div className="sample-banner"><b>Sample data.</b> These are 36 illustrative months built from the site’s machine list. <button type="button" className="link" onClick={onUpload}>Upload your TNB bills, fuel invoices and production</button> to see your real figures.</div>}
+    {view.sample && <div className="sample-banner"><b>Sample data</b> · <button type="button" className="link" onClick={onUpload}>Upload your bills</button> to see real figures.</div>}
+    {!view.sample && stale && <div className="sample-banner">Latest month is over 3 months old · <button type="button" className="link" onClick={onUpload}>Upload recent bills</button></div>}
 
     <div className="scope-tabs" role="tablist" aria-label="Emissions view">
       {(Object.keys(modeLabel) as Mode[]).map((key) => <button key={key} type="button" role="tab" aria-selected={mode === key} className={mode === key ? 'active' : ''} onClick={() => setMode(key)}>{modeLabel[key]}</button>)}
     </div>
 
     <div className="dash-kpis">
-      <Kpi label="Total GHG · Scope 1 + 2" value={num(total)} unit="tCO₂e" spark={spark('totalT')} color={C.total} active={mode === 'total'} onClick={() => setMode('total')}>
+      <Kpi label="Total · Scope 1 + 2" value={num(total)} unit="tCO₂e" spark={spark('totalT')} color={C.total} active={mode === 'total'} onClick={() => setMode('total')}>
         <Change now={total} before={prior('totalT')} />
-        <small className="muted">{periodLabel}{production > 0 ? ` · ${num(total / production * 1_000)} kg per t ${state.settings.productUnit}` : ''}</small>
+        <small className="muted">{periodLabel}{production > 0 ? ` · ${num(total / production * 1_000)} kg/t` : ''}</small>
       </Kpi>
-      <Kpi label="Scope 1 · direct" value={num(s1)} unit="tCO₂e" spark={spark('scope1T')} color={C.scope1} active={mode === 'scope1'} onClick={() => setMode('scope1')}>
+      <Kpi label="Scope 1 · fuel & process" value={num(s1)} unit="tCO₂e" spark={spark('scope1T')} color={C.scope1} active={mode === 'scope1'} onClick={() => setMode('scope1')}>
         <Change now={s1} before={prior('scope1T')} />
-        <small className="muted">{num(s1 / Math.max(1e-9, total) * 100)}% of total · fuel burnt on site & process</small>
+        <small className="muted">{num(s1 / Math.max(1e-9, total) * 100)}% of total</small>
       </Kpi>
-      <Kpi label="Scope 2 · purchased electricity" value={num(s2)} unit="tCO₂e" spark={spark('scope2T')} color={C.scope2} active={mode === 'scope2'} onClick={() => setMode('scope2')}>
+      <Kpi label="Scope 2 · electricity" value={num(s2)} unit="tCO₂e" spark={spark('scope2T')} color={C.scope2} active={mode === 'scope2'} onClick={() => setMode('scope2')}>
         <Change now={s2} before={prior('scope2T')} />
-        <small className="muted">{num(s2 / Math.max(1e-9, total) * 100)}% of total · TNB grid electricity</small>
+        <small className="muted">{num(s2 / Math.max(1e-9, total) * 100)}% of total · location-based</small>
+        {s2Market < s2 - 0.5 && <small className="muted">Market-based {num(s2Market)} t · {num(green / Math.max(1e-9, sumMWh) * 100)}% green electricity</small>}
       </Kpi>
-      <div className="dash-kpi tax-kpi">
-        <span className="dash-kpi-label">Carbon tax {nextTax?.year ?? ''} (estimate)</span>
+      <a className="dash-kpi tax-kpi" href="#tax">
+        <span className="dash-kpi-label">Carbon tax {nextTax?.year ?? ''}</span>
         <strong>{nextTax ? ringgit(nextTax.billRM) : '—'}</strong>
-        {nextTax && <small className="muted">{tonnes(nextTax.taxableT)} × RM {num(nextTax.rmPerT)}/t · Singapore rate as reference</small>}
-        <a className="link" href="#tax">See the calculator ↓</a>
-      </div>
+        {nextTax && <small className="muted">RM {num(nextTax.rmPerT)}/t · estimate ↓</small>}
+      </a>
     </div>
 
     {found.length > 0 && <button type="button" className="findings-strip" onClick={onFindings}>
       <span className="strip-flag" aria-hidden="true">⚑</span>
-      <span><b>{found.length} findings worth {ringgit(found.reduce((s, f) => s + f.rmPerMonth, 0))} a month</b><small>Top: {found[0].title} ({ringgit(found[0].rmPerMonth)}/month)</small></span>
-      <span className="strip-go">Open findings →</span>
+      <span><b>{found.length} ways to save {ringgit(found.reduce((s, f) => s + f.rmPerMonth, 0))}/month</b><small>Top: {found[0].title}</small></span>
+      <span className="strip-go">View →</span>
     </button>}
 
     <ExpectedVsActual baseline={view.baseline} productUnit={state.settings.productUnit} />
 
     <div className="dash-grid">
       <section className="card">
-        <header className="card-head"><div><h2>Monthly carbon emissions</h2><p className="muted small">{modeLabel[mode]} · actual, then a 12-month forecast</p></div></header>
+        <header className="card-head"><div><h2>Monthly emissions <Info label="How the forecast works">
+          <b>Forecast = production × emissions per tonne.</b> Production follows its trend and seasonal pattern; emissions per tonne follow their own trend. Shaded band: 80% likely range. Planned actions are not included.
+          {drivers.scope1KgPerT !== null && <><br />Production {drivers.productionGrowthPctPerYear! >= 0 ? '+' : ''}{num(drivers.productionGrowthPctPerYear!, 1)}%/yr · Scope 1 {num(drivers.scope1KgPerT!)} kg/t · Scope 2 {num(drivers.scope2KgPerT!)} kg/t · per-tonne trend {drivers.intensityChangePctPerYear! >= 0 ? '+' : ''}{num(drivers.intensityChangePctPerYear!, 1)}%/yr</>}
+        </Info></h2><p className="muted small">Actual + 12-month forecast</p></div></header>
         <MonthlyChart actual={view.months} projected={view.forecast.months} mode={mode} flagged={flagged} />
       </section>
       <section className="card">
-        <header className="card-head"><div><h2>Target vs actual</h2><p className="muted small">−{state.settings.targetReductionPct}% {t.basis === 'intensity' ? 'per tonne of product' : 'absolute'} from {t.baselineYear} by {t.targetYear}</p></div></header>
+        <header className="card-head"><div><h2>Target <Info>Your goal from Settings: −{state.settings.targetReductionPct}% {t.basis === 'intensity' ? 'per tonne of product' : 'in total'} from {t.baselineYear} to {t.targetYear}. Bars: actual (dark) and forecast (light). Dashed line: where you need to be. * = part forecast.</Info></h2><p className="muted small">−{state.settings.targetReductionPct}% by {t.targetYear}</p></div></header>
         <div className={`track-status ${t.onTrack === null ? '' : t.onTrack ? 'good' : 'bad'}`}>
-          {t.onTrack === null ? 'Not enough data to check the target yet.'
-            : t.onTrack ? <><b>✓ On track.</b> The forecast reaches the {t.targetYear} target.</>
-              : <><b>⚠ Off track.</b> Forecast {tonnes(t.projectedT ?? 0)} in {t.targetYear} vs target {tonnes(t.targetT)}: a gap of {tonnes(t.gapT ?? 0)} a year.</>}
+          {t.onTrack === null ? 'Not enough data yet'
+            : t.onTrack ? <b>✓ On track</b>
+              : <><b>⚠ Off track</b> · {tonnes(t.gapT ?? 0)}/yr gap in {t.targetYear}</>}
         </div>
         <TargetChart rows={targetRows} target={targetPath} />
-        <p className="muted small">* part actual, part forecast. Change the target in Settings.</p>
       </section>
     </div>
 
     <div className="dash-grid even">
       <section className="card">
-        <header className="card-head"><div><h2>Where it comes from</h2><p className="muted small">{periodLabel} · by source and scope</p></div></header>
+        <header className="card-head"><div><h2>Sources</h2><p className="muted small">{periodLabel}</p></div></header>
         <ul className="source-bars">
           {sources.map((item) => <li key={item.label}>
-            <div className="source-row"><span><span className={`scope-chip s${item.scope}`}>Scope {item.scope}</span>{item.label}</span><b>{tonnes(item.t)}</b></div>
+            <div className="source-row"><span><span className={`scope-chip s${item.scope}`}>S{item.scope}</span>{item.label}</span><b>{tonnes(item.t)}</b></div>
             <div className="sharebar"><span style={{ width: `${item.t / Math.max(1e-9, total) * 100}%`, background: item.scope === 1 ? C.scope1 : C.scope2 }} /></div>
           </li>)}
         </ul>
-        {biomassGJ > 0 && <p className="muted small">Biogenic CO₂ from {num(biomassGJ)} GJ of biomass is reported separately, outside Scopes 1 and 2.</p>}
+        {biomassGJ > 0 && <p className="muted small">Biomass CO₂ reported separately.</p>}
       </section>
       <section className="card">
-        <header className="card-head"><div><h2>Unusual months</h2><p className="muted small">Energy per tonne compared with the site’s typical month</p></div></header>
-        {view.anomalies.length === 0 ? <p className="muted">No unusual months found. Each month’s energy per tonne is within the normal range.</p>
-          : <ul className="anomaly-list">{view.anomalies.slice(0, 5).map((a) => <li key={`${a.month}-${a.metric}`}>
+        <header className="card-head"><div><h2>Unusual months <Info>Months whose energy per tonne is far from the site’s typical month.</Info></h2></div></header>
+        {view.anomalies.length === 0 ? <p className="muted">None found ✓</p>
+          : <ul className="anomaly-list">{view.anomalies.slice(0, 4).map((a) => <li key={`${a.month}-${a.metric}`}>
             <span className={`flag ${a.direction}`} aria-hidden="true">{a.direction === 'high' ? '▲' : '▼'}</span>
-            <div><b>{monthLabel(a.month)} · {a.metric} {a.direction === 'high' ? 'high' : 'low'}</b>
-              <span>{num(a.value, a.unit === 'GJ/t' ? 2 : 0)} {a.unit} vs typical {num(a.expected, a.unit === 'GJ/t' ? 2 : 0)} {a.unit} ({a.direction === 'high' ? '+' : ''}{num((a.value / a.expected - 1) * 100)}%)</span>
+            <div><b>{monthLabel(a.month)} · {a.metric} {a.direction === 'high' ? '+' : ''}{num((a.value / a.expected - 1) * 100)}%</b>
               <small className="muted">{a.hint}</small></div>
           </li>)}</ul>}
       </section>
     </div>
 
     <section className="card tax-card" id="tax">
-      <header className="card-head"><div><h2>Carbon tax calculator</h2><p className="muted small">Malaysia has announced a carbon tax for iron, steel and energy but not its rate. This uses Singapore’s published path (S$25 → S$45 → S$50–80 by 2030), converted to ringgit, on your actual and forecast emissions.</p></div></header>
+      <header className="card-head"><div><h2>Carbon tax <Info>Malaysia has not set its rate yet. This uses Singapore’s published path (S$25 → S$45 → S$50–80 by 2030), converted to ringgit, on your actual and forecast emissions. Replace it when Malaysia publishes its rate.</Info></h2><p className="muted small">Estimate · Singapore rate as reference</p></div></header>
       <div className="tax-grid">
         <div className="form-grid compact">
-          <label className="field">2030 rate case
+          <label className="field">2030 rate
             <select value={tax.rateCase} onChange={(event) => setTax({ rateCase: event.target.value as RateCase })}>
               <option value="low">Low · S$50/t</option><option value="mid">Mid · S$65/t</option><option value="high">High · S$80/t</option>
             </select></label>
-          <label className="field">Exchange rate (RM per S$)<input type="number" min="0" step="0.05" value={tax.rmPerSGD} onChange={(event) => setTax({ rmPerSGD: Number(event.target.value) })} /></label>
-          <label className="field">Emissions taxed
+          <label className="field">RM per S$<input type="number" min="0" step="0.05" value={tax.rmPerSGD} onChange={(event) => setTax({ rmPerSGD: Number(event.target.value) })} /></label>
+          <label className="field">Taxed
             <select value={tax.coverage} onChange={(event) => setTax({ coverage: event.target.value as TaxInputs['coverage'] })}>
-              <option value="scope1">Scope 1 only (usual design)</option><option value="scope1and2">Scope 1 and 2</option>
+              <option value="scope1">Scope 1</option><option value="scope1and2">Scope 1 + 2</option>
             </select></label>
-          <label className="field">Exempt or free allowance<input type="range" min="0" max="0.9" step="0.05" value={tax.exemptShare} onChange={(event) => setTax({ exemptShare: Number(event.target.value) })} /><output>{num(tax.exemptShare * 100)}%</output></label>
+          <label className="field">Exempt share <output>{num(tax.exemptShare * 100)}%</output><input type="range" min="0" max="0.9" step="0.05" value={tax.exemptShare} onChange={(event) => setTax({ exemptShare: Number(event.target.value) })} /></label>
         </div>
         <div className="table-wrap"><table className="grid-table">
-          <thead><tr><th>Year</th><th className="num">Rate</th><th className="num">Taxed emissions</th><th className="num">Estimated bill</th><th>Basis</th></tr></thead>
+          <thead><tr><th>Year</th><th className="num">Rate</th><th className="num">Taxed</th><th className="num">Bill</th><th /></tr></thead>
           <tbody>{view.tax.filter((row) => row.year >= new Date().getFullYear() && row.year <= 2030).map((row) => {
             const y = view.years.find((item) => item.year === row.year)!
-            const note = singaporePath(tax.rateCase).find((p) => p.year === row.year)?.note
             return <tr key={row.year}>
               <td>{row.year}</td>
               <td className="num">RM {num(row.rmPerT)}/t</td>
               <td className="num">{tonnes(row.taxableT)}</td>
               <td className="num"><b>{ringgit(row.billRM)}</b></td>
-              <td className="muted small">{y.actualMonths === 12 ? 'actual' : y.actualMonths > 0 ? `${y.actualMonths} months actual + forecast` : 'forecast'} · {note}</td>
+              <td className="muted small">{y.actualMonths === 12 ? 'actual' : y.actualMonths > 0 ? 'part forecast' : 'forecast'}</td>
             </tr>
           })}</tbody>
         </table></div>
       </div>
-      <p className="note">An assumption, not a rate. Replace it when Malaysia publishes its carbon tax. The plan’s cost per tonne shows which upgrades are cheaper than paying the tax.</p>
-    </section>
-
-    <section className="card">
-      <header className="card-head"><div><h2>How the forecast works</h2></div></header>
-      <p className="muted">{view.forecast.method}</p>
-      {view.forecast.drivers.scope1KgPerT !== null && <div className="driver-grid">
-        <div><span>Production trend</span><b>{view.forecast.drivers.productionGrowthPctPerYear! >= 0 ? '+' : ''}{num(view.forecast.drivers.productionGrowthPctPerYear!, 1)}% a year</b></div>
-        <div><span>Scope 1 per tonne now</span><b>{num(view.forecast.drivers.scope1KgPerT!)} kg</b></div>
-        <div><span>Scope 2 per tonne now</span><b>{num(view.forecast.drivers.scope2KgPerT!)} kg</b></div>
-        <div><span>Emissions per tonne trend</span><b>{view.forecast.drivers.intensityChangePctPerYear! >= 0 ? '+' : ''}{num(view.forecast.drivers.intensityChangePctPerYear!, 1)}% a year</b></div>
-      </div>}
-      <p className="muted small">Based on {view.months.length} months ({monthLabel(view.months[0]?.month ?? '2025-01')} – {monthLabel(view.months.at(-1)?.month ?? '2025-01')}). Planned actions are not in the forecast: it shows where emissions are heading if nothing changes. {monthIndex(view.months.at(-1)?.month ?? '2025-01') < monthIndex(new Date().toISOString().slice(0, 7)) - 3 ? 'The latest month is more than three months old: upload recent bills.' : ''}</p>
     </section>
   </div>
 }

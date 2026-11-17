@@ -4,6 +4,7 @@ import { monthLabel } from '../model/history'
 import { DEFAULT_TARIFF, PER_DAY, analyseInterval, importIntervalRows, intervalFor, slotLabel, timeLabel, type IntervalAnalysis, type IntervalImport } from '../model/interval'
 import { SHIFT_HOURS } from '../model/findings'
 import { actions, useFactory } from '../model/store'
+import Info from '../components/Info'
 
 const TEMPLATE = ['timestamp,kW', '2026-08-01 00:00,41250', '2026-08-01 00:30,40980', '2026-08-01 01:00,52310'].join('\n')
 
@@ -49,9 +50,9 @@ function Carpet({ a }: { a: IntervalAnalysis }) {
     {h && <div className="chart-tip" style={{ left: `${Math.min(70, (left + h.slot * cw) / width * 100)}%` }}>
       <b>{timeLabel(`${h.date}T${slotLabel(h.slot)}`)}</b>
       <span>{h.kW === null ? 'No reading' : `${num(h.kW)} kW`}</span>
-      {mdCells.has(`${h.date}T${slotLabel(h.slot)}`) && <small className="tip-flag">This half-hour set the month’s maximum demand</small>}
+      {mdCells.has(`${h.date}T${slotLabel(h.slot)}`) && <small className="tip-flag">Set this month’s demand charge</small>}
     </div>}
-    <div className="legend"><span><i className="legend-ramp" />Low → high demand</span><span><i className="legend-md" />Set the month’s maximum demand</span><span><i style={{ background: '#f1f5f9' }} />No reading</span></div>
+    <div className="legend"><span><i className="legend-ramp" />Low → high</span><span><i className="legend-md" />Sets the charge</span><span><i style={{ background: '#f1f5f9' }} />No reading</span></div>
   </div>
 }
 
@@ -66,7 +67,7 @@ function Profile({ a }: { a: IntervalAnalysis }) {
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Average demand by time of day, working days and Sundays">
       {[0, 0.5, 1].map((f) => <g key={f}><line x1={L} x2={W - R} y1={y(max * f)} y2={y(max * f)} className="chart-grid" /><text x={L - 6} y={y(max * f) + 4} textAnchor="end" className="chart-tick">{mw(max * f)}</text></g>)}
       <rect x={L} y={y(a.thresholds.idleBelowKW)} width={W - L - R} height={y(0) - y(a.thresholds.idleBelowKW)} className="idle-zone" />
-      <text x={W - R - 4} y={y(a.thresholds.idleBelowKW) + 12} textAnchor="end" className="chart-tick">Idle: below {mw(a.thresholds.idleBelowKW)}</text>
+      <text x={W - R - 4} y={y(a.thresholds.idleBelowKW) + 12} textAnchor="end" className="chart-tick">Idle</text>
       {[0, 12, 24, 36, 47].map((s) => <text key={s} x={x(s)} y={H - 8} textAnchor="middle" className="chart-tick">{slotLabel(s)}</text>)}
       <path d={line(a.profile.weekday)} fill="none" stroke="var(--series-s2)" strokeWidth={2} />
       <path d={line(a.profile.sunday)} fill="none" stroke="var(--series-s1)" strokeWidth={2} />
@@ -93,8 +94,8 @@ function Duration({ a, capKW }: { a: IntervalAnalysis; capKW: number }) {
       {[0, 0.5, 1].map((f) => <g key={f}><line x1={L} x2={W - R} y1={y(max * f)} y2={y(max * f)} className="chart-grid" /><text x={L - 6} y={y(max * f) + 4} textAnchor="end" className="chart-tick">{mw(max * f)}</text></g>)}
       <path d={`M${x(0)},${y(0)} ${vals.map((v, k) => `L${x(k)},${y(v)}`).join(' ')} L${x(vals.length - 1)},${y(0)} Z`} className="duration-area" />
       <line x1={L} x2={W - R} y1={y(capKW)} y2={y(capKW)} className="cap-line" />
-      <text x={L + 6} y={y(capKW) - 6} className="chart-note">Target maximum {mw(capKW)}</text>
-      <text x={L} y={H - 8} className="chart-tick">Highest</text><text x={W - R} y={H - 8} textAnchor="end" className="chart-tick">Lowest · {num(a.days)} days of half-hours</text>
+      <text x={L + 6} y={y(capKW) - 6} className="chart-note">New peak {mw(capKW)}</text>
+      <text x={L} y={H - 8} className="chart-tick">Highest</text><text x={W - R} y={H - 8} textAnchor="end" className="chart-tick">Lowest</text>
     </svg>
   </div>
 }
@@ -117,15 +118,15 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
 
   return <div className="dashboard load-profile">
     <header className="dash-head">
-      <div><h1>Load profile</h1><p className="muted">{state.settings.factoryName} · half-hourly electricity demand from the TNB meter or your own meters · {timeLabel(a.from)} – {timeLabel(a.to)}</p></div>
+      <div><h1>Load profile</h1><p className="muted">{state.settings.factoryName} · half-hourly demand · {timeLabel(a.from).split(', ')[1]} – {timeLabel(a.to).split(', ')[1]}</p></div>
       <div className="dash-actions">
         <a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>
-        <label className="btn file-btn">⇪ Upload half-hourly data<input type="file" accept=".csv,.txt,.xlsx,.xlsm" onChange={(event) => { void take(event.target.files?.[0]); event.target.value = '' }} /></label>
-        <button type="button" className="btn" onClick={onFindings}>⚑ Findings</button>
+        <label className="btn ghost file-btn">⇪ Upload<input type="file" accept=".csv,.txt,.xlsx,.xlsm" onChange={(event) => { void take(event.target.files?.[0]); event.target.value = '' }} /></label>
+        <button type="button" className="btn" onClick={onFindings}>⚑ Ways to save</button>
       </div>
     </header>
 
-    {sample && !result && <div className="sample-banner"><b>Sample data.</b> Three illustrative months of half-hourly demand for this site. Upload your meter’s load profile (CSV or Excel: a timestamp and kW, or kWh per half hour). Medium- and high-voltage customers can usually request it from TNB.</div>}
+    {sample && !result && <div className="sample-banner"><b>Sample data</b> · Upload your meter’s half-hourly readings (timestamp + kW or kWh). <Info>Medium- and high-voltage customers can usually request this load profile from TNB.</Info></div>}
     {result && <section className={`card import-result${result.error ? ' failed' : ''}`}>
       <h2>{result.error ? `Could not import ${result.name}` : `${num((result.series?.kW.length ?? 0) / PER_DAY)} days found in ${result.name}`}</h2>
       {result.error && <p className="alert">{result.error}</p>}
@@ -138,52 +139,52 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     {!sample && !result && <p className="muted small">Using {series.source}. <button type="button" className="link" onClick={() => { if (confirm('Remove the uploaded half-hourly data? The page goes back to sample data.')) actions.setInterval(null) }}>Remove</button></p>}
 
     <div className="dash-kpis">
-      <div className="dash-kpi"><span className="dash-kpi-label">Maximum demand · {monthLabel(last.month)}</span><strong>{mw(last.mdKW)}</strong><small className="muted">{timeLabel(last.mdAt)} · demand charge <b>{ringgit(last.mdRM)}</b></small></div>
-      <div className="dash-kpi"><span className="dash-kpi-label">Load factor</span><strong>{num(last.loadFactor * 100)}%</strong><small className="muted">Average ÷ maximum demand. Higher means the demand charge is spread over more kWh.</small></div>
-      <div className="dash-kpi"><span className="dash-kpi-label">Always-on load</span><strong>{mw(a.baseKW)}</strong><small className="muted">{num(a.baseKW / a.avgKW * 100)}% of the {mw(a.avgKW)} average, drawn even at the quietest times</small></div>
+      <div className="dash-kpi"><span className="dash-kpi-label">Peak demand · {monthLabel(last.month)}</span><strong>{mw(last.mdKW)}</strong><small className="muted">Charge <b>{ringgit(last.mdRM)}</b> · {timeLabel(last.mdAt)}</small></div>
+      <div className="dash-kpi"><span className="dash-kpi-label">Load factor <Info>Average ÷ peak demand. Higher is better: the demand charge is spread over more kWh.</Info></span><strong>{num(last.loadFactor * 100)}%</strong><small className="muted">Higher is better</small></div>
+      <div className="dash-kpi"><span className="dash-kpi-label">Always-on load</span><strong>{mw(a.baseKW)}</strong><small className="muted">{num(a.baseKW / a.avgKW * 100)}% of average</small></div>
       <div className="dash-kpi"><span className="dash-kpi-label">Running · idle · off</span>
         <div className="state-bar" aria-hidden="true"><i className="s-run" style={{ width: `${a.share.running * 100}%` }} /><i className="s-idle" style={{ width: `${a.share.idle * 100}%` }} /><i className="s-off" style={{ width: `${a.share.off * 100}%` }} /></div>
         <strong className="state-nums">{num(a.share.running * 100)}% · {num(a.share.idle * 100)}% · {num(a.share.off * 100)}%</strong>
-        <small className="muted">Idle cost {ringgit(a.idle.rm / Math.max(1, a.days / 30.4))} a month in energy</small></div>
+        <small className="muted">Idle costs {ringgit(a.idle.rm / Math.max(1, a.days / 30.4))}/month</small></div>
     </div>
 
     <section className="card">
-      <header className="card-head"><div><h2>Every half hour, day by day</h2><p className="muted small">Each row is a day, each square a half hour; darker means more demand. Look for vertical stripes (the daily routine), pale bands (stops) and outlined squares (the peaks you pay for).</p></div></header>
+      <header className="card-head"><div><h2>Every half hour <Info>Each row is a day, each square a half hour; darker = more demand. Pale bands are stops. Red outlines are the half-hours that set your demand charge.</Info></h2><p className="muted small">Red = sets your demand charge</p></div></header>
       <Carpet a={a} />
     </section>
 
     <div className="dash-grid even">
       <section className="card">
-        <header className="card-head"><div><h2>Peak demand: what moving load is worth</h2><p className="muted small">{monthLabel(last.month)}. The demand charge is set by the single highest half hour, so the top few hours cost far more than they look.</p></div></header>
-        <label className="field">Hours of peak load moved each month<input type="range" min="0" max="4" step="1" value={[1, 2, 4, 8, 16].indexOf(hours)} onChange={(event) => setHours([1, 2, 4, 8, 16][Number(event.target.value)])} /><output>{hours} h</output></label>
+        <header className="card-head"><div><h2>Shave the peak <Info>The demand charge is set by the single highest half hour of the month. Moving a little load out of the top hours lowers it. The energy is still used later, so this saves money, not CO₂.</Info></h2><p className="muted small">{monthLabel(last.month)}</p></div></header>
+        <label className="field">Hours moved per month<input type="range" min="0" max="4" step="1" value={[1, 2, 4, 8, 16].indexOf(hours)} onChange={(event) => setHours([1, 2, 4, 8, 16][Number(event.target.value)])} /><output>{hours} h</output></label>
         <div className="shave-result">
           <div><span>New maximum</span><b>{mw(last.mdKW - shave.kW)}</b></div>
           <div><span>Cut</span><b>−{num(shave.kW)} kW</b></div>
-          <div><span>Saving</span><b className="good">{ringgit(shave.rmPerMonth)} a month</b></div>
-          <div><span>Energy to move</span><b>{num(shave.mwhToMove, 1)} MWh</b></div>
+          <div><span>Saving</span><b className="good">{ringgit(shave.rmPerMonth)}/mo</b></div>
+          <div><span>To move</span><b>{num(shave.mwhToMove, 1)} MWh</b></div>
         </div>
         <Duration a={a} capKW={last.mdKW - shave.kW} />
-        <p className="muted small">The energy is still used, just at a different time, so this saves money, not CO₂. Check the tariff rules for your category.</p>
+        
       </section>
       <section className="card">
-        <header className="card-head"><div><h2>A typical day</h2><p className="muted small">Average demand at each time of day. The gap between the lines at quiet times is load left running.</p></div></header>
+        <header className="card-head"><div><h2>Typical day <Info>Average demand at each time of day. The gap at quiet times is load left running.</Info></h2><p className="muted small">Mon–Sat vs Sunday</p></div></header>
         <Profile a={a} />
       </section>
     </div>
 
     <section className="card">
-      <header className="card-head"><div><h2>Month by month</h2></div></header>
+      <header className="card-head"><div><h2>By month</h2></div></header>
       <div className="table-wrap"><table className="grid-table">
-        <thead><tr><th>Month</th><th className="num">Maximum demand</th><th>When</th><th className="num">Demand charge</th><th className="num">Energy</th><th className="num">Load factor</th><th className="num">Cut by moving {hours} h</th></tr></thead>
+        <thead><tr><th>Month</th><th className="num">Peak</th><th>When</th><th className="num">Charge</th><th className="num">Energy</th><th className="num">Load factor</th><th className="num">Save ({hours} h)</th></tr></thead>
         <tbody>{a.months.map((m) => { const s = m.shave.find((x) => x.hours === hours)!; return <tr key={m.month}>
-          <td>{monthLabel(m.month)}</td><td className="num">{num(m.mdKW)} kW</td><td>{timeLabel(m.mdAt)}</td><td className="num">{ringgit(m.mdRM)}</td><td className="num">{num(m.energyMWh)} MWh</td><td className="num">{num(m.loadFactor * 100)}%</td><td className="num">−{num(s.kW)} kW · {ringgit(s.rmPerMonth)}</td>
+          <td>{monthLabel(m.month)}</td><td className="num">{num(m.mdKW)} kW</td><td>{timeLabel(m.mdAt)}</td><td className="num">{ringgit(m.mdRM)}</td><td className="num">{num(m.energyMWh)} MWh</td><td className="num">{num(m.loadFactor * 100)}%</td><td className="num">{ringgit(s.rmPerMonth)}</td>
         </tr> })}</tbody>
       </table></div>
       <div className="form-grid compact tariff-form">
-        <label className="field">Maximum demand charge (RM per kW per month)<input type="number" min="0" step="0.01" value={tariff.mdRMPerKW} onChange={(event) => setTariff({ mdRMPerKW: Number(event.target.value) })} /></label>
-        <label className="field">Energy charge (RM per MWh)<input type="number" min="0" step="1" value={tariff.energyRMPerMWh} onChange={(event) => setTariff({ energyRMPerMWh: Number(event.target.value) })} /></label>
+        <label className="field">Demand charge (RM/kW)<input type="number" min="0" step="0.01" value={tariff.mdRMPerKW} onChange={(event) => setTariff({ mdRMPerKW: Number(event.target.value) })} /></label>
+        <label className="field">Energy charge (RM/MWh)<input type="number" min="0" step="1" value={tariff.energyRMPerMWh} onChange={(event) => setTariff({ energyRMPerMWh: Number(event.target.value) })} /></label>
       </div>
-      <p className="muted small">Defaults: TNB medium-voltage tariff from 1 July 2025 (RM 89.27/kW, 29.83 sen/kWh). Use the figures on your own bill. Running/idle split: idle is below {mw(a.thresholds.idleBelowKW)}, set from the site’s own quiet and busy levels. Coverage {num(a.coverage * 100, 1)}%.</p>
+      <p className="muted small">Default: TNB medium voltage, July 2025. Use your bill’s rates. <Info>Idle = below {mw(a.thresholds.idleBelowKW)}, set from the site’s own quiet and busy levels. Data coverage {num(a.coverage * 100, 1)}%.</Info></p>
     </section>
   </div>
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { defaultTaxInputs, type TaxInputs } from '../model/carbonTax'
 import { fuelFactorsKgPerGJ } from '../model/factors'
-import { fuels, historyFor, monthLabel } from '../model/history'
+import { evidenceShare, fuels, historyFor, marketFactor, monthLabel } from '../model/history'
 import { outlook } from '../model/outlook'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { num, ringgit, tonnes } from '../format'
@@ -146,12 +146,13 @@ export default function Reports() {
   const ghgPeriodLabel = ghgMonths.length ? `${monthLabel(ghgMonths[0].month)} – ${monthLabel(ghgMonths.at(-1)!.month)}` : '—'
   function ghgCsv() {
     const { records } = historyFor(state)
-    const lines = ['month,electricity_mwh,fuel_gj,process_t,production_t,scope1_tco2e,scope2_tco2e,total_tco2e,kg_co2e_per_t',
+    const lines = ['month,electricity_mwh,green_mwh,fuel_gj,process_t,production_t,scope1_tco2e,scope2_location_tco2e,scope2_market_tco2e,total_tco2e,kg_co2e_per_t,evidence_files,signed_off',
       ...records.map((r) => {
         const m = view.months.find((item) => item.month === r.month)!
         const fuel = fuels.reduce((sum, f) => sum + (r.fuelGJ[f] ?? 0), 0)
-        return [r.month, r.electricityMWh.toFixed(1), fuel.toFixed(1), r.processT.toFixed(1), r.productionT.toFixed(0), m.scope1T.toFixed(1), m.scope2T.toFixed(1), m.totalT.toFixed(1), m.intensityKg?.toFixed(1) ?? ''].join(',')
-      }), `# grid factor ${ctx.gridKgPerKWh} kg CO2/kWh; fuel factors IPCC 2006; ${view.sample ? 'SAMPLE DATA' : 'uploaded data'}`]
+        const locked = state.locks?.some((lock) => lock.year === Number(r.month.slice(0, 4)))
+        return [r.month, r.electricityMWh.toFixed(1), m.greenMWh.toFixed(1), fuel.toFixed(1), r.processT.toFixed(1), r.productionT.toFixed(0), m.scope1T.toFixed(1), m.scope2T.toFixed(1), m.scope2MarketT.toFixed(1), m.totalT.toFixed(1), m.intensityKg?.toFixed(1) ?? '', r.evidence?.length ?? 0, locked ? 'yes' : 'no'].join(',')
+      }), `# grid factor ${ctx.gridKgPerKWh} kg CO2/kWh (location-based); market-based residual factor ${marketFactor(state.settings)} kg CO2/kWh; fuel factors IPCC 2006; ${view.sample ? 'SAMPLE DATA' : 'uploaded data'}`]
     return lines.join('\n')
   }
   const bursaReport = () => {
@@ -165,6 +166,13 @@ export default function Reports() {
     const t = view.target
     const firstTaxYear = Number(ghgMonths.at(-1)?.month.slice(0, 4) ?? 2026) + 1
     const processT = inPeriod.reduce((acc, r) => acc + r.processT, 0)
+    const s2Market = ghgMonths.reduce((acc, m) => acc + m.scope2MarketT, 0), greenMWh = ghgMonths.reduce((acc, m) => acc + m.greenMWh, 0)
+    const residual = marketFactor(state.settings)
+    const years = [...new Set(ghgMonths.map((m) => Number(m.month.slice(0, 4))))]
+    const locks = (state.locks ?? []).filter((lock) => years.includes(lock.year))
+    const factorMoved = locks.filter((lock) => Math.abs(lock.gridKgPerKWh - ctx.gridKgPerKWh) > 1e-9 || Math.abs(lock.marketKgPerKWh - residual) > 1e-9)
+    const documents = inPeriod.flatMap((r) => (r.evidence ?? []).map((e) => ({ month: r.month, e })))
+    const changes = (state.monthlyLog ?? []).filter((c) => ghgMonths.some((m) => m.month === c.month))
     return <>
       {view.sample && <p className="alert">This report uses <b>sample monthly data</b>. Upload the site’s bills and production records (Monthly data) before using it externally.</p>}
       <h2>1. Reporting boundary and approach</h2>
@@ -181,10 +189,12 @@ export default function Reports() {
       <table className="rep-table"><thead><tr><th>Metric</th><th className="num">{ghgPeriodLabel}</th>{compare.map((y) => <th key={y.year} className="num">{y.year}</th>)}</tr></thead><tbody>
         <tr><td>Scope 1 · direct (tCO₂e)</td><td className="num"><b>{num(s1)}</b></td>{compare.map((y) => <td key={y.year} className="num">{num(y.scope1T)}</td>)}</tr>
         <tr><td>Scope 2 · location-based (tCO₂e)</td><td className="num"><b>{num(s2)}</b></td>{compare.map((y) => <td key={y.year} className="num">{num(y.scope2T)}</td>)}</tr>
+        <tr><td>Scope 2 · market-based (tCO₂e)</td><td className="num">{num(s2Market)}</td>{compare.map((y) => <td key={y.year} className="num">{num(y.scope2MarketT)}</td>)}</tr>
         <tr className="strong"><td>Total Scope 1 + 2 (tCO₂e)</td><td className="num"><b>{num(total)}</b></td>{compare.map((y) => <td key={y.year} className="num">{num(y.totalT)}</td>)}</tr>
         {made > 0 && <tr><td>Intensity (kg CO₂e per tonne of {unit})</td><td className="num">{num(total / made * 1_000)}</td>{compare.map((y) => <td key={y.year} className="num">{y.productionT ? num(y.totalT / y.productionT * 1_000) : '—'}</td>)}</tr>}
         {made > 0 && <tr><td>Production (t {unit})</td><td className="num">{num(made)}</td>{compare.map((y) => <td key={y.year} className="num">{num(y.productionT)}</td>)}</tr>}
         <tr><td>Electricity purchased (MWh)</td><td className="num">{num(mwh)}</td>{compare.map((y) => <td key={y.year} className="num">{num(y.scope2T / Math.max(1e-9, ctx.gridKgPerKWh))}</td>)}</tr>
+        <tr><td>of which green instruments (MWh)</td><td className="num">{num(greenMWh)}{mwh > 0 ? ` (${num(greenMWh / mwh * 100, 1)}%)` : ''}</td>{compare.map((y) => <td key={y.year} className="num">—</td>)}</tr>
       </tbody></table>
 
       <h2>3. Scope 1 by source</h2>
@@ -199,7 +209,7 @@ export default function Reports() {
 
       <h2>4. Methodology and emission factors</h2>
       <ul>
-        <li>Scope 2 uses the location-based method: purchased electricity × Malaysian grid emission factor {num(ctx.gridKgPerKWh, 3)} kg CO₂/kWh<Cite ids={['gef']} />. No market-based instruments (such as TNB’s Green Electricity Tariff) are applied.</li>
+        <li>Scope 2 is reported both ways, as the GHG Protocol Scope 2 Guidance asks<Cite ids={['ghgp']} />. Location-based (headline): purchased electricity × Malaysian grid emission factor {num(ctx.gridKgPerKWh, 3)} kg CO₂/kWh<Cite ids={['gef']} />. Market-based: electricity covered by contractual instruments (TNB Green Electricity Tariff, renewable energy certificates, green PPAs) at zero, the rest at {num(residual, 3)} kg CO₂/kWh{state.settings.residualKgPerKWh === undefined ? ' — the location-based factor, because Malaysia has no published residual mix' : ' (residual factor set in Settings)'}. Green instruments must be retired or allocated to this site for the reporting period.</li>
         <li>Scope 1 combustion uses IPCC 2006 default CO₂ factors per GJ of fuel<Cite ids={['ipcc']} />. Diesel in litres is converted at 0.0386 GJ/L.</li>
         <li>Process emissions are entered by the site from carbon inputs (electrodes, charge and injected carbon).</li>
         <li>Monthly figures are summed over the reporting period{ghgMonths.length < 12 ? ` (${12 - ghgMonths.length} month(s) missing)` : ''}.</li>
@@ -222,8 +232,18 @@ export default function Reports() {
       <h2>7. Data quality</h2>
       <ul>
         <li>{view.anomalies.length ? `${view.anomalies.length} unusual month(s) flagged for review: ${view.anomalies.slice(0, 4).map((a) => `${monthLabel(a.month)} (${a.metric.toLowerCase()} ${a.direction})`).join(', ')}.` : 'No unusual months were flagged in the energy-per-tonne checks.'}</li>
+        <li>Source documents: {num(evidenceShare(inPeriod) * 100)}% of months in the period have at least one bill, invoice or log attached ({documents.length} document{documents.length === 1 ? "" : "s"}, identified by SHA-256 fingerprint).</li>
+        <li>{locks.length ? `Signed off: ${locks.map((lock) => `${lock.year} by ${lock.who} on ${new Date(lock.at).toLocaleDateString('en-GB')}`).join('; ')}.` : 'The period has not been signed off yet.'}{years.filter((y) => !locks.some((lock) => lock.year === y)).length && locks.length ? ` Still open: ${years.filter((y) => !locks.some((lock) => lock.year === y)).join(', ')}.` : ''}</li>
+        {factorMoved.length > 0 && <li><b>Factors changed since sign-off</b> for {factorMoved.map((lock) => `${lock.year} (grid ${num(lock.gridKgPerKWh, 3)} → ${num(ctx.gridKgPerKWh, 3)})`).join(', ')}. Figures above use current Settings; restore the signed-off factors or reopen the year before reporting.</li>}
+        <li>{changes.length} recorded change(s) to the period’s figures (change log on the Monthly data page).</li>
         <li>Figures have not been externally assured.</li>
       </ul>
+
+      {documents.length > 0 && <>
+        <h2>8. Evidence register</h2>
+        <table className="rep-table"><thead><tr><th>Month</th><th>Document</th><th>Type</th><th>Reference</th><th>SHA-256 (first 16)</th></tr></thead>
+          <tbody>{documents.map(({ month, e }) => <tr key={`${month}-${e.sha256}`}><td>{monthLabel(month)}</td><td>{e.name}</td><td>{e.kind}</td><td>{e.ref ?? '—'}</td><td><code>{e.sha256.slice(0, 16)}</code></td></tr>)}</tbody></table>
+      </>}
     </>
   }
 

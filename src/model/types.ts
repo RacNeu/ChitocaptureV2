@@ -46,6 +46,11 @@ export type Settings = {
   industrialPark?: string
   /** Used when gridRegionId is 'custom'. */
   customGridKgPerKWh: number
+  /**
+   * Market-based Scope 2 factor for grid electricity not covered by a green instrument. Malaysia has
+   * no published residual mix, so the location-based grid factor is used when this is absent.
+   */
+  residualKgPerKWh?: number
   electricityPriceRMPerMWh: number
   fuelPriceRMPerGJ: Record<Exclude<FuelType, 'none'>, number>
   discountRatePct: number
@@ -103,6 +108,10 @@ export type FactoryState = {
   interval?: IntervalSeries
   /** What the team has done with each finding, by finding key. */
   findings?: Record<string, FindingState>
+  /** Field-level changes to the monthly data, oldest first. */
+  monthlyLog?: DataChange[]
+  /** Signed-off reporting years. */
+  locks?: PeriodLock[]
 }
 
 /** Half-hourly average demand in kW from `start` (local time, YYYY-MM-DDTHH:mm); null = missing. */
@@ -122,6 +131,44 @@ export type MonthlyRecord = {
   processT: number
   /** Product made that month, in tonnes. */
   productionT: number
+  /**
+   * Purchased electricity covered by a contractual green instrument (TNB Green Electricity Tariff,
+   * RECs, a green PPA or CRESS), in MWh. Counts as zero emissions in market-based Scope 2.
+   */
+  greenMWh?: number
+  /** Source documents behind this month's figures (bills, invoices, production logs). */
+  evidence?: Evidence[]
+}
+
+/** A document that backs a month's figures. The file stays with the company; its fingerprint proves which file. */
+export type Evidence = {
+  name: string
+  sizeBytes: number
+  /** SHA-256 of the file, hex. */
+  sha256: string
+  kind: 'electricity' | 'fuel' | 'production' | 'green' | 'other'
+  /** Invoice or account number, optional. */
+  ref?: string
+  at: string
+  who: string
+}
+
+/** One field of one month changed: the audit trail behind the reported numbers. */
+export type DataChange = { at: string; who: string; role: Role; month: string; field: string; from: number | null; to: number | null; source: string }
+
+/** A signed-off reporting year: its months can no longer be changed until management unlocks it. */
+export type PeriodLock = {
+  year: number
+  at: string
+  who: string
+  role: Role
+  /** Factors and results at sign-off, so later changes to Settings are visible. */
+  gridKgPerKWh: number
+  marketKgPerKWh: number
+  scope1T: number
+  scope2T: number
+  scope2MarketT: number
+  evidencePct: number
 }
 
 /** Per-year effect of a measure on one machine. Positive numbers are reductions. */
