@@ -56,6 +56,8 @@ export type Settings = {
   productionTPerYear: number | null
   /** What a tonne refers to, e.g. "steel" or "wire". */
   productUnit: string
+  /** Tariff for demand and idle-energy costs; TNB medium-voltage defaults apply when absent. */
+  tariff?: { mdRMPerKW: number; energyRMPerMWh: number }
   /** Carbon tax calculator inputs; defaults apply when absent. */
   carbonTax?: import('./carbonTax').TaxInputs
 }
@@ -97,7 +99,17 @@ export type FactoryState = {
   history?: HistoryEntry[]
   /** Monthly activity history uploaded from bills and meters, oldest first. */
   monthly?: MonthlyRecord[]
+  /** Half-hourly electricity demand (the meter's load profile). */
+  interval?: IntervalSeries
+  /** What the team has done with each finding, by finding key. */
+  findings?: Record<string, FindingState>
 }
+
+/** Half-hourly average demand in kW from `start` (local time, YYYY-MM-DDTHH:mm); null = missing. */
+export type IntervalSeries = { start: string; kW: (number | null)[]; source: string }
+
+export type FindingStatus = 'new' | 'assigned' | 'in-progress' | 'fixed' | 'dismissed'
+export type FindingState = { status: FindingStatus; owner?: string; note?: string; updatedAt: string }
 
 /** One month of activity data for a site, e.g. from TNB bills, fuel invoices and production logs. */
 export type MonthlyRecord = {

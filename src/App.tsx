@@ -22,21 +22,25 @@ import Twin from './views/Twin'
 import Login from './views/Login'
 import Dashboard from './views/Dashboard'
 import DataUpload from './views/DataUpload'
+import LoadProfile from './views/LoadProfile'
+import Findings from './views/Findings'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'dashboard' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'dashboard' | 'load' | 'findings' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string; group?: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '▦', group: 'Emissions' },
+  { id: 'dashboard', label: 'Dashboard', icon: '▦', group: 'Monitor' },
+  { id: 'load', label: 'Load profile', icon: '⚡' },
   { id: 'data', label: 'Monthly data', icon: '⇪' },
-  { id: 'reports', label: 'Reports', icon: '📄' },
-  { id: 'company', label: 'Company', icon: '🏢', group: 'Operations' },
-  { id: 'twin', label: 'Site 3D', icon: '◭' },
-  { id: 'simulate', label: 'Simulation', icon: '🔥' },
-  { id: 'analysis', label: 'Analysis', icon: '📊' },
+  { id: 'findings', label: 'Findings', icon: '⚑', group: 'Act' },
   { id: 'plan', label: 'Plan', icon: '🗺' },
+  { id: 'simulate', label: 'Simulation', icon: '🔥' },
+  { id: 'reports', label: 'Reports', icon: '📄', group: 'Report' },
+  { id: 'company', label: 'Company', icon: '🏢', group: 'Explore' },
+  { id: 'twin', label: 'Site 3D', icon: '◭' },
+  { id: 'analysis', label: 'Analysis', icon: '📊' },
   { id: 'sensors', label: 'Sensors', icon: '📡', group: 'Setup' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
 ]
@@ -92,7 +96,7 @@ export default function App() {
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
-  const siteScoped = view === 'dashboard' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
+  const siteScoped = view === 'dashboard' || view === 'load' || view === 'findings' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
   const addedCount = workspace.companies.filter((item) => !item.fixed).length
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
@@ -143,8 +147,10 @@ export default function App() {
           {templateById(site.state.settings.industryId)?.icon ?? '🏭'} {site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}
         </button>)}
       </div>}
-      {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} />}
+      {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
+      {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
+      {view === 'findings' && <Findings onOpen={(next) => go(next)} />}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
