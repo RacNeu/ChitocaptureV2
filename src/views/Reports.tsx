@@ -14,6 +14,7 @@ import { annual, cbam, cbamPhaseIn, defaultSteelParams, intensity, noUpgrades, t
 import { useCompany, useFactory, useRole } from '../model/store'
 import { templateById } from '../model/templates'
 import { MalaysiaRules } from '../components/Malaysia'
+import SourceBadge from '../components/SourceBadge'
 import { stateById } from '../model/malaysia'
 
 type Kind = 'bursa' | 'site' | 'eeca' | 'cbam'
@@ -271,6 +272,7 @@ export default function Reports() {
         <label className="field">EU carbon price (€/t)<input type="number" min="0" value={euPrice} onChange={(event) => setEuPrice(Number(event.target.value))} /></label></>}
     </div>
 
+    {kind !== 'bursa' && <div className="no-print"><SourceBadge onUpload={() => { window.location.hash = 'data' }} /></div>}
     <div className="no-print"><MalaysiaRules state={state} /></div>
     <article className="report-paper">
       <header className="rep-head">

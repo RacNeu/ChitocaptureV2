@@ -26,6 +26,7 @@ import LoadProfile from './views/LoadProfile'
 import Findings from './views/Findings'
 import Risks from './views/Risks'
 import Home from './views/Home'
+import SourceBadge from './components/SourceBadge'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
@@ -177,6 +178,7 @@ export default function App() {
           <span className="flow-line">↳ {section.flow[view]}</span>
         </div>
       })()}
+      {(['twin', 'simulate', 'control', 'analysis', 'company', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
       {view === 'home' && <Home go={go} />}
       {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}

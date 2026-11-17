@@ -110,6 +110,8 @@ export type FactoryState = {
   history?: HistoryEntry[]
   /** Monthly activity history uploaded from bills and meters, oldest first. */
   monthly?: MonthlyRecord[]
+  /** How the machine list was last matched to the bills (one source of truth). */
+  calibration?: import('./calibration').Calibration
   /** Half-hourly electricity demand (the meter's load profile). */
   interval?: IntervalSeries
   /** 30 years of NASA POWER climate data for the site's location. */

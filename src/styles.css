@@ -1484,3 +1484,8 @@ a.dash-kpi:hover { border-color: #d97706; }
 @media (max-width: 520px) { .journey { grid-template-columns: 1fr; } }
 .home .hero > *, .home .hero-list li { min-width: 0; }
 @media (max-width: 520px) { .home .hero-text small { display: none; } .home .hero-list button { padding: 10px; gap: 8px; } .home .hero-rm { font-size: 16px; } }
+
+/* ---------- Where machine figures come from ---------- */
+.source-badge { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: -4px 0 14px; padding: 9px 14px; border-radius: 10px; font-size: 13.5px; }
+.source-badge.matched { border: 1px solid #05966933; background: #ecfdf5; color: #065f46; }
+.source-badge.template, .source-badge.drifted { border: 1px solid #f59e0b55; background: #fffbeb; color: #92400e; }
