@@ -1,6 +1,6 @@
 export type MachineKind =
   | 'kiln' | 'boiler' | 'furnace' | 'mill' | 'fan' | 'pump' | 'compressor' | 'chiller'
-  | 'production-line' | 'genset' | 'wastewater' | 'cold-room' | 'office'
+  | 'production-line' | 'genset' | 'wastewater' | 'cold-room' | 'office' | 'solar' | 'battery'
 
 export type FuelType = 'none' | 'coal' | 'natural-gas' | 'diesel' | 'fuel-oil' | 'biomass'
 
@@ -71,6 +71,8 @@ export type Settings = {
   assumptions?: { idleAvoidablePct?: number; peakHoursMovable?: number; baseCutPct?: number }
   /** Carbon tax calculator inputs; defaults apply when absent. */
   carbonTax?: import('./carbonTax').TaxInputs
+  /** EAF prices and carbon contents for Optimise; defaults (assumptions) apply when absent. */
+  eaf?: Partial<import('./heats').EafSettings>
 }
 
 /** A measure applied to a machine, with its start year. */
@@ -110,10 +112,15 @@ export type FactoryState = {
   history?: HistoryEntry[]
   /** Monthly activity history uploaded from bills and meters, oldest first. */
   monthly?: MonthlyRecord[]
+  /** Pre-operations scenarios drawn on the Site 3D, and the one being edited. */
+  scenarios?: import('./planner').Scenario[]
+  activeScenarioId?: string
   /** How the machine list was last matched to the bills (one source of truth). */
   calibration?: import('./calibration').Calibration
   /** Half-hourly electricity demand (the meter's load profile). */
   interval?: IntervalSeries
+  /** Per-heat records exported from the EAF's HMI / level-2 system. */
+  heats?: import('./heats').HeatRecord[]
   /** 30 years of NASA POWER climate data for the site's location. */
   climate?: import('./climate').ClimateSummary
   /** What the team has done with each finding, by finding key. */

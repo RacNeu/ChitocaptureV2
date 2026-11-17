@@ -124,6 +124,25 @@ function buildingFor(machine: Machine, emphasis: number): { group: THREE.Group; 
       mesh(g, box(12, 3.4, 5), wall, 0, 1.7, 5, id)
       break
     }
+    case 'solar': {
+      const panel = std(0x1e3a8a, { roughness: 0.25, metalness: 0.3 }), frame = std(0xcbd5e1)
+      for (let r = -2; r <= 2; r += 1) for (let c = -3; c <= 3; c += 1) {
+        const p = mesh(g, new THREE.BoxGeometry(3.6, 0.15, 2.2), panel, c * 4.2, 1.6, r * 4.4, id)
+        p.rotation.x = -0.25
+        mesh(g, new THREE.BoxGeometry(0.2, 1.4, 0.2), frame, c * 4.2, 0.7, r * 4.4 + 0.6, id)
+      }
+      top = 3
+      break
+    }
+    case 'battery': {
+      for (const [x, z] of [[-8, -4], [0, -4], [8, -4], [-8, 4], [0, 4], [8, 4]] as const) {
+        mesh(g, box(6.5, 2.8, 2.6), wall, x, 1.55, z, id)
+        mesh(g, new THREE.BoxGeometry(6.6, 0.35, 2.7), std(0x22c55e), x, 2.5, z, id)
+      }
+      mesh(g, box(4, 3, 3), metal, 13, 1.5, 0, id)
+      top = 3.5
+      break
+    }
     case 'wastewater': {
       for (const x of [-7, 7]) {
         cylinder(g, id, 6, 2, x, 0, 0, wall, 32)

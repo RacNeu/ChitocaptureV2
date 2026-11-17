@@ -17,5 +17,5 @@ export function ringgit(value: number) {
 
 export const kindIcon: Record<string, string> = {
   kiln: '🔥', boiler: '♨️', furnace: '🔥', mill: '⚙️', fan: '🌀', pump: '💧', compressor: '🫧', chiller: '❄️',
-  'production-line': '🏗️', genset: '⚡', wastewater: '🌊', 'cold-room': '🧊', office: '🏢',
+  'production-line': '🏗️', genset: '⚡', wastewater: '🌊', 'cold-room': '🧊', office: '🏢', solar: '☀️', battery: '🔋',
 }

@@ -199,8 +199,8 @@ export function buildWorld(root: THREE.Group, placed: Placed[], electricity: Map
     else if (kind === 'office') {
       for (let k = 0; k < 4; k += 1) car(g, -12 + k * 5, front, C.car[k % C.car.length])
       lamp(g, 13, front); lamp(g, -15, front - 4)
-    } else if (kind !== 'wastewater') crates(g, -14, front - 2.5, 4)
-    if (kind !== 'office' && kind !== 'wastewater' && kind !== 'genset') {
+    } else if (kind !== 'wastewater' && kind !== 'solar' && kind !== 'battery') crates(g, -14, front - 2.5, 4)
+    if (kind !== 'office' && kind !== 'wastewater' && kind !== 'genset' && kind !== 'solar' && kind !== 'battery') {
       const f = forklift(); g.add(f)
       shuttle(f, [new THREE.Vector3(-12, 0, front + 1.5), new THREE.Vector3(10, 0, front + 1.5)], 3 + (i % 3), agents)
     }

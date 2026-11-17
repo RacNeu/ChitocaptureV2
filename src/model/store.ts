@@ -316,6 +316,8 @@ export const actions = {
       next.length ? `${source}: ${incoming.length} months of activity data (${changes.length} field changes${skipped.length ? `, ${skipped.length} locked months kept` : ''})` : 'Cleared the monthly data'))
     return skipped
   },
+  /** Save the planner's scenarios and which one is open. */
+  setScenarios: (scenarios: NonNullable<FactoryState['scenarios']>, activeScenarioId?: string) => commit({ ...state, scenarios, activeScenarioId }),
   /** Re-match the machine list to the bills (after machines were edited). */
   rematch: () => commit(logged(matched(state), 'Matched the machine list to the bills')),
   /** Attach a source document to a month. Not allowed in a signed-off year. */
@@ -348,6 +350,8 @@ export const actions = {
   },
   /** Replace this site's half-hourly load profile; null removes it. */
   setInterval: (interval: IntervalSeries | null) => commit(logged({ ...state, interval: interval ?? undefined }, interval ? `Uploaded ${Math.round(interval.kW.length / 48)} days of half-hourly data (${interval.source})` : 'Removed the half-hourly data')),
+  /** Replace this site's EAF heat records; an empty list removes them. */
+  setHeats: (heats: import('./heats').HeatRecord[], source: string) => commit(logged({ ...state, heats: heats.length ? heats : undefined }, heats.length ? `Uploaded ${heats.length} EAF heats (${source})` : 'Removed the EAF heat data')),
   setClimate: (climate: FactoryState['climate']) => commit(logged({ ...state, climate }, climate ? `Fetched NASA POWER climate data for ${climate.lat.toFixed(3)}, ${climate.lon.toFixed(3)}` : 'Removed climate data')),
   /** Record what the team did with a finding. */
   setFinding: (key: string, patch: Partial<FindingState>, title: string) => {
