@@ -7,7 +7,8 @@ import { monthLabel } from '../model/history'
 import { outlook } from '../model/outlook'
 import { impactLabel, likelihoodLabel, siteRisks } from '../model/risk'
 import { roleById, waitingFor } from '../model/roles'
-import { companyActions, useCompany, useRole } from '../model/store'
+import { companyActions, MAX_ADDED_COMPANIES, useCompany, useRole, useWorkspace } from '../model/store'
+import { isCompanyAccount, useSession, visibleCompanies } from '../model/auth'
 import { industryTemplates, templateById } from '../model/templates'
 import { stateById } from '../model/malaysia'
 import type { View } from '../App'
@@ -22,6 +23,10 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
   const company = useCompany()
   const role = useRole()
   const [adding, setAdding] = useState(false)
+  const workspace = useWorkspace()
+  const session = useSession()
+  const companies = visibleCompanies(workspace, session)
+  const canAddCompany = !isCompanyAccount(session) && workspace.companies.filter((c) => !c.fixed).length < MAX_ADDED_COMPANIES
 
   const rows = useMemo(() => company.sites.map((site, index) => {
     const s = site.state
@@ -57,6 +62,8 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
         <p className="muted">{company.sites.length} site{company.sites.length === 1 ? '' : 's'} · {withData.length} with bills uploaded <Info>Company totals are the sum of each site’s own uploaded bills, the way Bursa and NSRF disclosures are organised. Sites without bills add nothing until they upload.</Info></p>
       </div>
       <div className="dash-actions">
+        {companies.length > 1 && <label className="field inline"><span className="sr-only">Switch company</span><select value={company.id} onChange={(event) => companyActions.switchCompany(event.target.value)}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+        {canAddCompany && <button type="button" className="btn ghost" onClick={() => go('add-company')}>+ Add company</button>}
         {!company.fixed && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Delete ${company.name} and all its sites? This cannot be undone.`)) companyActions.removeCompany(company.id) }}>🗑 Delete company</button>}
         <button type="button" className="btn ghost" onClick={() => setAdding(!adding)}>+ Add site</button>
         <button type="button" className="btn" onClick={() => go('reports')}>⤓ Reports</button>

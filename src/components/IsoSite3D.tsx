@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { buildSite, disposeSite, palette, type SiteHandles } from '../three/isoSite'
+import { buildSite, disposeSite, palette, GAP, PLOT_D, PLOT_W, type SiteHandles } from '../three/isoSite'
 import type { BuildingRow } from '../model/siteModel'
 
 export type ColorBy = 'co2' | 'cost' | 'risk'
@@ -11,6 +11,11 @@ type Props = {
   colorBy: ColorBy
   withPlan: boolean
   showFlows: boolean
+  /** Plan mode: empty plots light up, and an armed or dragged asset can be placed on one. */
+  planMode?: boolean
+  cells?: { col: number; row: number }[]
+  armed?: boolean
+  onPlace?: (col: number, row: number) => void
   selectedId: string | null
   hoverId: string | null
   onSelect: (id: string | null) => void
@@ -28,15 +33,21 @@ function colourFor(row: BuildingRow, colorBy: ColorBy, maxCost: number, maxT: nu
   return ramp(maxT > 0 ? (withPlan ? row.afterT : row.totalT) / maxT : 0)
 }
 
-export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selectedId, hoverId, onSelect, onHover }: Props) {
+export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, planMode = false, cells = [], armed = false, onPlace, selectedId, hoverId, onSelect, onHover }: Props) {
   const mountRef = useRef<HTMLDivElement>(null)
   const pinRefs = useRef(new Map<string, HTMLDivElement>())
   const siteRef = useRef<SiteHandles | null>(null)
   const camRef = useRef<{ camera: THREE.OrthographicCamera; controls: OrbitControls } | null>(null)
   const stateRef = useRef({ selectedId, hoverId })
   stateRef.current = { selectedId, hoverId }
-  const cbRef = useRef({ onSelect, onHover })
-  cbRef.current = { onSelect, onHover }
+  const cbRef = useRef({ onSelect, onHover, onPlace })
+  cbRef.current = { onSelect, onHover, onPlace }
+  const sceneRef = useRef<{ scene: THREE.Scene; renderer: THREE.WebGLRenderer } | null>(null)
+  const ghostRef = useRef<{ group: THREE.Group; tiles: Map<string, THREE.Mesh> } | null>(null)
+  const planRef = useRef({ planMode, armed, cells })
+  planRef.current = { planMode, armed, cells }
+  const cellAt = useRef<(clientX: number, clientY: number) => { col: number; row: number } | null>(() => null)
+  const [hoverCell, setHoverCell] = useState<string | null>(null)
   const machineKey = rows.map((r) => `${r.machine.id}:${r.machine.kind}:${r.machine.col}:${r.machine.row}:${r.share.toFixed(2)}`).join('|')
 
   useEffect(() => {
@@ -76,6 +87,8 @@ export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selected
     controls.minZoom = 0.6; controls.maxZoom = 4
     controls.screenSpacePanning = true
     camRef.current = { camera, controls }
+    sceneRef.current = { scene, renderer }
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
 
     const fit = () => {
       const w = mount.clientWidth, h = Math.max(1, mount.clientHeight)
@@ -108,10 +121,28 @@ export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selected
       const hit = raycaster.intersectObjects(site.root.children, true).find((h) => h.object.userData.machineId)
       return (hit?.object.userData.machineId as string | undefined) ?? null
     }
+    cellAt.current = (clientX, clientY) => {
+      const rect = renderer.domElement.getBoundingClientRect()
+      pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1)
+      raycaster.setFromCamera(pointer, camera)
+      const hit = raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3())
+      if (!hit) return null
+      const cell = { col: Math.round(hit.x / (PLOT_W + GAP)), row: Math.round(hit.z / (PLOT_D + GAP)) }
+      return planRef.current.cells.some((c) => c.col === cell.col && c.row === cell.row) ? cell : null
+    }
     let down: { x: number; y: number } | null = null
-    const onMove = (e: PointerEvent) => { const id = pick(e); cbRef.current.onHover(id); renderer.domElement.style.cursor = id ? 'pointer' : 'grab' }
+    const onMove = (e: PointerEvent) => {
+      if (planRef.current.planMode && planRef.current.armed) { const c = cellAt.current(e.clientX, e.clientY); setHoverCell(c ? `${c.col},${c.row}` : null); renderer.domElement.style.cursor = c ? 'copy' : 'not-allowed'; return }
+      const id = pick(e); cbRef.current.onHover(id); renderer.domElement.style.cursor = id ? 'pointer' : 'grab'
+    }
     const onDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY } }
-    const onUp = (e: PointerEvent) => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6) cbRef.current.onSelect(pick(e)); down = null }
+    const onUp = (e: PointerEvent) => {
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 6) {
+        const c = planRef.current.planMode && planRef.current.armed ? cellAt.current(e.clientX, e.clientY) : null
+        if (c) cbRef.current.onPlace?.(c.col, c.row); else cbRef.current.onSelect(pick(e))
+      }
+      down = null
+    }
     const onLeave = () => cbRef.current.onHover(null)
     renderer.domElement.addEventListener('pointermove', onMove)
     renderer.domElement.addEventListener('pointerdown', onDown)
@@ -164,7 +195,7 @@ export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selected
       disposeSite(scene)
       renderer.dispose()
       mount.removeChild(renderer.domElement)
-      siteRef.current = null; camRef.current = null
+      siteRef.current = null; camRef.current = null; sceneRef.current = null; ghostRef.current = null
     }
     // Rebuild only when the set of buildings changes, not on every figure update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,11 +209,35 @@ export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selected
     for (const row of rows) {
       const b = site.buildings.find((x) => x.id === row.machine.id)
       if (!b) continue
-      const c = colourFor(row, colorBy, maxCost, maxT, withPlan)
+      const c = row.machine.id.startsWith('new-') ? new THREE.Color(0x86efac) : colourFor(row, colorBy, maxCost, maxT, withPlan)
       b.tint[0].color.copy(c)
       b.tint[1].color.copy(c.clone().lerp(new THREE.Color(0xffffff), 0.35))
     }
   }, [rows, colorBy, withPlan, machineKey])
+
+  // Empty plots, shown in plan mode as drop targets.
+  const cellsKey = cells.map((c) => `${c.col},${c.row}`).join('|')
+  useEffect(() => {
+    const holder = sceneRef.current
+    if (!holder) return
+    if (ghostRef.current) { holder.scene.remove(ghostRef.current.group); disposeSite(ghostRef.current.group); ghostRef.current = null }
+    if (!planMode) return
+    const group = new THREE.Group(), tiles = new Map<string, THREE.Mesh>()
+    for (const c of cells) {
+      const tile = new THREE.Mesh(new THREE.BoxGeometry(PLOT_W - 2, 0.2, PLOT_D - 2), new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.12, depthWrite: false }))
+      tile.position.set(c.col * (PLOT_W + GAP), 0.2, c.row * (PLOT_D + GAP))
+      const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(PLOT_W - 2, 0.2, PLOT_D - 2)), new THREE.LineDashedMaterial({ color: 0x059669, dashSize: 2, gapSize: 1.4 }))
+      edge.computeLineDistances(); tile.add(edge)
+      group.add(tile); tiles.set(`${c.col},${c.row}`, tile)
+    }
+    holder.scene.add(group)
+    ghostRef.current = { group, tiles }
+  }, [planMode, cellsKey, machineKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ghost = ghostRef.current
+    if (!ghost) return
+    for (const [key, tile] of ghost.tiles) (tile.material as THREE.MeshBasicMaterial).opacity = key === hoverCell ? 0.45 : armed ? 0.2 : 0.1
+  }, [hoverCell, armed, cellsKey, planMode])
 
   // Power and steel flows on or off.
   useEffect(() => {
@@ -212,7 +267,10 @@ export default function IsoSite3D({ rows, colorBy, withPlan, showFlows, selected
   const zoom = (factor: number) => { const cam = camRef.current; if (!cam) return; cam.camera.zoom = Math.min(4, Math.max(0.6, cam.camera.zoom * factor)); cam.camera.updateProjectionMatrix() }
   const reset = () => { const cam = camRef.current, site = siteRef.current; if (!cam || !site) return; const offset = cam.camera.position.clone().sub(cam.controls.target); cam.controls.target.copy(site.centre); cam.camera.position.copy(site.centre).add(offset); cam.camera.zoom = 1; cam.camera.updateProjectionMatrix(); cbRef.current.onSelect(null) }
 
-  return <div className="iso-stage">
+  const dragOver = (e: React.DragEvent) => { if (!planMode) return; e.preventDefault(); const c = cellAt.current(e.clientX, e.clientY); setHoverCell(c ? `${c.col},${c.row}` : null); e.dataTransfer.dropEffect = c ? 'copy' : 'none' }
+  const drop = (e: React.DragEvent) => { if (!planMode) return; e.preventDefault(); const c = cellAt.current(e.clientX, e.clientY); setHoverCell(null); if (c) onPlace?.(c.col, c.row) }
+
+  return <div className="iso-stage" onDragOver={dragOver} onDragLeave={() => setHoverCell(null)} onDrop={drop}>
     <div ref={mountRef} className="iso-canvas" role="img" aria-label="Isometric 3D view of the site. Click a building for details." />
     <div className="iso-pins" aria-hidden="true">
       {rows.map((row) => {

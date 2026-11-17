@@ -7,7 +7,6 @@ import AddCompany from './views/AddCompany'
 import Tour from './components/Tour'
 import Reports from './views/Reports'
 import Sources from './views/Sources'
-import { MAX_ADDED_COMPANIES } from './model/store'
 import { useSensor } from './sensor/hub'
 import Analysis from './views/Analysis'
 import ControlRoom from './views/ControlRoom'
@@ -25,13 +24,14 @@ import Findings from './views/Findings'
 import Risks from './views/Risks'
 import Home from './views/Home'
 import Site3D from './views/Site3D'
+import Optimise from './views/Optimise'
 import SourceBadge from './components/SourceBadge'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'optimise' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 export type { View }
 
 type MenuItem = { id: View; label: string; icon: string; match: View[] }
@@ -42,6 +42,7 @@ const companyMenu: MenuItem[] = [
 const siteMenu: MenuItem[] = [
   { id: 'home', label: 'Site overview', icon: '⌂', match: ['home'] },
   { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'data'] },
+  { id: 'optimise', label: 'Optimise EAF', icon: '🔥', match: ['optimise'] },
   { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
   { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
 ]
@@ -58,7 +59,7 @@ const setupMenu: MenuItem[] = [
   { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
-const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'reports', 'twin', 'simulate', 'control', 'analysis', 'settings', 'sensors']
+const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'optimise', 'reports', 'twin', 'simulate', 'control', 'analysis', 'settings', 'sensors']
 const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...moreMenu, ...setupMenu].flatMap((item) => item.match)
 
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
@@ -120,43 +121,16 @@ export default function App() {
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
-  const addedCount = workspace.companies.filter((item) => !item.fixed).length
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
   return <div className="app shell">
     <aside className="sidebar" aria-label="Main menu">
       <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span></div>
       <p className="brand-tag">Find the money your plant wastes. Cut carbon on the way.</p>
-      <div className="side-company">
-        <span className="side-label">Company</span>
-        <label className="company-pick" title="Switch company">
-          <span className="sr-only">Company</span>
-          <select value={company.id} onChange={(event) => {
-            const value = event.target.value
-            if (value === '__add') { go('add-company'); return }
-            companyActions.switchCompany(value)
-            go('company')
-          }}>
-            {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            {!companyAccount && <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>}
-          </select>
-        </label>
-      </div>
       <nav className="side-nav" aria-label="Company">
         {companyMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
-      <div className="side-sites" role="group" aria-label="Sites">
-        <span className="side-label">Sites</span>
-        {company.sites.map((site) => {
-          const active = site.id === company.activeId
-          const hasData = Boolean(site.state.monthly?.length)
-          return <button key={site.id} type="button" className={`side-site${active ? ' active' : ''}`} title={hasData ? 'Bills uploaded' : 'No bills yet'}
-            onClick={() => { companyActions.switchSite(site.id); if (!sitePages.includes(view)) go('home') }}>
-            <span className={`data-dot${hasData ? ' on' : ''}`} aria-hidden="true" />
-            <span className="tab-label">{site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}</span>
-          </button>
-        })}
-      </div>
+      <span className="side-label">This site</span>
       <nav className="side-nav side-site-nav" aria-label={`Pages for ${state.settings.factoryName}`}>
         {siteMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
@@ -176,7 +150,22 @@ export default function App() {
     </aside>
     <div className="main-col">
     <header className="topbar">
-      <span className="topbar-where">{company.name} <span aria-hidden="true">›</span> <b>{view === 'company' || view === 'add-company' ? 'All sites' : state.settings.factoryName}</b></span>
+      <button type="button" className="topbar-company" onClick={() => go('company')} title="Company overview">
+        <span aria-hidden="true">🏢</span><b>{company.name}</b>
+      </button>
+      <span className="topbar-sep" aria-hidden="true">›</span>
+      <label className="site-pick" title="Choose a site">
+        <span className="sr-only">Site</span>
+        <select value={view === 'company' || view === 'add-company' ? '__all' : company.activeId} onChange={(event) => {
+          const value = event.target.value
+          if (value === '__all') { go('company'); return }
+          companyActions.switchSite(value)
+          if (!sitePages.includes(view)) go('home')
+        }}>
+          <option value="__all">All sites · company overview</option>
+          {company.sites.map((site) => <option key={site.id} value={site.id}>{site.state.monthly?.length ? '● ' : '○ '}{site.state.settings.factoryName}{site.state.onboarded ? '' : ' (set up)'}</option>)}
+        </select>
+      </label>
       <span className="topbar-spacer" />
       {canTour && <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">▶ Tour</button>}
       <label className="role-switch" title="View the app as a different team">
@@ -189,7 +178,7 @@ export default function App() {
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
       </button>
     </header>
-    <main className={`content${view === 'twin' ? ' full' : ''}`}>
+    <main className={`content${view === 'twin' ? ' full' : view === 'optimise' ? ' hmi-wide' : ''}`}>
       {(() => {
         const section = sections.find((item) => item.views.includes(view))
         return section && <div className="section-head">
@@ -204,6 +193,7 @@ export default function App() {
       {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
       {view === 'findings' && <Findings onOpen={(next) => go(next)} />}
       {view === 'risks' && <Risks onOpen={(next) => go(next)} />}
+      {view === 'optimise' && <Optimise />}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}

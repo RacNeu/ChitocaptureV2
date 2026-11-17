@@ -152,7 +152,7 @@ function windows(b: Builder, w: number, d: number, floors: number, floorH: numbe
 }
 
 /** One builder per machine kind. All fit inside roughly 36 × 26 units. */
-const archetypes: Record<MachineKind, (b: Builder, m: () => THREE.MeshStandardMaterial) => void> = {
+const archetypes: Partial<Record<MachineKind, (b: Builder, m: () => THREE.MeshStandardMaterial) => void>> = {
   kiln: (b, m) => {
     const clay = m(), metal = mat('metal', { metalness: 0.35 })
     b.tintable.push(metal)
@@ -342,7 +342,7 @@ export function buildCampus(machines: Machine[]) {
     let toggle = false
     // Alternate two tones so neighbouring buildings read as separate volumes.
     const clayFactory = () => { toggle = !toggle; return toggle ? shared : mat('wall2') }
-    archetypes[machine.kind](b, clayFactory)
+    (archetypes[machine.kind] ?? archetypes.office!)(b, clayFactory)
 
     const pad = new THREE.Mesh(roundedBox(PLOT_W, 0.5, PLOT_D), mat('grass', { roughness: 0.9 }))
     pad.position.y = -0.2; pad.receiveShadow = true
