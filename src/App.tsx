@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { actions, companyActions, getCompany, getState, useCompany, useFactory, useRole, useWorkspace } from './model/store'
 import { roles } from './model/roles'
-import { templateById } from './model/templates'
 import Company from './views/Company'
 import SimulationPicker from './views/SimulationPicker'
 import AddCompany from './views/AddCompany'
@@ -18,7 +17,6 @@ import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import Sensors from './views/Sensors'
 import Settings from './views/Settings'
-import Twin from './views/Twin'
 import Login from './views/Login'
 import Dashboard from './views/Dashboard'
 import DataUpload from './views/DataUpload'
@@ -26,6 +24,7 @@ import LoadProfile from './views/LoadProfile'
 import Findings from './views/Findings'
 import Risks from './views/Risks'
 import Home from './views/Home'
+import Site3D from './views/Site3D'
 import SourceBadge from './components/SourceBadge'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
@@ -36,25 +35,31 @@ type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'data' | 'com
 export type { View }
 
 type MenuItem = { id: View; label: string; icon: string; match: View[] }
-/** Five main places, in the order of the story: see → understand → act → protect → report. */
-const mainMenu: MenuItem[] = [
-  { id: 'home', label: 'Home', icon: '⌂', match: ['home'] },
+/** The company comes first; the open site's pages follow, in the order of the story. */
+const companyMenu: MenuItem[] = [
+  { id: 'company', label: 'Company overview', icon: '🏢', match: ['company', 'add-company'] },
+]
+const siteMenu: MenuItem[] = [
+  { id: 'home', label: 'Site overview', icon: '⌂', match: ['home'] },
   { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'data'] },
   { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
   { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
+]
+const reportMenu: MenuItem[] = [
   { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
 ]
 const moreMenu: MenuItem[] = [
   { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
   { id: 'simulate', label: 'Simulation', icon: '🔥', match: ['simulate', 'control'] },
-  { id: 'company', label: 'Company', icon: '🏢', match: ['company', 'add-company'] },
   { id: 'analysis', label: 'Analysis', icon: '📊', match: ['analysis'] },
 ]
 const setupMenu: MenuItem[] = [
   { id: 'sensors', label: 'Sensors', icon: '📡', match: ['sensors'] },
   { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
 ]
-const allViews = [...mainMenu, ...moreMenu, ...setupMenu].flatMap((item) => item.match)
+/** Pages that show one site; switching site keeps you on the same page. */
+const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'reports', 'twin', 'simulate', 'control', 'analysis', 'settings', 'sensors']
+const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...moreMenu, ...setupMenu].flatMap((item) => item.match)
 
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
 const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
@@ -66,7 +71,7 @@ const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Reco
 
 const readView = (): View => {
   const hash = window.location.hash.replace('#', '') as View
-  return allViews.includes(hash) ? hash : 'home'
+  return allViews.includes(hash) ? hash : 'company'
 }
 
 export default function App() {
@@ -111,11 +116,10 @@ export default function App() {
   if (!session) return <Login onSignedIn={(name) => {
     const match = name ? getWorkspace().companies.find((item) => item.name === name) : null
     if (match) companyActions.switchCompany(match.id)
-    go('home')
+    go('company')
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
-  const siteScoped = view === 'home' || view === 'dashboard' || view === 'load' || view === 'findings' || view === 'risks' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
   const addedCount = workspace.companies.filter((item) => !item.fixed).length
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
@@ -123,8 +127,41 @@ export default function App() {
     <aside className="sidebar" aria-label="Main menu">
       <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span></div>
       <p className="brand-tag">Find the money your plant wastes. Cut carbon on the way.</p>
-      <nav className="side-nav" aria-label="Main">
-        {mainMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+      <div className="side-company">
+        <span className="side-label">Company</span>
+        <label className="company-pick" title="Switch company">
+          <span className="sr-only">Company</span>
+          <select value={company.id} onChange={(event) => {
+            const value = event.target.value
+            if (value === '__add') { go('add-company'); return }
+            companyActions.switchCompany(value)
+            go('company')
+          }}>
+            {companies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {!companyAccount && <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>}
+          </select>
+        </label>
+      </div>
+      <nav className="side-nav" aria-label="Company">
+        {companyMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+      </nav>
+      <div className="side-sites" role="group" aria-label="Sites">
+        <span className="side-label">Sites</span>
+        {company.sites.map((site) => {
+          const active = site.id === company.activeId
+          const hasData = Boolean(site.state.monthly?.length)
+          return <button key={site.id} type="button" className={`side-site${active ? ' active' : ''}`} title={hasData ? 'Bills uploaded' : 'No bills yet'}
+            onClick={() => { companyActions.switchSite(site.id); if (!sitePages.includes(view)) go('home') }}>
+            <span className={`data-dot${hasData ? ' on' : ''}`} aria-hidden="true" />
+            <span className="tab-label">{site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}</span>
+          </button>
+        })}
+      </div>
+      <nav className="side-nav side-site-nav" aria-label={`Pages for ${state.settings.factoryName}`}>
+        {siteMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+      </nav>
+      <nav className="side-nav" aria-label="Reports">
+        {reportMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
         <details className="side-more" open={moreMenu.some((item) => item.match.includes(view))}>
           <summary><span className="side-icon" aria-hidden="true">⋯</span><span className="tab-label">Plant twin & more</span></summary>
           {moreMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
@@ -139,19 +176,7 @@ export default function App() {
     </aside>
     <div className="main-col">
     <header className="topbar">
-      <label className="site-switch" title="Switch company">
-        <span className="sr-only">Company</span>
-        <select value={company.id} onChange={(event) => {
-          const value = event.target.value
-          if (value === '__add') { go('add-company'); return }
-          companyActions.switchCompany(value)
-          if (view === 'control' && !simulatedIndustries.has(getState().settings.industryId)) go('simulate')
-          if (view === 'add-company') go('company')
-        }}>
-          {companies.map((item) => <option key={item.id} value={item.id}>🏢 {item.name}</option>)}
-          {!companyAccount && <option value="__add" disabled={addedCount >= MAX_ADDED_COMPANIES}>{addedCount >= MAX_ADDED_COMPANIES ? `Company limit reached (${MAX_ADDED_COMPANIES})` : '+ Add company…'}</option>}
-        </select>
-      </label>
+      <span className="topbar-where">{company.name} <span aria-hidden="true">›</span> <b>{view === 'company' || view === 'add-company' ? 'All sites' : state.settings.factoryName}</b></span>
       <span className="topbar-spacer" />
       {canTour && <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">▶ Tour</button>}
       <label className="role-switch" title="View the app as a different team">
@@ -164,13 +189,7 @@ export default function App() {
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
       </button>
     </header>
-    <main className="content">
-      {siteScoped && company.sites.length > 1 && <div className="site-bar">
-        <span className="eyebrow">Site</span>
-        {company.sites.map((site) => <button key={site.id} type="button" className={site.id === company.activeId ? 'active' : ''} onClick={() => companyActions.switchSite(site.id)}>
-          {templateById(site.state.settings.industryId)?.icon ?? '🏭'} {site.state.settings.factoryName}{site.state.onboarded ? '' : ' · set up'}
-        </button>)}
-      </div>}
+    <main className={`content${view === 'twin' ? ' full' : ''}`}>
       {(() => {
         const section = sections.find((item) => item.views.includes(view))
         return section && <div className="section-head">
@@ -178,7 +197,7 @@ export default function App() {
           <span className="flow-line">↳ {section.flow[view]}</span>
         </div>
       })()}
-      {(['twin', 'simulate', 'control', 'analysis', 'company', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
+      {(['twin', 'simulate', 'control', 'analysis', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
       {view === 'home' && <Home go={go} />}
       {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
@@ -188,8 +207,8 @@ export default function App() {
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
-      {view === 'company' && <Company onOpen={go} onAddSite={() => setPreviousSite(company.activeId)} />}
-      {view === 'twin' && <Twin onShowPlan={() => go('plan')} />}
+      {view === 'company' && <Company go={go} onAddSite={() => setPreviousSite(company.activeId)} />}
+      {view === 'twin' && <Site3D go={go} />}
       {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />}
       {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />)}
       {view === 'analysis' && <Analysis />}
