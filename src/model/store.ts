@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { templateById } from './templates'
-import type { ActionStatus, FactoryState, HistoryEntry, Machine, PlanAction, Role, Settings } from './types'
+import type { ActionStatus, FactoryState, HistoryEntry, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
 import { roleById, statusInfo } from './roles'
 import { measureById } from './measures'
 import { sampleLocations } from './malaysia'
@@ -43,7 +43,7 @@ export function machinesFromTemplate(industryId: string): Machine[] {
 }
 
 export function freshState(industryId = 'steel'): FactoryState {
-  return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId, ...productionFor(industryId) }, machines: machinesFromTemplate(industryId), plan: [], measuredSorbentCapacity: null }
+  return { version: 3, onboarded: false, settings: { ...defaultSettings, industryId, ...productionFor(industryId) }, machines: machinesFromTemplate(industryId), plan: [] }
 }
 
 /* ---------------- Demo companies, each with several sites ---------------- */
@@ -68,18 +68,14 @@ function makeCompany(name: string, sites: Site[], fixed = true): Company {
   return { id: newId('co'), name, sites, activeId: sites[0].id, fixed }
 }
 
-/**
- * Two sample customers. The steel group is the flagship: mill, downstream wire plant and head office.
- * A separate cement producer shows the platform works for other industries.
- */
+/** The sample customer: a steel group with a mill, a downstream wire plant and a head office. */
 export function defaultWorkspace(): Workspace {
   const steel = makeCompany('Malaysia Steel Demo Sdn Bhd', [
     siteFromTemplate('steel', 'Steel mini-mill'),
     siteFromTemplate('steel-downstream', 'Wire & galvanising plant'),
     siteFromTemplate('office', 'Head office'),
   ])
-  const cement = makeCompany('Malaysia Cement Demo Sdn Bhd', [siteFromTemplate('cement', 'Cement plant')])
-  return { version: 2, role: 'engineer', companies: [steel, cement], activeCompanyId: steel.id }
+  return { version: 2, role: 'engineer', companies: [steel], activeCompanyId: steel.id }
 }
 
 function normalise(parsed: FactoryState): FactoryState {
@@ -96,18 +92,19 @@ function loadWorkspace(): Workspace {
       if (parsed.version === 2 && Array.isArray(parsed.companies)) {
         const companies = parsed.companies.map((item) => {
           // Older saves have no `fixed` flag: treat the sample sites (by industry) as fixed.
-          const sampleIndustries = ['steel', 'steel-downstream', 'office', 'cement']
+          const sampleIndustries = ['steel', 'steel-downstream', 'office']
           const legacy = (item.sites ?? []).every((site) => site.fixed === undefined)
-          const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines))
+          // Sites of industries the app no longer offers (e.g. cement) are dropped.
+          const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines) && templateById(site.state.settings?.industryId ?? 'steel'))
             .map((site, index) => ({ ...site, fixed: legacy ? index < 3 && sampleIndustries.includes(site.state.settings?.industryId) : site.fixed, state: normalise(site.state) }))
             .map((site) => {
               // Sample sites saved before locations existed get their sample location.
               const where = site.fixed ? sampleLocations[site.state.settings.industryId] : undefined
               return where && !site.state.settings.stateId ? { ...site, state: { ...site.state, settings: { ...site.state.settings, stateId: where.stateId, industrialPark: where.park } } } : site
             })
-          const fixed = item.fixed ?? ['Malaysia Steel Demo Sdn Bhd', 'Malaysia Cement Demo Sdn Bhd'].includes(item.name)
+          const fixed = item.fixed ?? item.name === 'Malaysia Steel Demo Sdn Bhd'
           return { ...item, fixed, sites, activeId: sites.some((site) => site.id === item.activeId) ? item.activeId : sites[0]?.id }
-        }).filter((item) => item.sites.length > 0)
+        }).filter((item) => item.sites.length > 0 && item.name !== 'Malaysia Cement Demo Sdn Bhd')
         if (companies.length) return { version: 2, role: parsed.role ?? 'engineer', companies, activeCompanyId: companies.some((item) => item.id === parsed.activeCompanyId) ? parsed.activeCompanyId : companies[0].id }
       }
     }
@@ -215,7 +212,7 @@ export const companyActions = {
 export const actions = {
   replace: (next: FactoryState) => commit(next),
   finishOnboarding: (settings: Settings, machines: Machine[]) => commit({ ...state, onboarded: true, settings, machines, plan: [] }),
-  restart: () => commit({ ...freshState(state.settings.industryId), measuredSorbentCapacity: state.measuredSorbentCapacity, measuredCaptureEfficiency: state.measuredCaptureEfficiency ?? null }),
+  restart: () => commit({ ...freshState(state.settings.industryId), monthly: state.monthly }),
   updateSettings: (patch: Partial<Settings>) => {
     const fields = Object.keys(patch).filter((key) => JSON.stringify(patch[key as keyof Settings]) !== JSON.stringify(state.settings[key as keyof Settings]))
     const next = { ...state, settings: { ...state.settings, ...patch } }
@@ -287,14 +284,6 @@ export const actions = {
     ...state,
     machines: state.machines.map((item) => item.id === machineId ? { ...item, sensorChannel: channel } : item.sensorChannel === channel ? { ...item, sensorChannel: undefined } : item),
   }),
-  /** The sorbent capacity is a property of ChitoCapture's material, so it applies to every site. */
-  /** Capture efficiency from the rig (0–1). Like capacity, it describes the sorbent, so every site uses it. */
-  setMeasuredCaptureEfficiency: (value: number | null) => {
-    workspace = { ...workspace, companies: workspace.companies.map((item) => ({ ...item, sites: item.sites.map((site) => ({ ...site, state: { ...site.state, measuredCaptureEfficiency: value } })) })) }
-    save()
-  },
-  setMeasuredSorbentCapacity: (value: number | null) => {
-    workspace = { ...workspace, companies: workspace.companies.map((item) => ({ ...item, sites: item.sites.map((site) => ({ ...site, state: { ...site.state, measuredSorbentCapacity: value } })) })) }
-    save()
-  },
+  /** Replace this site's uploaded monthly history (bills, fuel and production). */
+  setMonthly: (monthly: MonthlyRecord[]) => commit(logged({ ...state, monthly }, `Uploaded ${monthly.length} months of activity data`)),
 }

@@ -28,23 +28,8 @@ const fuelShare = (share: number, paybackYears: number, lifetimeYears: number) =
   return { ...none, fuelSavedGJ: saved, capexRM: paybackCapex(0, saved, machine, ctx, paybackYears), lifetimeYears }
 }
 
-/** Default sorbent working capacity, used until the capture rig measures a real value (mmol/g). */
-export const DEFAULT_SORBENT_CAPACITY = 1.5
-/** Share of the flue gas treated by the pilot capture unit. */
-export const CAPTURE_SLIPSTREAM = 0.05
 /** Default share of a machine's electricity switched to the Green Electricity Tariff. */
 export const GREEN_SHARE_DEFAULT = 0.3
-/** Assumed share of the treated CO₂ captured, used until the rig measures it. */
-export const DEFAULT_CAPTURE_EFFICIENCY = 0.9
-const CYCLES_PER_YEAR = 6 * 330
-const SORBENT_RM_PER_KG = 60
-
-export function sorbentInventoryTonnes(capturedTPerYear: number, capacityMmolPerG: number) {
-  const perCycleT = capturedTPerYear / CYCLES_PER_YEAR
-  const tCO2PerTSorbent = capacityMmolPerG * 44.01 / 1_000
-  return tCO2PerTSorbent > 0 ? perCycleT / tCO2PerTSorbent : Infinity
-}
-
 export const measures: readonly Measure[] = [
   {
     id: 'air-leaks', name: 'Fix compressed-air leaks', short: 'Air leaks', category: 'Efficiency', appliesTo: ['compressor'],
@@ -149,19 +134,6 @@ export const measures: readonly Measure[] = [
     checks: ['Measure the COD load and biogas yield', 'Check the gas-engine or flare design'],
     basis: 'Captures 80% of process methane (as CO₂e); capex of RM 120 per t CO₂e/yr',
     estimate: (machine) => machine.processT <= 0 ? null : { ...none, directT: machine.processT * 0.8, capexRM: Math.round(machine.processT * 0.8 * 120), opexChangeRM: Math.round(machine.processT * 0.8 * 5), lifetimeYears: 15 },
-  },
-  {
-    id: 'chitosan-capture', name: 'Chitosan sorbent CO₂ capture', short: 'Chitosan capture', category: 'Carbon capture', appliesTo: ['kiln', 'boiler', 'furnace'],
-    explain: 'Pass a slipstream of the flue gas through an amine-modified chitosan sorbent that holds CO₂, then heat it with waste heat to release concentrated CO₂ for use or storage.',
-    checks: ['Measure the sorbent capacity on the bench rig (Sensors page)', 'Confirm waste heat is available for regeneration', 'Identify a CO₂ use or storage route'],
-    basis: '5% slipstream (or the share chosen in the simulation) at 90% capture (or the efficiency measured on the rig); 0.25 MWh/t electricity penalty with regeneration heat from waste heat; sorbent at RM 60/kg sized from the measured capacity, plus RM 1,000 per t/yr of equipment',
-    estimate: (machine, ctx, scale) => {
-      const pointSource = machine.processT + machine.fuelGJ * ctx.fuelKgPerGJ(machine.fuel) / 1_000
-      if (pointSource <= 0) return null
-      const captured = pointSource * Math.min(1, Math.max(0, scale ?? CAPTURE_SLIPSTREAM)) * (ctx.measuredCaptureEfficiency ?? DEFAULT_CAPTURE_EFFICIENCY)
-      const sorbentT = sorbentInventoryTonnes(captured, ctx.measuredSorbentCapacity ?? DEFAULT_SORBENT_CAPACITY)
-      return { ...none, directT: captured, addedElectricityMWh: captured * 0.25, capexRM: Math.round(captured * 1_000 + sorbentT * 1_000 * SORBENT_RM_PER_KG), opexChangeRM: Math.round(captured * 60), lifetimeYears: 15 }
-    },
   },
 
   /* ---------- Steel mini-mill process measures (indicative planning assumptions) ---------- */
@@ -302,7 +274,7 @@ export const steelUnitMeasures: Record<string, readonly string[]> = {
   eaf: ['eaf-optimisation', 'scrap-preheat', 'green-ppa'],
   lf: ['lf-control'],
   caster: ['line-idle'],
-  reheat: ['hot-charging', 'regen-burners', 'combustion', 'insulation', 'chitosan-capture'],
+  reheat: ['hot-charging', 'regen-burners', 'combustion', 'insulation'],
   rolling: ['mill-drives', 'green-ppa'],
   fume: ['vsd'],
   utilities: ['air-leaks', 'vsd'],

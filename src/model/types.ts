@@ -54,8 +54,10 @@ export type Settings = {
   targetReductionPct: number
   /** Annual production, used for per-tonne intensities and targets. Null when unknown. */
   productionTPerYear: number | null
-  /** What a tonne refers to, e.g. "steel" or "clinker". */
+  /** What a tonne refers to, e.g. "steel" or "wire". */
   productUnit: string
+  /** Carbon tax calculator inputs; defaults apply when absent. */
+  carbonTax?: import('./carbonTax').TaxInputs
 }
 
 /** A measure applied to a machine, with its start year. */
@@ -93,10 +95,21 @@ export type FactoryState = {
   plan: PlanAction[]
   /** Who changed what on this site, newest last. */
   history?: HistoryEntry[]
-  /** Sorbent capacity measured on the capture rig, in mmol CO₂ per g; null until measured. */
-  measuredSorbentCapacity: number | null
-  /** Capture efficiency measured on the rig (0–1, before breakthrough); null until measured. */
-  measuredCaptureEfficiency?: number | null
+  /** Monthly activity history uploaded from bills and meters, oldest first. */
+  monthly?: MonthlyRecord[]
+}
+
+/** One month of activity data for a site, e.g. from TNB bills, fuel invoices and production logs. */
+export type MonthlyRecord = {
+  /** Month as YYYY-MM. */
+  month: string
+  electricityMWh: number
+  /** Fuel burnt on site in GJ, by fuel. */
+  fuelGJ: Partial<Record<Exclude<FuelType, 'none'>, number>>
+  /** Non-energy (process) CO₂e in tonnes, e.g. EAF electrodes and charge carbon. */
+  processT: number
+  /** Product made that month, in tonnes. */
+  productionT: number
 }
 
 /** Per-year effect of a measure on one machine. Positive numbers are reductions. */
@@ -114,7 +127,7 @@ export type Measure = {
   id: string
   name: string
   short: string
-  category: 'Efficiency' | 'Heat recovery' | 'Renewables' | 'Fuel switch' | 'Process' | 'Methane capture' | 'Carbon capture'
+  category: 'Efficiency' | 'Heat recovery' | 'Renewables' | 'Fuel switch' | 'Process' | 'Methane capture'
   appliesTo: readonly MachineKind[]
   /** Steel-process measures only offered on these control-room units (see steelUnitMeasures). */
   steelOnly?: boolean
@@ -137,6 +150,4 @@ export type EstimateContext = {
   fuelKgPerGJ: (fuel: FuelType) => number
   electricityPriceRMPerMWh: number
   fuelPriceRMPerGJ: (fuel: FuelType) => number
-  measuredSorbentCapacity: number | null
-  measuredCaptureEfficiency: number | null
 }

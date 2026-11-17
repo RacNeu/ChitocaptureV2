@@ -11,8 +11,6 @@ export function contextFor(state: FactoryState): EstimateContext {
     fuelKgPerGJ: (fuel: FuelType) => fuelFactorsKgPerGJ[fuel],
     electricityPriceRMPerMWh: settings.electricityPriceRMPerMWh,
     fuelPriceRMPerGJ: (fuel: FuelType) => fuel === 'none' ? 0 : settings.fuelPriceRMPerGJ[fuel],
-    measuredSorbentCapacity: state.measuredSorbentCapacity,
-    measuredCaptureEfficiency: state.measuredCaptureEfficiency ?? null,
   }
 }
 

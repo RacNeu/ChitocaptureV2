@@ -66,7 +66,8 @@ describe('demo sign-in', () => {
   })
   it('shows a company account only its own company', () => {
     const workspace = defaultWorkspace()
-    expect(visibleCompanies(workspace, { accountId: 'MCD-001', company: 'Malaysia Cement Demo Sdn Bhd', since: '' }).map((item) => item.name)).toEqual(['Malaysia Cement Demo Sdn Bhd'])
-    expect(visibleCompanies(workspace, { accountId: 'DEMO', company: null, since: '' })).toHaveLength(2)
+    const withOther = { ...workspace, companies: [...workspace.companies, { ...workspace.companies[0], id: 'other', name: 'Other Sdn Bhd' }] }
+    expect(visibleCompanies(withOther, { accountId: 'MSD-001', company: 'Malaysia Steel Demo Sdn Bhd', since: '' }).map((item) => item.name)).toEqual(['Malaysia Steel Demo Sdn Bhd'])
+    expect(visibleCompanies(withOther, { accountId: 'DEMO', company: null, since: '' })).toHaveLength(2)
   })
 })

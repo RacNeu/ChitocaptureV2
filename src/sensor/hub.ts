@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react'
 import { parseLine, type Reading } from './parse'
-import type { RigSample } from './rig'
 
 /** Minimal Web Serial typings (Chrome and Edge only; not in the TypeScript DOM library). */
 type SerialPortLike = {
@@ -11,7 +10,7 @@ type SerialPortLike = {
 type SerialLike = { requestPort: () => Promise<SerialPortLike> }
 
 export type SensorStatus = 'off' | 'simulated' | 'connecting' | 'live' | 'error'
-export type SimMode = 'duct' | 'rig'
+export type SimMode = 'duct'
 
 export type Point = { at: number } & Reading
 
@@ -21,12 +20,10 @@ export type SensorState = {
   message: string
   latest: Point | null
   history: Point[]
-  rigRecording: boolean
-  rigSamples: RigSample[]
 }
 
 const MAX_HISTORY = 600
-let state: SensorState = { status: 'off', source: '', message: '', latest: null, history: [], rigRecording: false, rigSamples: [] }
+let state: SensorState = { status: 'off', source: '', message: '', latest: null, history: [] }
 const listeners = new Set<() => void>()
 const emit = (patch: Partial<SensorState>) => { state = { ...state, ...patch }; listeners.forEach((listener) => listener()) }
 
@@ -39,11 +36,7 @@ export function pushReading(reading: Reading, at = Date.now()) {
   // Carry forward channels a board did not send this time, but keep the new timestamp.
   point.at = at
   const history = [...state.history, point].slice(-MAX_HISTORY)
-  const patch: Partial<SensorState> = { latest: point, history }
-  if (state.rigRecording && Number.isFinite(point.co2_in) && Number.isFinite(point.co2_out)) {
-    patch.rigSamples = [...state.rigSamples, { at, co2_in: point.co2_in!, co2_out: point.co2_out! }]
-  }
-  emit(patch)
+  emit({ latest: point, history })
 }
 
 let simTimer: ReturnType<typeof setInterval> | null = null
@@ -61,24 +54,15 @@ export async function stop() {
 /**
  * Simulated sensors so the demo works without hardware.
  * duct: a flue-duct CO₂ monitor drifting around 800 ppm.
- * rig:  a sorbent column fed with about 5,000 ppm CO₂. The outlet starts low and "breaks
- *       through" over about 2.5 minutes, then the bed is regenerated and the cycle repeats.
  */
-export async function startSimulation(mode: SimMode) {
+export async function startSimulation(_mode: SimMode = 'duct') {
   await stop()
   const started = Date.now()
-  emit({ status: 'simulated', source: mode === 'rig' ? 'Simulated capture rig' : 'Simulated duct sensor', message: 'No hardware connected: these readings are simulated.', history: [], latest: null })
+  emit({ status: 'simulated', source: 'Simulated duct sensor', message: 'No hardware connected: these readings are simulated.', history: [], latest: null })
   simTimer = setInterval(() => {
     const seconds = (Date.now() - started) / 1_000
     const noise = () => (Math.random() - 0.5) * 30
-    if (mode === 'duct') {
-      pushReading({ co2: 800 + 120 * Math.sin(seconds / 20) + noise(), temp: 31 + Math.sin(seconds / 40), rh: 62 + noise() / 10 })
-    } else {
-      const cycle = seconds % 210
-      const inlet = 5_000 + noise() * 3
-      const outlet = cycle < 180 ? inlet / (1 + Math.exp(-(cycle - 110) / 14)) + 420 * (1 - cycle / 180) : 420 + noise()
-      pushReading({ co2_in: inlet, co2_out: Math.max(400, outlet), temp: 26, rh: 40 })
-    }
+    pushReading({ co2: 800 + 120 * Math.sin(seconds / 20) + noise(), temp: 31 + Math.sin(seconds / 40), rh: 62 + noise() / 10 })
   }, 1_000)
 }
 
@@ -120,5 +104,3 @@ async function readLoop() {
   }
 }
 
-export function startRigRun() { emit({ rigRecording: true, rigSamples: [] }) }
-export function stopRigRun() { emit({ rigRecording: false }) }

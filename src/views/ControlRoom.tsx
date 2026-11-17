@@ -4,7 +4,6 @@ import { FlagEU } from '../components/Flags'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { Sparkline } from '../components/Charts'
-import BrandLogo from '../components/BrandLogo'
 import type { PickId, SimFrame, UnitTooltip } from '../components/SteelHall3D'
 import { SIM_EVENT, type SimCommand } from '../model/simEvents'
 import { num, ringgit, tonnes } from '../format'
@@ -16,12 +15,8 @@ import DataLinkNote from '../components/DataLinkNote'
 import FullscreenButton from '../components/FullscreenButton'
 import { annual, cbam, steelTargets, intensity, liveState, noUpgrades, steelUnits, tonnesPerHour, upgradeImpacts, upgradeInfo, type SteelParams, type UnitId, type Upgrades } from '../model/steel'
 
-/** Share of the reheat stack gas treated by the ChitoCapture pilot unit. */
-const PILOT_SHARE = 0.05
-
 const SteelHall3D = lazy(() => import('../components/SteelHall3D'))
 const EafDeepDive = lazy(() => import('../components/EafDeepDive'))
-const CaptureDeepDive = lazy(() => import('../components/CaptureDeepDive'))
 
 const speeds = [{ label: '⏸', value: 0 }, { label: '1 min/s', value: 1 }, { label: '5 min/s', value: 5 }, { label: '30 min/s', value: 30 }]
 const electricUnits: Exclude<UnitId, 'scrap' | 'reheat'>[] = ['eaf', 'rolling', 'lf', 'fume', 'utilities', 'oxygen', 'caster']
@@ -34,13 +29,11 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh),
     electricityRMPerMWh: state.settings.electricityPriceRMPerMWh,
     gasRMPerGJ: state.settings.fuelPriceRMPerGJ['natural-gas'],
-    captureEfficiency: state.measuredCaptureEfficiency ?? undefined,
-    sorbentCapacity: state.measuredSorbentCapacity ?? undefined,
-  }), [state.settings, state.measuredCaptureEfficiency, state.measuredSorbentCapacity, link])
-  const [upgrades, setUpgrades] = useState<Upgrades>({ ...noUpgrades, captureShare: PILOT_SHARE })
+  }), [state.settings, link])
+  const [upgrades, setUpgrades] = useState<Upgrades>(noUpgrades)
   const [speed, setSpeed] = useState(1)
   const [showFlows, setShowFlows] = useState(true)
-  const [deepDive, setDeepDive] = useState<null | 'eaf' | 'capture'>(null)
+  const [deepDive, setDeepDive] = useState<null | 'eaf'>(null)
   const [heatmap, setHeatmap] = useState(false)
   const [selected, setSelected] = useState<PickId | null>(() => takePendingUnit() as PickId | null)
 
@@ -102,7 +95,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
   /** CO₂ rate of one unit (t/h) for a given live snapshot. */
   const unitCo2At = (snapshot: SimFrame, id: UnitId) => {
     const { live: l, params: p, upgrades: u } = snapshot
-    if (id === 'reheat') return l.reheatGJPerH * p.gasKgPerGJ / 1_000 - l.capturedTPerH
+    if (id === 'reheat') return l.reheatGJPerH * p.gasKgPerGJ / 1_000
     if (id === 'scrap') return 0
     const electric = l.mw[id] * p.gridKgPerKWh * (1 - u.greenShare)
     return id === 'eaf' ? electric + (l.phase === 'Melting' || l.phase === 'Refining' ? p.eafDirectKgPerT * tonnesPerHour(p) / 1_000 / 0.8 : 0) : electric
@@ -121,21 +114,13 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
     hot: unit.id === topUnit || unit.id === 'reheat' && unitCo2('reheat') > unitCo2(topUnit),
   }))
   const describe = useCallback((id: PickId): UnitTooltip | null => {
-    if (id === 'capture') {
-      const f = frame.current
-      return {
-        title: 'ChitoCapture unit (chitosan CO₂ capture)',
-        rows: [['Flue gas treated', `${num(f.upgrades.captureShare * 100)}% of reheat stack`], ['Capturing now', `${num(f.live.capturedTPerH * 1_000)} kg CO₂/h`], ['Columns', '2 · one captures, one regenerates']],
-        note: 'Sits beside the reheating furnace and draws a slipstream of its exhaust through a chitosan sorbent bed. Furnace waste heat regenerates the full column and releases concentrated CO₂.',
-      }
-    }
     const unit = steelUnits.find((item) => item.id === id)
     if (!unit) return null
     // Always read the latest frame so the hover card matches the side panel.
     const f = frame.current
     const co2 = unitCo2At(f, id)
     const rows: [string, string][] = id === 'reheat'
-      ? [['Gas burnt', `${num(f.live.reheatGJPerH)} GJ/h`], ['CO₂ now', `${num(co2, 1)} t/h`], ['Share of plant CO₂', `${num(co2 / Math.max(1e-9, f.live.co2TPerH) * 100)}%`], ['Captured', f.live.capturedTPerH > 0 ? `${num(f.live.capturedTPerH, 1)} t/h` : 'none']]
+      ? [['Gas burnt', `${num(f.live.reheatGJPerH)} GJ/h`], ['CO₂ now', `${num(co2, 1)} t/h`], ['Share of plant CO₂', `${num(co2 / Math.max(1e-9, f.live.co2TPerH) * 100)}%`]]
       : id === 'scrap' ? [['Steel throughput', `${num(tonnesPerHour(f.params))} t/h`], ['Heat', `#${f.live.heatNumber} · ${f.live.phase}`]]
         : [['Power now', `${num(f.live.mw[id], 1)} MW`], ['CO₂ now', `${num(co2, 1)} t/h`], ['Share of plant CO₂', `${num(co2 / Math.max(1e-9, f.live.co2TPerH) * 100)}%`], ['Per tonne', `${num(intensity(f.params, f.upgrades).kwh[id])} kWh/t`]]
     if (id === 'eaf') rows.unshift(['Phase', `${f.live.phase} (${num(f.live.phaseProgress * 100)}%)`])
@@ -178,26 +163,18 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
         <Suspense fallback={<div className="plant3d loading">Loading…</div>}>
           {deepDive === 'eaf'
             ? <EafDeepDive frame={frame} onClose={() => setDeepDive(null)} />
-            : deepDive === 'capture'
-            ? <CaptureDeepDive frame={frame} capacity={state.measuredSorbentCapacity} onClose={() => setDeepDive(null)} />
-            : <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} onDive={setDeepDive} heatmap={heatmap} co2Of={unitCo2} labels={upgrades.captureShare > 0 ? [...labels, { id: 'capture' as const, text: '🧪 ChitoCapture unit', hot: false }] : labels} describe={describe} />}
+            : <SteelHall3D frame={frame} showFlows={showFlows} selected={selected} onSelect={setSelected} onDive={setDeepDive} heatmap={heatmap} co2Of={unitCo2} labels={labels} describe={describe} />}
         </Suspense>
-        {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span>{upgrades.captureShare > 0 && <span><i className="fl-capture" />Captured CO₂</span>}<span><i className="fl-smoke" />CO₂ to air</span></div>}
+        {showFlows && !deepDive && <div className="flow-legend"><span><i className="fl-power" />Electricity</span><span><i className="fl-gas" />Natural gas</span><span><i className="fl-smoke" />CO₂ to air</span></div>}
         <FullscreenButton target={hallCardRef} />
       </div>
       <aside className="panel live-panel">
-        {!selected && !deepDive && <p className="pick-hint">Click a unit in the mill to see its details. Double-click the arc furnace or the green ChitoCapture unit to go inside.</p>}
+        {!selected && !deepDive && <p className="pick-hint">Click a unit in the mill to see its details. Double-click the arc furnace to go inside.</p>}
         {selected === 'eaf' && <div className="pilot-card eaf-card">
           <div className="pilot-head"><span className="eaf-icon" aria-hidden="true">🔥</span><b>Electric arc furnace</b><em>{live.phase}</em><button type="button" className="icon-btn" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
           <p>Drawing <b>{num(live.mw.eaf, 1)} MW</b> · heat #{live.heatNumber}, {num(live.phaseProgress * 100)}% through {live.phase.toLowerCase()} · <b>{num(unitCo2('eaf'), 1)} t CO₂/h</b>, the mill’s biggest electricity user</p>
           <small>{num(now.kwh.eaf)} kWh per tonne of steel · target {num(steelTargets.eaf)} kWh/t{now.kwh.eaf > steelTargets.eaf * 1.02 ? ` (+${num((now.kwh.eaf / steelTargets.eaf - 1) * 100)}%)` : ' ✓'}</small>
           {deepDive !== 'eaf' && <button type="button" className="btn small pilot-dive" onClick={() => setDeepDive('eaf')}>🔍 Look inside the furnace</button>}
-        </div>}
-        {selected === 'capture' && upgrades.captureShare > 0 && <div className="pilot-card">
-          <div className="pilot-head"><BrandLogo size={26} /><b>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'ChitoCapture pilot unit' : 'ChitoCapture capture unit'}</b><em>{upgrades.captureShare <= PILOT_SHARE + 1e-9 ? 'pilot' : 'scale-up'}</em><button type="button" className="icon-btn" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
-          <p>Treating {num(upgrades.captureShare * 100)}% of the reheat-stack gas · capturing <b>{num(live.capturedTPerH * 1_000)} kg CO₂/h</b> · {tonnes(now.capturedKgPerT * nowYear.steelT / 1_000)} a year</p>
-          <small>{state.measuredSorbentCapacity ? `Sorbent capacity ${num(state.measuredSorbentCapacity, 2)} mmol/g, measured on the ChitoCapture rig.` : 'Sorbent capacity is still assumed: measure it on the ChitoCapture rig (Sensors tab).'}</small>
-          {deepDive !== 'capture' && <button type="button" className="btn small pilot-dive" onClick={() => setDeepDive('capture')}>🧪 Look inside the unit</button>}
         </div>}
         <h2>Where the CO₂ is coming from right now</h2>
         <ul className="unit-bars">
@@ -208,7 +185,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
             </button>
           </li>)}
         </ul>
-        {selected && selected !== 'eaf' && selected !== 'capture' && (() => {
+        {selected && selected !== 'eaf' && (() => {
           const unit = steelUnits.find((item) => item.id === selected)
           if (!unit) return null
           const target = selected === 'scrap' ? null : steelTargets[selected]
@@ -240,10 +217,9 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
         elec('Ladle furnace · electricity', 'lf'),
         elec('Continuous caster · electricity', 'caster'),
         { step: 'Reheating furnace · natural gas', activity: `${num(now.reheatGJPerT, 2)} GJ/t`, factor: `${params.gasKgPerGJ} kg CO₂/GJ`, today: base.reheatKgPerT, withUp: now.reheatGJPerT * params.gasKgPerGJ, scope: 1, target: `${steelTargets.reheat} GJ/t`, above: now.reheatGJPerT > steelTargets.reheat * 1.02 },
-        ...(now.capturedKgPerT > 0 ? [{ step: 'Chitosan capture on reheat stack', activity: `${num(upgrades.captureShare * 100)}% of flue gas treated, ${num((params.captureEfficiency ?? 0.9) * 100)}% captured${state.measuredCaptureEfficiency ? ' (measured on the rig)' : ' (assumed)'}`, factor: 'removed', today: 0, withUp: -now.capturedKgPerT, scope: 1 as const }] : []),
         elec('Rolling mill · electricity', 'rolling'),
         elec('Fume extraction fans · electricity', 'fume'),
-        elec('Compressed air, water' + (now.capturedKgPerT > 0 ? ' & capture' : '') + ' · electricity', 'utilities'),
+        elec('Compressed air & water · electricity', 'utilities'),
         elec('Oxygen plant · electricity', 'oxygen'),
       ]
       const chain = [
@@ -284,16 +260,16 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
       <div className="upgrade-grid">
         {upgradeInfo.map((info) => {
           const impact = impacts.find((item) => item.info.key === info.key)
-          const isSlider = info.key === 'greenShare' || info.key === 'captureShare'
+          const isSlider = info.key === 'greenShare'
           const on = Boolean(upgrades[info.key])
-          return <article key={info.key} className={`upgrade${on ? ' on' : ''}${info.key === 'captureShare' ? ' capture' : ''}`}>
+          return <article key={info.key} className={`upgrade${on ? ' on' : ''}`}>
             <div className="upgrade-top">
               <strong>{info.name}</strong>
               {!isSlider && <label className="switch"><input type="checkbox" checked={on} onChange={() => toggle(info.key)} /><span /></label>}
             </div>
             <p>{info.what}</p>
-            {isSlider && <label className="slider">{info.key === 'greenShare' ? 'Green share of electricity' : 'Share of stack gas treated'}
-              <input type="range" min="0" max={info.key === 'greenShare' ? 0.6 : 1} step="0.05" value={upgrades[info.key] as number} onChange={(event) => setUpgrades({ ...upgrades, [info.key]: Number(event.target.value) })} />
+            {isSlider && <label className="slider">Green share of electricity
+              <input type="range" min="0" max={0.6} step="0.05" value={upgrades[info.key] as number} onChange={(event) => setUpgrades({ ...upgrades, [info.key]: Number(event.target.value) })} />
               <output>{num((upgrades[info.key] as number) * 100)}%</output></label>}
             {impact ? <div className="upgrade-stats">
               <span><b>−{num(impact.savedKgPerT, 1)}</b> kg/t</span>
@@ -301,7 +277,6 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
               <span><b>{impact.capexRM ? ringgit(impact.capexRM) : '—'}</b> capex</span>
               <span><b>{impact.paybackYears ? `${num(impact.paybackYears, 1)} yr` : impact.annualSavingRM < 0 ? 'costs more' : '—'}</b> payback</span>
             </div> : <small className="muted">{info.basis}</small>}
-            {info.key === 'captureShare' && <small className="muted">{state.measuredSorbentCapacity ? `Sorbent capacity measured on the ChitoCapture rig: ${num(state.measuredSorbentCapacity, 2)} mmol/g.` : 'Measure the sorbent capacity on the ChitoCapture rig (Sensors tab) to firm up this estimate.'} {state.measuredCaptureEfficiency ? `Capture efficiency measured on the rig: ${num(state.measuredCaptureEfficiency * 100, 1)}%.` : 'Capture efficiency is assumed at 90% until measured.'} It only treats the reheating furnace exhaust. Most mini-mill CO₂ comes from grid electricity.</small>}
           </article>
         })}
       </div>
@@ -329,7 +304,7 @@ export default function ControlRoom({ onChooseSite }: { onChooseSite: () => void
           </tbody>
         </table>
       </div>
-      <p className="note">Simplified illustration only. Real CBAM reporting uses verified installation data, product-specific rules, precursor emissions and EU default values. Captured CO₂ only reduces the figure if it is stored or used under the EU's rules. Check the current regulation and the latest Malaysian carbon-price announcements before relying on any figure.</p>
+      <p className="note">Simplified illustration only. Real CBAM reporting uses verified installation data, product-specific rules, precursor emissions and EU default values. Check the current regulation and the latest Malaysian carbon-price announcements before relying on any figure.</p>
     </section>
   </div>
 }
