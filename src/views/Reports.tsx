@@ -14,6 +14,9 @@ import { annual, cbam, cbamPhaseIn, defaultSteelParams, intensity, noUpgrades, t
 import { useCompany, useFactory, useRole } from '../model/store'
 import { templateById } from '../model/templates'
 import { MalaysiaRules } from '../components/Malaysia'
+import SourceBadge from '../components/SourceBadge'
+import ValidationPanel from '../components/ValidationPanel'
+import { checkMasteel } from '../model/validation'
 import { stateById } from '../model/malaysia'
 
 type Kind = 'bursa' | 'site' | 'eeca' | 'cbam'
@@ -211,6 +214,7 @@ export default function Reports() {
       <ul>
         <li>Scope 2 is reported both ways, as the GHG Protocol Scope 2 Guidance asks<Cite ids={['ghgp']} />. Location-based (headline): purchased electricity × Malaysian grid emission factor {num(ctx.gridKgPerKWh, 3)} kg CO₂/kWh<Cite ids={['gef']} />. Market-based: electricity covered by contractual instruments (TNB Green Electricity Tariff, renewable energy certificates, green PPAs) at zero, the rest at {num(residual, 3)} kg CO₂/kWh{state.settings.residualKgPerKWh === undefined ? ' — the location-based factor, because Malaysia has no published residual mix' : ' (residual factor set in Settings)'}. Green instruments must be retired or allocated to this site for the reporting period.</li>
         <li>Scope 1 combustion uses IPCC 2006 default CO₂ factors per GJ of fuel<Cite ids={['ipcc']} />. Diesel in litres is converted at 0.0386 GJ/L.</li>
+        <li>Calculation check: Masteel’s published FY2022–FY2024 electricity and diesel figures, run through this calculation, reproduce its reported Scope 2 exactly ({checkMasteel(state.settings).map((r) => `FY${r.year} ${num(r.scope2.ours)} t`).join(', ')}) and FY2024 diesel within {num(Math.abs(checkMasteel(state.settings).at(-1)!.diesel?.pct ?? 0), 1)}% (Masteel Sustainability Report FY2024, pp. 50–51, 152).</li>
         <li>Process emissions are entered by the site from carbon inputs (electrodes, charge and injected carbon).</li>
         <li>Monthly figures are summed over the reporting period{ghgMonths.length < 12 ? ` (${12 - ghgMonths.length} month(s) missing)` : ''}.</li>
       </ul>
@@ -271,6 +275,8 @@ export default function Reports() {
         <label className="field">EU carbon price (€/t)<input type="number" min="0" value={euPrice} onChange={(event) => setEuPrice(Number(event.target.value))} /></label></>}
     </div>
 
+    <div className="no-print"><ValidationPanel /></div>
+    {kind !== 'bursa' && <div className="no-print"><SourceBadge onUpload={() => { window.location.hash = 'data' }} /></div>}
     <div className="no-print"><MalaysiaRules state={state} /></div>
     <article className="report-paper">
       <header className="rep-head">

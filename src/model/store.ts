@@ -4,6 +4,7 @@ import type { ActionStatus, DataChange, Evidence, FactoryState, FindingState, Hi
 import { diffRecords, evidenceShare, marketFactor, scopesFor } from './history'
 import { gridFactor } from './factors'
 import { roleById, statusInfo } from './roles'
+import { calibrate } from './calibration'
 import { measureById } from './measures'
 import { sampleLocations } from './malaysia'
 
@@ -80,10 +81,18 @@ export function defaultWorkspace(): Workspace {
   return { version: 2, role: 'engineer', companies: [steel], activeCompanyId: steel.id }
 }
 
+/** Match the machine list to the bills, when there are bills. */
+function matched(next: FactoryState): FactoryState {
+  const result = calibrate(next.machines, next.monthly ?? [], next.settings, newId)
+  return result ? { ...next, machines: result.machines, calibration: result.calibration, settings: { ...next.settings, productionTPerYear: result.productionTPerYear } } : next
+}
+
 function normalise(parsed: FactoryState): FactoryState {
   const industryId = parsed.settings?.industryId ?? defaultSettings.industryId
   const production = 'productionTPerYear' in (parsed.settings ?? {}) ? {} : productionFor(industryId)
-  return { ...parsed, machines: enrich(parsed.machines, industryId), settings: { ...defaultSettings, ...production, ...parsed.settings, fuelPriceRMPerGJ: { ...defaultSettings.fuelPriceRMPerGJ, ...parsed.settings?.fuelPriceRMPerGJ } }, plan: parsed.plan ?? [] }
+  const out: FactoryState = { ...parsed, machines: enrich(parsed.machines, industryId), settings: { ...defaultSettings, ...production, ...parsed.settings, fuelPriceRMPerGJ: { ...defaultSettings.fuelPriceRMPerGJ, ...parsed.settings?.fuelPriceRMPerGJ } }, plan: parsed.plan ?? [] }
+  // Saves from before calibration existed: match them once on load.
+  return out.monthly?.length && !out.calibration ? matched(out) : out
 }
 
 function loadWorkspace(): Workspace {
@@ -302,10 +311,13 @@ export const actions = {
     const next = [...kept, ...incoming].sort((a, b) => a.month.localeCompare(b.month))
     const role = getRole(), who = roleById(role).person, at = new Date().toISOString()
     const changes: DataChange[] = diffRecords(before, next).map((change) => ({ ...change, at, who, role, source }))
-    commit(logged({ ...state, monthly: next, monthlyLog: [...(state.monthlyLog ?? []), ...changes].slice(-5_000) },
+    const calibrated = matched({ ...state, monthly: next })
+    commit(logged({ ...calibrated, monthlyLog: [...(state.monthlyLog ?? []), ...changes].slice(-5_000) },
       next.length ? `${source}: ${incoming.length} months of activity data (${changes.length} field changes${skipped.length ? `, ${skipped.length} locked months kept` : ''})` : 'Cleared the monthly data'))
     return skipped
   },
+  /** Re-match the machine list to the bills (after machines were edited). */
+  rematch: () => commit(logged(matched(state), 'Matched the machine list to the bills')),
   /** Attach a source document to a month. Not allowed in a signed-off year. */
   attachEvidence: (month: string, evidence: Evidence) => {
     if ((state.locks ?? []).some((lock) => lock.year === Number(month.slice(0, 4)))) return false
