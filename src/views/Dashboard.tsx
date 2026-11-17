@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Sparkline } from '../components/Charts'
 import ExpectedVsActual from '../components/ExpectedVsActual'
 import Info from '../components/Info'
+import EmptyState from '../components/EmptyState'
 import { num, ringgit, tonnes } from '../format'
 import { defaultTaxInputs, type RateCase, type TaxInputs } from '../model/carbonTax'
 import { fuelFactorsKgPerGJ, fuelLabels, gridFactor } from '../model/factors'
@@ -142,6 +143,12 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
   const { records } = historyFor(state)
   const found = useMemo(() => siteFindings(state).findings.filter((f) => f.state.status !== 'fixed' && f.state.status !== 'dismissed'), [state])
 
+  if (view.empty) return <div className="dashboard">
+    <header className="dash-head"><div><h1>Dashboard</h1><p className="muted">{state.settings.factoryName} · Scope 1 & 2</p></div></header>
+    <EmptyState icon="▦" title="No data yet" action={<button type="button" className="btn" onClick={onUpload}>⇪ Upload monthly bills</button>}>Upload 12+ months of electricity bills, fuel invoices and production to see Scope 1 & 2, the forecast and your carbon tax.</EmptyState>
+    {found.length > 0 && <button type="button" className="findings-strip" onClick={onFindings}><span className="strip-flag" aria-hidden="true">⚑</span><span><b>{found.length} ways to save {ringgit(found.reduce((s, f) => s + f.rmPerMonth, 0))}/month</b><small>From your half-hourly data</small></span><span className="strip-go">View →</span></button>}
+  </div>
+
   const fullYears = view.years.filter((y) => y.actualMonths === 12)
   const periodMonths = period === 'last12' ? view.months.slice(-12) : view.months.filter((m) => m.month.startsWith(period))
   const priorMonths = period === 'last12' ? (view.months.length >= 24 ? view.months.slice(-24, -12) : []) : view.months.filter((m) => m.month.startsWith(String(Number(period) - 1)))
@@ -200,8 +207,7 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
       </div>
     </header>
 
-    {view.sample && <div className="sample-banner"><b>Sample data</b> · <button type="button" className="link" onClick={onUpload}>Upload your bills</button> to see real figures.</div>}
-    {!view.sample && stale && <div className="sample-banner">Latest month is over 3 months old · <button type="button" className="link" onClick={onUpload}>Upload recent bills</button></div>}
+    {stale && <div className="sample-banner">Latest month is over 3 months old · <button type="button" className="link" onClick={onUpload}>Upload recent bills</button></div>}
 
     <div className="scope-tabs" role="tablist" aria-label="Emissions view">
       {(Object.keys(modeLabel) as Mode[]).map((key) => <button key={key} type="button" role="tab" aria-selected={mode === key} className={mode === key ? 'active' : ''} onClick={() => setMode(key)}>{modeLabel[key]}</button>)}

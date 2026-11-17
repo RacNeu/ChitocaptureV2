@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { num, tonnes } from '../format'
-import { CSV_TEMPLATE, evidenceShare, importCsv, importRows, monthLabel, sampleHistory, scopesFor, sha256Hex, type ImportResult } from '../model/history'
+import { CSV_TEMPLATE, evidenceShare, importCsv, importRows, monthLabel, scopesFor, sha256Hex, type ImportResult } from '../model/history'
 import { roleById } from '../model/roles'
 import { actions, useFactory, useRole } from '../model/store'
 import type { Evidence } from '../model/types'
@@ -89,10 +89,9 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
     <section className="card">
       <header className="card-head">
         <div><h2>{result && !result.error ? 'Preview' : current.length ? `Your data · ${current.length} months` : 'No data uploaded yet'}</h2>
-          <p className="muted small">{current.length || result ? 'Scopes use the factors in Settings' : 'Showing sample data until you upload'}</p></div>
+          <p className="muted small">{current.length || result ? 'Scopes use the factors in Settings' : 'Nothing uploaded yet'}</p></div>
         {!result && <div className="row-actions">
           {current.length > 0 && <button type="button" className="btn ghost small" onClick={() => { if (confirm(lockedYears.size ? 'Remove the uploaded months? Months in signed-off years are kept.' : 'Remove the uploaded months? The dashboard goes back to sample data.')) use([], 'Cleared data') }}>Clear data</button>}
-          {!current.length && <button type="button" className="btn ghost small" onClick={() => use(sampleHistory(state), 'Sample months loaded')}>Load sample months to edit</button>}
         </div>}
       </header>
       {rows.length > 0 && <div className="table-wrap"><table className="grid-table">

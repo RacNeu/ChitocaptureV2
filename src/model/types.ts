@@ -63,6 +63,12 @@ export type Settings = {
   productUnit: string
   /** Tariff for demand and idle-energy costs; TNB medium-voltage defaults apply when absent. */
   tariff?: { mdRMPerKW: number; energyRMPerMWh: number }
+  /** Site coordinates, used to fetch NASA climate data. */
+  location?: { lat: number; lon: number }
+  /** Answers to the site risk checklist; unanswered items stay unknown. */
+  riskChecklist?: RiskChecklist
+  /** The site's own assumptions behind savings estimates (shown tagged as assumptions). */
+  assumptions?: { idleAvoidablePct?: number; peakHoursMovable?: number; baseCutPct?: number }
   /** Carbon tax calculator inputs; defaults apply when absent. */
   carbonTax?: import('./carbonTax').TaxInputs
 }
@@ -106,6 +112,8 @@ export type FactoryState = {
   monthly?: MonthlyRecord[]
   /** Half-hourly electricity demand (the meter's load profile). */
   interval?: IntervalSeries
+  /** 30 years of NASA POWER climate data for the site's location. */
+  climate?: import('./climate').ClimateSummary
   /** What the team has done with each finding, by finding key. */
   findings?: Record<string, FindingState>
   /** Field-level changes to the monthly data, oldest first. */
@@ -116,6 +124,24 @@ export type FactoryState = {
 
 /** Half-hourly average demand in kW from `start` (local time, YYYY-MM-DDTHH:mm); null = missing. */
 export type IntervalSeries = { start: string; kW: (number | null)[]; source: string }
+
+/** Site risk checklist, filled in by the plant team. */
+export type RiskChecklist = {
+  /** Floods that reached the site in the last 10 years. */
+  pastFloods?: 0 | 1 | 2
+  /** Inside a flood-prone area on JPS maps. */
+  floodProneArea?: 'yes' | 'no'
+  riverDistance?: 'near' | 'mid' | 'far'
+  /** Transformers, switchgear or drives at ground level. */
+  groundLevelCritical?: boolean
+  downtimeDaysPerFlood?: number
+  /** What a full day of shutdown costs (lost margin, restart), RM. */
+  costPerDayRM?: number
+  /** Days a year lost or slowed by heat (trips, derating, worker breaks). */
+  heatLostDaysPerYear?: number
+  /** Expected TNB tariff change at the next review, %. */
+  tariffRisePct?: number
+}
 
 export type FindingStatus = 'new' | 'assigned' | 'in-progress' | 'fixed' | 'dismissed'
 export type FindingState = { status: FindingStatus; owner?: string; note?: string; updatedAt: string }

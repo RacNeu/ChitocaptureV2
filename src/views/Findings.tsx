@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react'
-import { num, ringgit, tonnes } from '../format'
-import { IDLE_AVOIDABLE, kindLabel, siteFindings } from '../model/findings'
+import { ringgit, tonnes } from '../format'
+import { assumptionsFor, kindLabel, PEAK_HOUR_CHOICES, siteFindings } from '../model/findings'
 import { measureById } from '../model/measures'
 import { roleById } from '../model/roles'
 import { actions, useFactory, useRole } from '../model/store'
 import type { FindingStatus } from '../model/types'
 import Info from '../components/Info'
+import EmptyState from '../components/EmptyState'
 
 const statuses: { id: FindingStatus; label: string }[] = [
   { id: 'new', label: 'New' }, { id: 'assigned', label: 'Assigned' }, { id: 'in-progress', label: 'In progress' }, { id: 'fixed', label: 'Fixed' }, { id: 'dismissed', label: 'Dismissed' },
 ]
 type Filter = 'open' | 'fixed' | 'all'
 
-export default function Findings({ onOpen }: { onOpen: (view: 'load' | 'dashboard' | 'plan') => void }) {
+export default function Findings({ onOpen }: { onOpen: (view: 'load' | 'dashboard' | 'plan' | 'data') => void }) {
   const state = useFactory()
   const role = useRole()
   const view = useMemo(() => siteFindings(state), [state])
+  const assume = assumptionsFor(state)
+  const setAssume = (patch: NonNullable<typeof state.settings.assumptions>) => actions.updateSettings({ assumptions: { ...state.settings.assumptions, ...patch } })
   const [filter, setFilter] = useState<Filter>('open')
   const open = view.findings.filter((f) => f.state.status !== 'fixed' && f.state.status !== 'dismissed')
   const shown = filter === 'all' ? view.findings : filter === 'fixed' ? view.findings.filter((f) => f.state.status === 'fixed') : open
@@ -26,7 +29,8 @@ export default function Findings({ onOpen }: { onOpen: (view: 'load' | 'dashboar
     <header className="dash-head">
       <div><h1>Findings</h1><p className="muted">{state.settings.factoryName} · where you’re losing money, and what to do</p></div>
     </header>
-    {view.loadSample && <div className="sample-banner"><b>Sample data</b> · upload your meter data for real savings</div>}
+    {!view.load && !view.hasMonthly && <EmptyState icon="⚑" title="Nothing to analyse yet" action={<><button type="button" className="btn" onClick={() => onOpen('load')}>⚡ Upload half-hourly data</button><button type="button" className="btn ghost" onClick={() => onOpen('data')}>⇪ Upload monthly bills</button></>}>Findings come from your own meter readings and bills.</EmptyState>}
+    {(view.load || view.hasMonthly) && !(view.load && view.hasMonthly) && <div className="sample-banner">{view.load ? 'Add monthly bills for more findings' : 'Add half-hourly data to find peak and idle savings'} · <button type="button" className="link" onClick={() => onOpen(view.load ? 'data' : 'load')}>Upload</button></div>}
 
     <div className="dash-kpis three">
       <div className="dash-kpi"><span className="dash-kpi-label">To win</span><strong>{ringgit(total(open))} <small>/month</small></strong><small className="muted">{open.length} open · {ringgit(total(open) * 12)}/yr</small></div>
@@ -66,6 +70,13 @@ export default function Findings({ onOpen }: { onOpen: (view: 'load' | 'dashboar
         </footer>
       </article>)}
     </div>
-    <p className="muted small">Estimates from your data and tariff. <Info>Peak savings assume load can be rescheduled. Idle savings assume {num(IDLE_AVOIDABLE * 100)}% of idle energy is avoidable.</Info></p>
+    <section className="card assumptions">
+      <header className="card-head"><div><h2>Assumptions <Info>Your own estimates behind the savings. Change them to match your site; every finding updates.</Info></h2></div></header>
+      <div className="form-grid compact">
+        <label className="field"><span><span className="tag-assume">assumption</span> Idle energy avoidable (%)</span><input type="number" min="0" max="100" value={Math.round(assume.idleAvoidable * 100)} onChange={(event) => setAssume({ idleAvoidablePct: Number(event.target.value) })} /></label>
+        <label className="field"><span><span className="tag-assume">assumption</span> Peak hours you can move / month</span><select value={assume.peakHours} onChange={(event) => setAssume({ peakHoursMovable: Number(event.target.value) })}>{PEAK_HOUR_CHOICES.map((h) => <option key={h} value={h}>{h} h</option>)}</select></label>
+        <label className="field"><span><span className="tag-assume">assumption</span> Always-on load you can cut (%)</span><input type="number" min="0" max="100" value={Math.round(assume.baseCut * 100)} onChange={(event) => setAssume({ baseCutPct: Number(event.target.value) })} /></label>
+      </div>
+    </section>
   </div>
 }

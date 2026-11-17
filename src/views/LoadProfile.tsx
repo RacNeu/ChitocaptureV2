@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { num, ringgit } from '../format'
 import { monthLabel } from '../model/history'
 import { DEFAULT_TARIFF, PER_DAY, analyseInterval, importIntervalRows, intervalFor, slotLabel, timeLabel, type IntervalAnalysis, type IntervalImport } from '../model/interval'
-import { SHIFT_HOURS } from '../model/findings'
+import { assumptionsFor } from '../model/findings'
 import { actions, useFactory } from '../model/store'
 import Info from '../components/Info'
+import EmptyState from '../components/EmptyState'
 
 const TEMPLATE = ['timestamp,kW', '2026-08-01 00:00,41250', '2026-08-01 00:30,40980', '2026-08-01 01:00,52310'].join('\n')
 
@@ -22,37 +23,81 @@ async function readFile(file: File): Promise<IntervalImport> {
 
 const mw = (kW: number) => `${num(kW / 1_000, 1)} MW`
 
-/** Sequential single-hue ramp (light → dark blue) for the carpet plot. */
+/** Sequential blue ramp (palette steps 100 → 700), light = low demand, dark = high. */
+const RAMP = ['#eef4fc', '#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'].map((hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)))
 function ramp(t: number) {
-  const c = Math.min(1, Math.max(0, t))
-  const from = [238, 244, 251], to = [22, 63, 122]
-  return `rgb(${from.map((v, k) => Math.round(v + (to[k] - v) * c)).join(',')})`
+  const x = Math.min(1, Math.max(0, t)) * (RAMP.length - 1)
+  const i = Math.min(RAMP.length - 2, Math.floor(x)), f = x - i
+  return `rgb(${RAMP[i].map((v, k) => Math.round(v + (RAMP[i + 1][k] - v) * f)).join(',')})`
 }
+const quantile = (sorted: number[], q: number) => sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))] : 0
+const shortDate = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
+/**
+ * Carpet plot: one row per day, one column per half hour. Cells touch (no gaps) so the pattern
+ * reads as a picture, colour is stretched between the 2nd and 99.5th percentile so one spike does
+ * not wash everything else out, and each month's demand-charge peak is labelled in the right margin.
+ */
 function Carpet({ a }: { a: IntervalAnalysis }) {
-  const [hover, setHover] = useState<{ d: number; s: number } | null>(null)
+  const [hover, setHover] = useState<{ d: number; c: number } | null>(null)
+  const [res, setRes] = useState<'hour' | 'half'>('hour')
   const rows = a.days_
-  const cw = 14, ch = Math.max(4, Math.min(8, Math.floor(420 / rows.length))), left = 70, top = 18
-  const width = left + PER_DAY * cw + 8, height = top + rows.length * ch + 4
-  const lo = a.baseKW * 0.8, hi = a.peakKW
-  const mdCells = new Set(a.months.map((m) => m.mdAt))
-  const h = hover ? { date: rows[hover.d].date, slot: hover.s, kW: rows[hover.d].kW[hover.s] } : null
-  return <div className="mchart">
-    <svg className="chart carpet" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Demand for every half hour, one row per day">
-      {[0, 6, 12, 18, 23].map((hr) => <text key={hr} x={left + hr * 2 * cw} y={12} className="chart-tick">{String(hr).padStart(2, '0')}:00</text>)}
-      {rows.map((row, d) => <g key={row.date}>
-        {(d === 0 || row.date.endsWith('-01')) && <text x={left - 6} y={top + d * ch + ch} textAnchor="end" className="chart-tick">{monthLabel(row.date.slice(0, 7))}</text>}
-        {row.kW.map((v, s) => <rect key={s} x={left + s * cw} y={top + d * ch} width={cw - 1} height={ch - (ch > 5 ? 1 : 0)} fill={v === null ? '#f1f5f9' : ramp((v - lo) / (hi - lo))}
-          onPointerEnter={() => setHover({ d, s })} onPointerLeave={() => setHover(null)} />)}
-        {row.kW.map((_, s) => mdCells.has(`${row.date}T${slotLabel(s)}`) ? <rect key={`md${s}`} x={left + s * cw - 1} y={top + d * ch - 1} width={cw + 1} height={ch + 1} className="md-cell" /> : null)}
+  const step = res === 'hour' ? 2 : 1, cols = PER_DAY / step
+  const sw = 15, cw = sw * step, ch = Math.max(5, Math.min(9, Math.floor(540 / Math.max(1, rows.length))))
+  const left = 64, top = 22, gutter = 150
+  const plotW = PER_DAY * sw, plotH = rows.length * ch
+  const width = left + plotW + gutter, height = top + plotH + 8
+  // Hourly view averages the two half hours: same pattern, half the speckle.
+  const grid = useMemo(() => rows.map((row) => Array.from({ length: cols }, (_, c) => {
+    const part = row.kW.slice(c * step, c * step + step).filter((v): v is number => v !== null)
+    return part.length ? part.reduce((x, y) => x + y, 0) / part.length : null
+  })), [rows, cols, step])
+  const values = useMemo(() => grid.flat().filter((v): v is number => v !== null).sort((x, y) => x - y), [grid])
+  const lo = quantile(values, 0.02), hi = Math.max(lo + 1, quantile(values, 0.995))
+  const peaks = a.months.map((m) => {
+    const [date, time] = m.mdAt.split('T')
+    const d = rows.findIndex((row) => row.date === date)
+    const s = Array.from({ length: PER_DAY }, (_, k) => k).find((k) => slotLabel(k) === time) ?? -1
+    return { d, s, c: Math.floor(s / step), date, time, kW: d >= 0 && s >= 0 ? rows[d].kW[s] : null }
+  }).filter((p) => p.d >= 0 && p.s >= 0)
+  const isPeak = (d: number, c: number) => peaks.some((p) => p.d === d && p.c === c)
+  const h = hover ? { date: rows[hover.d].date, c: hover.c, kW: grid[hover.d][hover.c] } : null
+  return <div className="mchart carpet-wrap">
+    <div className="carpet-controls" role="tablist" aria-label="Resolution">
+      {(['hour', 'half'] as const).map((key) => <button key={key} type="button" role="tab" aria-selected={res === key} className={res === key ? 'active' : ''} onClick={() => setRes(key)}>{key === 'hour' ? 'Hourly' : 'Half-hourly'}</button>)}
+    </div>
+    <svg className="chart carpet" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Electricity demand, one row per day" onPointerLeave={() => setHover(null)}>
+      {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hr) => <text key={hr} x={left + hr * 2 * sw} y={top - 8} textAnchor={hr === 0 ? 'start' : hr === 24 ? 'end' : 'middle'} className="chart-tick">{String(hr).padStart(2, '0')}:00</text>)}
+      <g shapeRendering="crispEdges">
+        {grid.map((row, d) => row.map((v, c) => <rect key={`${d}:${c}`} x={left + c * cw} y={top + d * ch} width={cw} height={ch}
+          fill={v === null ? 'var(--carpet-missing)' : ramp((v - lo) / (hi - lo))} onPointerEnter={() => setHover({ d, c })} />))}
+      </g>
+      {/* Six-hourly guides and month boundaries, drawn over the cells but kept faint. */}
+      {[6, 12, 18].map((hr) => <line key={hr} x1={left + hr * 2 * sw} x2={left + hr * 2 * sw} y1={top} y2={top + plotH} className="carpet-guide" />)}
+      {rows.map((row, d) => (d === 0 || row.date.endsWith('-01')) && <g key={`m${d}`}>
+        {d > 0 && <line x1={left - 6} x2={left + plotW} y1={top + d * ch} y2={top + d * ch} className="carpet-month" />}
+        <text x={left - 10} y={top + d * ch + 10} textAnchor="end" className="chart-tick carpet-month-label">{monthLabel(row.date.slice(0, 7))}</text>
       </g>)}
+      {peaks.map((p) => <g key={`p${p.d}`} className="carpet-peak">
+        <rect className="halo" x={left + p.c * cw - 2} y={top + p.d * ch - 2} width={cw + 4} height={ch + 4} rx={2} />
+        <rect x={left + p.c * cw - 2} y={top + p.d * ch - 2} width={cw + 4} height={ch + 4} rx={2} />
+        <line x1={left + (p.c + 1) * cw + 3} x2={left + plotW + 10} y1={top + p.d * ch + ch / 2} y2={top + p.d * ch + ch / 2} />
+        <circle cx={left + plotW + 10} cy={top + p.d * ch + ch / 2} r={3} />
+        <text x={left + plotW + 18} y={top + p.d * ch + ch / 2 - 2} className="carpet-peak-value">{p.kW !== null ? mw(p.kW) : '—'} peak</text>
+        <text x={left + plotW + 18} y={top + p.d * ch + ch / 2 + 11} className="carpet-peak-when">{shortDate(p.date)} · {p.time}</text>
+      </g>)}
+      {hover && <rect x={left + hover.c * cw - 1} y={top + hover.d * ch - 1} width={cw + 2} height={ch + 2} className="carpet-hover" />}
     </svg>
-    {h && <div className="chart-tip" style={{ left: `${Math.min(70, (left + h.slot * cw) / width * 100)}%` }}>
-      <b>{timeLabel(`${h.date}T${slotLabel(h.slot)}`)}</b>
-      <span>{h.kW === null ? 'No reading' : `${num(h.kW)} kW`}</span>
-      {mdCells.has(`${h.date}T${slotLabel(h.slot)}`) && <small className="tip-flag">Set this month’s demand charge</small>}
+    {h && <div className="chart-tip" style={{ left: `${Math.min(68, (left + h.c * cw) / width * 100)}%` }}>
+      <b>{res === 'hour' ? `${shortDate(h.date)} · ${slotLabel(h.c * 2)}–${h.c === 23 ? '24:00' : slotLabel(h.c * 2 + 2)}` : timeLabel(`${h.date}T${slotLabel(h.c)}`)}</b>
+      <span>{h.kW === null ? 'No reading' : `${num(h.kW)} kW${res === 'hour' ? ' average' : ''}`}</span>
+      {isPeak(hover!.d, hover!.c) && <small className="tip-flag">Set this month’s demand charge</small>}
     </div>}
-    <div className="legend"><span><i className="legend-ramp" />Low → high</span><span><i className="legend-md" />Sets the charge</span><span><i style={{ background: '#f1f5f9' }} />No reading</span></div>
+    <div className="legend carpet-legend">
+      <span className="carpet-scale"><small>{mw(lo)}</small><i style={{ background: `linear-gradient(90deg, ${[0, 0.25, 0.5, 0.75, 1].map(ramp).join(', ')})` }} /><small>{mw(hi)}</small></span>
+      <span><i className="legend-md" />Sets the month’s demand charge</span>
+      <span><i style={{ background: 'var(--carpet-missing)' }} />No reading</span>
+    </div>
   </div>
 }
 
@@ -103,12 +148,10 @@ function Duration({ a, capKW }: { a: IntervalAnalysis; capKW: number }) {
 export default function LoadProfile({ onFindings }: { onFindings: () => void }) {
   const state = useFactory()
   const tariff = { ...DEFAULT_TARIFF, ...state.settings.tariff }
-  const { series, sample } = intervalFor(state)
-  const a = useMemo(() => analyseInterval(series, tariff), [series, tariff.mdRMPerKW, tariff.energyRMPerMWh]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [hours, setHours] = useState(SHIFT_HOURS)
+  const series = intervalFor(state)
+  const a = useMemo(() => series ? analyseInterval(series, tariff) : null, [series, tariff.mdRMPerKW, tariff.energyRMPerMWh]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [hours, setHours] = useState(assumptionsFor(state).peakHours)
   const [result, setResult] = useState<(IntervalImport & { name: string }) | null>(null)
-  const last = a.months.at(-1)!
-  const shave = last.shave.find((s) => s.hours === hours)!
   const setTariff = (patch: Partial<typeof tariff>) => actions.updateSettings({ tariff: { ...tariff, ...patch } })
 
   const take = async (file?: File) => {
@@ -116,9 +159,9 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     try { setResult({ ...await readFile(file), name: file.name }) } catch { setResult({ series: null, warnings: [], error: 'The file could not be read.', name: file.name }) }
   }
 
-  return <div className="dashboard load-profile">
+  const top = <>
     <header className="dash-head">
-      <div><h1>Load profile</h1><p className="muted">{state.settings.factoryName} · half-hourly demand · {timeLabel(a.from).split(', ')[1]} – {timeLabel(a.to).split(', ')[1]}</p></div>
+      <div><h1>Load profile</h1><p className="muted">{state.settings.factoryName} · half-hourly demand{a ? ` · ${timeLabel(a.from).split(', ')[1]} – ${timeLabel(a.to).split(', ')[1]}` : ''}</p></div>
       <div className="dash-actions">
         <a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>
         <label className="btn ghost file-btn">⇪ Upload<input type="file" accept=".csv,.txt,.xlsx,.xlsm" onChange={(event) => { void take(event.target.files?.[0]); event.target.value = '' }} /></label>
@@ -126,7 +169,6 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
       </div>
     </header>
 
-    {sample && !result && <div className="sample-banner"><b>Sample data</b> · Upload your meter’s half-hourly readings (timestamp + kW or kWh). <Info>Medium- and high-voltage customers can usually request this load profile from TNB.</Info></div>}
     {result && <section className={`card import-result${result.error ? ' failed' : ''}`}>
       <h2>{result.error ? `Could not import ${result.name}` : `${num((result.series?.kW.length ?? 0) / PER_DAY)} days found in ${result.name}`}</h2>
       {result.error && <p className="alert">{result.error}</p>}
@@ -136,7 +178,15 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
         <button type="button" className="btn ghost" onClick={() => setResult(null)}>Cancel</button>
       </div>
     </section>}
-    {!sample && !result && <p className="muted small">Using {series.source}. <button type="button" className="link" onClick={() => { if (confirm('Remove the uploaded half-hourly data? The page goes back to sample data.')) actions.setInterval(null) }}>Remove</button></p>}
+    {series && !result && <p className="muted small">Using {series.source}. <button type="button" className="link" onClick={() => { if (confirm('Remove the uploaded half-hourly data?')) actions.setInterval(null) }}>Remove</button></p>}
+  </>
+
+  if (!a) return <div className="dashboard load-profile">{top}{!result && <EmptyState icon="⚡" title="No half-hourly data yet" action={<a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>}>Upload your meter’s readings: a timestamp and kW (or kWh per half hour). <Info>Medium- and high-voltage customers can usually request this load profile from TNB.</Info></EmptyState>}</div>
+  const last = a.months.at(-1)!
+  const shave = last.shave.find((s) => s.hours === hours)!
+
+  return <div className="dashboard load-profile">
+    {top}
 
     <div className="dash-kpis">
       <div className="dash-kpi"><span className="dash-kpi-label">Peak demand · {monthLabel(last.month)}</span><strong>{mw(last.mdKW)}</strong><small className="muted">Charge <b>{ringgit(last.mdRM)}</b> · {timeLabel(last.mdAt)}</small></div>
@@ -149,7 +199,7 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     </div>
 
     <section className="card">
-      <header className="card-head"><div><h2>Every half hour <Info>Each row is a day, each square a half hour; darker = more demand. Pale bands are stops. Red outlines are the half-hours that set your demand charge.</Info></h2><p className="muted small">Red = sets your demand charge</p></div></header>
+      <header className="card-head"><div><h2>Demand through the day <Info>Each row is a day, each square an hour or a half hour; darker = more demand. Pale bands are stops. Red outlines are the half-hours that set your demand charge.</Info></h2><p className="muted small">Red = sets your demand charge</p></div></header>
       <Carpet a={a} />
     </section>
 

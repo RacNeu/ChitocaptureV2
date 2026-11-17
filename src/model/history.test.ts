@@ -108,8 +108,10 @@ describe('forecast', () => {
     expect(check.gapT).toBeGreaterThan(0)
   })
   it('builds a full outlook without NaN', () => {
-    const view = outlook(mill)
-    expect(view.sample).toBe(true)
+    expect(outlook(mill).empty).toBe(true)
+    expect(outlook(mill).months).toHaveLength(0)
+    const view = outlook({ ...mill, monthly: sampleHistory(mill, '2026-10') })
+    expect(view.empty).toBe(false)
     expect(view.last12.count).toBe(12)
     expect(view.tax.length).toBeGreaterThan(0)
     expect(JSON.stringify(view)).not.toMatch(/NaN|null,"scope1T"|Infinity/)

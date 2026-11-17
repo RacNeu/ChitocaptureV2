@@ -38,28 +38,40 @@ export const kindLabel: Record<FindingKind, string> = { peak: 'Peak demand', idl
 
 const kw = (v: number) => v >= 10_000 ? `${(v / 1_000).toFixed(1)} MW` : `${Math.round(v).toLocaleString('en-MY')} kW`
 
-/** Share of idle energy usually avoidable by switching off auxiliaries during stops (assumption). */
+/** Defaults for the three assumptions behind the savings estimates. Each is editable per site. */
 export const IDLE_AVOIDABLE = 0.2
-/** Hours of peak load a mill can typically reschedule each month without losing output (assumption). */
 export const SHIFT_HOURS = 2
+export const BASE_CUT = 0.1
+export const PEAK_HOUR_CHOICES = [1, 2, 4, 8, 16]
 
-export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: Outlook): Finding[] {
+/** The site's assumptions, or the defaults. */
+export function assumptionsFor(state: FactoryState) {
+  const a = state.settings.assumptions
+  return {
+    idleAvoidable: a?.idleAvoidablePct !== undefined ? a.idleAvoidablePct / 100 : IDLE_AVOIDABLE,
+    peakHours: a?.peakHoursMovable !== undefined && PEAK_HOUR_CHOICES.includes(a.peakHoursMovable) ? a.peakHoursMovable : SHIFT_HOURS,
+    baseCut: a?.baseCutPct !== undefined ? a.baseCutPct / 100 : BASE_CUT,
+  }
+}
+
+export function findingsFrom(state: FactoryState, load: IntervalAnalysis | null, view: Outlook): Finding[] {
   const tariff = { ...DEFAULT_TARIFF, ...state.settings.tariff }
   const grid = gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh)
   const out: Finding[] = []
+  const { idleAvoidable: IDLE, peakHours: HOURS, baseCut: CUT } = assumptionsFor(state)
 
   // 1. Peak demand: a few half-hours set the whole month's demand charge.
-  const lastMonth = load.months.at(-1)
-  if (lastMonth) {
-    const shave = lastMonth.shave.find((s) => s.hours === SHIFT_HOURS)!
-    const avgShave = load.months.reduce((s, m) => s + m.shave.find((x) => x.hours === SHIFT_HOURS)!.kW, 0) / load.months.length
+  const lastMonth = load?.months.at(-1)
+  if (load && lastMonth) {
+    const shave = lastMonth.shave.find((s) => s.hours === HOURS)!
+    const avgShave = load.months.reduce((s, m) => s + m.shave.find((x) => x.hours === HOURS)!.kW, 0) / load.months.length
     if (avgShave * tariff.mdRMPerKW > 1_000) out.push({
       key: 'peak-shave', kind: 'peak', confidence: 'high', view: 'load',
-      title: `Move ${SHIFT_HOURS} hours of peak load`,
+      title: `Move ${HOURS} hours of peak load`,
       rmPerMonth: avgShave * tariff.mdRMPerKW, tPerYear: 0,
       evidence: [
         `Peak ${kw(lastMonth.mdKW)} on ${timeLabel(lastMonth.mdAt)} set a ${rm(lastMonth.mdRM)} demand charge.`,
-        `Only ${SHIFT_HOURS} hours that month were above ${kw(lastMonth.mdKW - shave.kW)}. Moving about ${Math.round(shave.mwhToMove)} MWh out of them lowers the maximum by ${kw(shave.kW)}.`,
+        `Only ${HOURS} hours that month were above ${kw(lastMonth.mdKW - shave.kW)}. Moving about ${Math.round(shave.mwhToMove)} MWh out of them lowers the maximum by ${kw(shave.kW)}.`,
         `Averaged over ${load.months.length} months: −${kw(avgShave)}, at RM ${tariff.mdRMPerKW}/kW.`,
       ],
       actions: ['Don’t restart the rolling mill while the furnace is melting.', 'Add a demand alarm a few percent below the target maximum so operators can delay a heat.', 'Check the peak times on the Load profile page and agree a start-up sequence with production.'],
@@ -67,27 +79,27 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
   }
 
   // 2. Idle load: energy drawn while the plant is not producing.
-  const perMonth = monthsSpanned(load)
-  const idleRM = load.idle.rm / perMonth
-  if (load.idle.hours > 0 && idleRM * IDLE_AVOIDABLE > 1_000) out.push({
+  const perMonth = load ? monthsSpanned(load) : 1
+  const idleRM = load ? load.idle.rm / perMonth : 0
+  if (load && load.idle.hours > 0 && idleRM * IDLE > 1_000) out.push({
     key: 'idle-load', kind: 'idle', confidence: 'medium', view: 'load',
     title: 'Cut idle load during stops',
-    rmPerMonth: idleRM * IDLE_AVOIDABLE, tPerYear: load.idle.mwh / perMonth * 12 * IDLE_AVOIDABLE * grid,
+    rmPerMonth: idleRM * IDLE, tPerYear: load.idle.mwh / perMonth * 12 * IDLE * grid,
     evidence: [
       `Idle ${Math.round(load.idle.hours / perMonth)} h/month at ${kw(load.idle.avgKW)}: ${rm(idleRM)} of energy.`,
-      `That is ${Math.round(load.idle.mwh / perMonth).toLocaleString('en-MY')} MWh a month, ${rm(idleRM)} of energy. Cutting it by ${IDLE_AVOIDABLE * 100}% is typical once stops have a shutdown checklist.`,
+      `That is ${Math.round(load.idle.mwh / perMonth).toLocaleString('en-MY')} MWh a month, ${rm(idleRM)} of energy. Cutting it by ${IDLE * 100}% is typical once stops have a shutdown checklist.`,
     ],
     actions: ['Use a shutdown checklist at every stop: fans, compressors, pumps, lights.', 'Fit automatic shutdown on compressors and fans that run during maintenance stops.', 'Check the Sunday profile on the Load profile page after each change.'],
     measureIds: ['vsd', 'air-leaks', 'line-idle'],
   })
 
   // 3. Base load: what the site draws at its quietest.
-  const baseShare = load.baseKW / Math.max(1, load.avgKW)
-  if (baseShare > 0.2) out.push({
+  const baseShare = load ? load.baseKW / Math.max(1, load.avgKW) : 0
+  if (load && baseShare > 0.2) out.push({
     key: 'base-load', kind: 'base', confidence: 'medium', view: 'load',
     title: 'Reduce always-on load',
-    rmPerMonth: load.baseKW * 0.1 * 730 * tariff.energyRMPerMWh / 1_000, tPerYear: load.baseKW * 0.1 * 8_760 / 1_000 * grid,
-    evidence: [`Never below ${kw(load.baseKW)} (${Math.round(baseShare * 100)}% of average). Savings shown for a 10% cut.`, 'Trimming 10% of always-on load (leaks, idling drives, lighting, cooling left on) saves energy every hour of the year.'],
+    rmPerMonth: load.baseKW * CUT * 730 * tariff.energyRMPerMWh / 1_000, tPerYear: load.baseKW * CUT * 8_760 / 1_000 * grid,
+    evidence: [`Never below ${kw(load.baseKW)} (${Math.round(baseShare * 100)}% of average). Savings shown for a ${Math.round(CUT * 100)}% cut.`, 'Trimming 10% of always-on load (leaks, idling drives, lighting, cooling left on) saves energy every hour of the year.'],
     actions: ['Walk the site during a stop and list what is still running.', 'Run a compressed-air leak survey (ultrasonic) and fix the largest leaks.'],
     measureIds: ['air-leaks', 'vsd'],
   })
@@ -115,15 +127,15 @@ export function findingsFrom(state: FactoryState, load: IntervalAnalysis, view: 
   return out.sort((a, b) => b.rmPerMonth - a.rmPerMonth)
 }
 
-export type FindingsView = { load: IntervalAnalysis; loadSample: boolean; findings: (Finding & { state: FindingState })[] }
+export type FindingsView = { load: IntervalAnalysis | null; hasMonthly: boolean; findings: (Finding & { state: FindingState })[] }
 
 export function siteFindings(state: FactoryState): FindingsView {
-  const { series, sample } = intervalFor(state)
-  const load = analyseInterval(series, { ...DEFAULT_TARIFF, ...state.settings.tariff })
+  const series = intervalFor(state)
+  const load = series ? analyseInterval(series, { ...DEFAULT_TARIFF, ...state.settings.tariff }) : null
   const view = outlook(state, { ...defaultTaxInputs, ...state.settings.carbonTax })
   return {
     load,
-    loadSample: sample,
+    hasMonthly: !view.empty,
     findings: findingsFrom(state, load, view).map((f) => ({ ...f, state: state.findings?.[f.key] ?? { status: 'new', updatedAt: '' } })),
   }
 }

@@ -152,7 +152,7 @@ export default function Reports() {
         const fuel = fuels.reduce((sum, f) => sum + (r.fuelGJ[f] ?? 0), 0)
         const locked = state.locks?.some((lock) => lock.year === Number(r.month.slice(0, 4)))
         return [r.month, r.electricityMWh.toFixed(1), m.greenMWh.toFixed(1), fuel.toFixed(1), r.processT.toFixed(1), r.productionT.toFixed(0), m.scope1T.toFixed(1), m.scope2T.toFixed(1), m.scope2MarketT.toFixed(1), m.totalT.toFixed(1), m.intensityKg?.toFixed(1) ?? '', r.evidence?.length ?? 0, locked ? 'yes' : 'no'].join(',')
-      }), `# grid factor ${ctx.gridKgPerKWh} kg CO2/kWh (location-based); market-based residual factor ${marketFactor(state.settings)} kg CO2/kWh; fuel factors IPCC 2006; ${view.sample ? 'SAMPLE DATA' : 'uploaded data'}`]
+      }), `# grid factor ${ctx.gridKgPerKWh} kg CO2/kWh (location-based); market-based residual factor ${marketFactor(state.settings)} kg CO2/kWh; fuel factors IPCC 2006; uploaded data`]
     return lines.join('\n')
   }
   const bursaReport = () => {
@@ -174,7 +174,7 @@ export default function Reports() {
     const documents = inPeriod.flatMap((r) => (r.evidence ?? []).map((e) => ({ month: r.month, e })))
     const changes = (state.monthlyLog ?? []).filter((c) => ghgMonths.some((m) => m.month === c.month))
     return <>
-      {view.sample && <p className="alert">This report uses <b>sample monthly data</b>. Upload the site’s bills and production records (Monthly data) before using it externally.</p>}
+      {view.empty && <p className="alert">No monthly data yet. Upload the site’s bills and production on <b>Monthly data</b> first.</p>}
       <h2>1. Reporting boundary and approach</h2>
       <table className="rep-kv"><tbody>
         <tr><td>Reporting entity</td><td>{company.name}</td></tr>
@@ -182,7 +182,7 @@ export default function Reports() {
         <tr><td>Consolidation approach</td><td>Operational control</td></tr>
         <tr><td>Standard</td><td>GHG Protocol Corporate Standard<Cite ids={['ghgp']} />; layout follows Bursa Malaysia and NSRF (IFRS S2) climate metrics<Cite ids={['nsrf']} /></td></tr>
         <tr><td>Gases</td><td>CO₂, reported as tCO₂e. CH₄ and N₂O from combustion are not yet included.</td></tr>
-        <tr><td>Data</td><td>{ghgMonths.length} months of {view.sample ? 'sample' : 'uploaded'} activity data: electricity bills, fuel invoices and production records</td></tr>
+        <tr><td>Data</td><td>{ghgMonths.length} months of uploaded activity data: electricity bills, fuel invoices and production records</td></tr>
       </tbody></table>
 
       <h2>2. Greenhouse gas emissions</h2>

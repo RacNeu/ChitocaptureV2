@@ -5,7 +5,8 @@ import type { FactoryState } from './types'
 
 /** Everything the dashboard, copilot and report need, computed once from a site's monthly history. */
 export type Outlook = {
-  sample: boolean
+  /** True until the site uploads monthly data. */
+  empty: boolean
   months: MonthScopes[]
   /** The last 12 months (or fewer), the headline period. */
   last12: { scope1T: number; scope2T: number; totalT: number; productionT: number; from: string; to: string; count: number }
@@ -21,7 +22,7 @@ export type Outlook = {
 }
 
 export function outlook(state: FactoryState, taxInputs: TaxInputs = defaultTaxInputs): Outlook {
-  const { records, sample } = historyFor(state)
+  const { records } = historyFor(state)
   const months = records.map((record) => scopesFor(record, state.settings))
   const last = months.at(-1)
   // Forecast to the end of the target year (at least 12 months, at most 10 years).
@@ -32,7 +33,7 @@ export function outlook(state: FactoryState, taxInputs: TaxInputs = defaultTaxIn
   const recent = months.slice(-12)
   const before = months.length >= 24 ? months.slice(-24, -12) : null
   return {
-    sample,
+    empty: records.length === 0,
     months,
     last12: { ...sum(recent), from: recent[0]?.month ?? '', to: recent.at(-1)?.month ?? '', count: recent.length },
     prior12: before ? sum(before) : null,

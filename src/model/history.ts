@@ -199,7 +199,7 @@ export async function sha256Hex(data: ArrayBuffer): Promise<string> {
 const SEASON = [0.97, 0.9, 0.98, 1.02, 1.03, 1.0, 1.02, 1.04, 1.03, 1.05, 1.01, 0.88]
 
 /**
- * 36 illustrative months ending last month, built from the site's own yearly machine figures, with
+ * TEST FIXTURE ONLY: never shown in the app. 36 synthetic months ending last month, built from the site's own yearly machine figures, with
  * seasonality, slow growth, a little noise, a mid-period efficiency gain and one faulty month.
  */
 export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(monthIndex(new Date().toISOString().slice(0, 7)) - 1), months = 36): MonthlyRecord[] {
@@ -239,9 +239,9 @@ export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(mon
   })
 }
 
-/** The site's uploaded history, or the sample history when nothing has been uploaded. */
-export function historyFor(state: FactoryState): { records: MonthlyRecord[]; sample: boolean } {
-  return state.monthly?.length ? { records: state.monthly, sample: false } : { records: sampleHistory(state), sample: true }
+/** The site's uploaded history. Nothing is invented: an empty list until the site uploads data. */
+export function historyFor(state: FactoryState): { records: MonthlyRecord[] } {
+  return { records: state.monthly ?? [] }
 }
 
 /* ---------------- Forecast ---------------- */

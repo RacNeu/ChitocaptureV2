@@ -24,17 +24,19 @@ import Dashboard from './views/Dashboard'
 import DataUpload from './views/DataUpload'
 import LoadProfile from './views/LoadProfile'
 import Findings from './views/Findings'
+import Risks from './views/Risks'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'dashboard' | 'load' | 'findings' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'dashboard' | 'load' | 'findings' | 'risks' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
 const views: { id: View; label: string; icon: string; group?: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: '▦', group: 'Monitor' },
   { id: 'load', label: 'Load profile', icon: '⚡' },
   { id: 'data', label: 'Monthly data', icon: '⇪' },
   { id: 'findings', label: 'Findings', icon: '⚑', group: 'Act' },
+  { id: 'risks', label: 'Risks', icon: '◬' },
   { id: 'plan', label: 'Plan', icon: '🗺' },
   { id: 'simulate', label: 'Simulation', icon: '🔥' },
   { id: 'reports', label: 'Reports', icon: '📄', group: 'Report' },
@@ -96,7 +98,7 @@ export default function App() {
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
-  const siteScoped = view === 'dashboard' || view === 'load' || view === 'findings' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
+  const siteScoped = view === 'dashboard' || view === 'load' || view === 'findings' || view === 'risks' || view === 'data' || view === 'twin' || view === 'plan' || view === 'reports' || view === 'settings' || view === 'sensors'
   const addedCount = workspace.companies.filter((item) => !item.fixed).length
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
@@ -151,6 +153,7 @@ export default function App() {
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
       {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
       {view === 'findings' && <Findings onOpen={(next) => go(next)} />}
+      {view === 'risks' && <Risks onOpen={(next) => go(next)} />}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
