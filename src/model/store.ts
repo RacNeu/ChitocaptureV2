@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import { templateById } from './templates'
-import type { ActionStatus, FactoryState, FindingState, HistoryEntry, IntervalSeries, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
+import type { ActionStatus, DataChange, Evidence, FactoryState, FindingState, HistoryEntry, IntervalSeries, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
+import { diffRecords, evidenceShare, marketFactor, scopesFor } from './history'
+import { gridFactor } from './factors'
 import { roleById, statusInfo } from './roles'
 import { measureById } from './measures'
 import { sampleLocations } from './malaysia'
@@ -212,7 +214,7 @@ export const companyActions = {
 export const actions = {
   replace: (next: FactoryState) => commit(next),
   finishOnboarding: (settings: Settings, machines: Machine[]) => commit({ ...state, onboarded: true, settings, machines, plan: [] }),
-  restart: () => commit({ ...freshState(state.settings.industryId), monthly: state.monthly }),
+  restart: () => commit({ ...freshState(state.settings.industryId), monthly: state.monthly, monthlyLog: state.monthlyLog, locks: state.locks }),
   updateSettings: (patch: Partial<Settings>) => {
     const fields = Object.keys(patch).filter((key) => JSON.stringify(patch[key as keyof Settings]) !== JSON.stringify(state.settings[key as keyof Settings]))
     const next = { ...state, settings: { ...state.settings, ...patch } }
@@ -284,10 +286,57 @@ export const actions = {
     ...state,
     machines: state.machines.map((item) => item.id === machineId ? { ...item, sensorChannel: channel } : item.sensorChannel === channel ? { ...item, sensorChannel: undefined } : item),
   }),
-  /** Replace this site's uploaded monthly history (bills, fuel and production). */
-  setMonthly: (monthly: MonthlyRecord[]) => commit(logged({ ...state, monthly }, `Uploaded ${monthly.length} months of activity data`)),
+  /**
+   * Replace this site's uploaded monthly history (bills, fuel and production). Months in a signed-off
+   * year are kept as they were; evidence already attached to a month stays with it. Every changed
+   * field is written to the monthly change log. Returns the months that were kept because they are locked.
+   */
+  setMonthly: (monthly: MonthlyRecord[], source = 'File upload'): string[] => {
+    const before = state.monthly ?? []
+    const locked = new Set((state.locks ?? []).map((lock) => lock.year))
+    const isLocked = (month: string) => locked.has(Number(month.slice(0, 4)))
+    const kept = before.filter((r) => isLocked(r.month))
+    const skipped = monthly.filter((r) => isLocked(r.month)).map((r) => r.month)
+    const evidence = new Map(before.map((r) => [r.month, r.evidence]))
+    const incoming = monthly.filter((r) => !isLocked(r.month)).map((r) => ({ ...r, evidence: r.evidence ?? evidence.get(r.month) }))
+    const next = [...kept, ...incoming].sort((a, b) => a.month.localeCompare(b.month))
+    const role = getRole(), who = roleById(role).person, at = new Date().toISOString()
+    const changes: DataChange[] = diffRecords(before, next).map((change) => ({ ...change, at, who, role, source }))
+    commit(logged({ ...state, monthly: next, monthlyLog: [...(state.monthlyLog ?? []), ...changes].slice(-5_000) },
+      next.length ? `${source}: ${incoming.length} months of activity data (${changes.length} field changes${skipped.length ? `, ${skipped.length} locked months kept` : ''})` : 'Cleared the monthly data'))
+    return skipped
+  },
+  /** Attach a source document to a month. Not allowed in a signed-off year. */
+  attachEvidence: (month: string, evidence: Evidence) => {
+    if ((state.locks ?? []).some((lock) => lock.year === Number(month.slice(0, 4)))) return false
+    const monthly = (state.monthly ?? []).map((r) => r.month === month ? { ...r, evidence: [...(r.evidence ?? []).filter((e) => e.sha256 !== evidence.sha256), evidence] } : r)
+    commit(logged({ ...state, monthly }, `Attached ${evidence.name} to ${month}`))
+    return true
+  },
+  removeEvidence: (month: string, sha256: string) => {
+    if ((state.locks ?? []).some((lock) => lock.year === Number(month.slice(0, 4)))) return
+    const name = state.monthly?.find((r) => r.month === month)?.evidence?.find((e) => e.sha256 === sha256)?.name ?? 'a document'
+    commit(logged({ ...state, monthly: (state.monthly ?? []).map((r) => r.month === month ? { ...r, evidence: r.evidence?.filter((e) => e.sha256 !== sha256) } : r) }, `Removed ${name} from ${month}`))
+  },
+  /** Sign off a reporting year (sustainability role). Its months are then frozen. */
+  lockYear: (year: number) => {
+    const role = getRole()
+    if (role !== 'sustainability' || (state.locks ?? []).some((lock) => lock.year === year)) return
+    const records = (state.monthly ?? []).filter((r) => r.month.startsWith(`${year}-`))
+    if (!records.length) return
+    const months = records.map((r) => scopesFor(r, state.settings))
+    const sum = (key: 'scope1T' | 'scope2T' | 'scope2MarketT') => months.reduce((acc, m) => acc + m[key], 0)
+    const lock = { year, at: new Date().toISOString(), who: roleById(role).person, role, gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh), marketKgPerKWh: marketFactor(state.settings), scope1T: sum('scope1T'), scope2T: sum('scope2T'), scope2MarketT: sum('scope2MarketT'), evidencePct: evidenceShare(records) * 100 }
+    commit(logged({ ...state, locks: [...(state.locks ?? []), lock].sort((a, b) => a.year - b.year) }, `Signed off ${year}: Scope 1 ${Math.round(lock.scope1T)} t, Scope 2 ${Math.round(lock.scope2T)} t`))
+  },
+  /** Reopen a signed-off year (management role), with a reason for the record. */
+  unlockYear: (year: number, reason: string) => {
+    if (getRole() !== 'management' || !reason.trim()) return
+    commit(logged({ ...state, locks: (state.locks ?? []).filter((lock) => lock.year !== year) }, `Reopened ${year} — “${reason.trim()}”`))
+  },
   /** Replace this site's half-hourly load profile; null removes it. */
   setInterval: (interval: IntervalSeries | null) => commit(logged({ ...state, interval: interval ?? undefined }, interval ? `Uploaded ${Math.round(interval.kW.length / 48)} days of half-hourly data (${interval.source})` : 'Removed the half-hourly data')),
+  setClimate: (climate: FactoryState['climate']) => commit(logged({ ...state, climate }, climate ? `Fetched NASA POWER climate data for ${climate.lat.toFixed(3)}, ${climate.lon.toFixed(3)}` : 'Removed climate data')),
   /** Record what the team did with a finding. */
   setFinding: (key: string, patch: Partial<FindingState>, title: string) => {
     const before = state.findings?.[key]

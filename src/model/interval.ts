@@ -89,7 +89,7 @@ export function importIntervalRows(rows: string[][], source: string): IntervalIm
 /* ---------------- Sample profile ---------------- */
 
 /**
- * Three illustrative months of half-hourly demand for a site, scaled so the average matches its
+ * TEST FIXTURE ONLY: never shown in the app. Three synthetic months of half-hourly demand for a site, scaled so the average matches its
  * yearly electricity. For the steel mill: an arc furnace that swings heat by heat, three shifts,
  * a Sunday day-shift maintenance stop (when the plant idles but auxiliaries stay on), short
  * delays, and one coincident peak a month when the rolling mill restarts while the furnace melts.
@@ -126,8 +126,9 @@ export function sampleInterval(state: FactoryState, endMonth = new Date().toISOS
   return { start: fromMs(startMs), kW: raw.map((v) => Math.round(v / mean * meanKW)), source: 'sample' }
 }
 
-export function intervalFor(state: FactoryState): { series: IntervalSeries; sample: boolean } {
-  return state.interval?.kW.length ? { series: state.interval, sample: false } : { series: sampleInterval(state), sample: true }
+/** The site's uploaded half-hourly data, or null. Nothing is invented. */
+export function intervalFor(state: FactoryState): IntervalSeries | null {
+  return state.interval?.kW.length ? state.interval : null
 }
 
 /* ---------------- Analysis ---------------- */

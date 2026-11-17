@@ -16,21 +16,30 @@ export type MonthScopes = {
   month: string
   /** Scope 1: fuel burnt on site plus process emissions (biogenic CO₂ from biomass excluded). */
   scope1T: number
-  /** Scope 2: purchased grid electricity, location-based. */
+  /** Scope 2: purchased grid electricity, location-based (the headline figure). */
   scope2T: number
+  /** Scope 2, market-based: green-instrument electricity at zero, the rest at the residual factor. */
+  scope2MarketT: number
+  /** Electricity covered by green instruments, MWh. */
+  greenMWh: number
   totalT: number
   productionT: number
   /** kg CO₂e per tonne of product, null without production. */
   intensityKg: number | null
 }
 
+/** Market-based factor for non-green grid electricity: the residual factor if set, else the grid factor. */
+export const marketFactor = (settings: Settings) => settings.residualKgPerKWh ?? gridFactor(settings.gridRegionId, settings.customGridKgPerKWh)
+
 export function scopesFor(record: MonthlyRecord, settings: Settings): MonthScopes {
   const grid = gridFactor(settings.gridRegionId, settings.customGridKgPerKWh)
   const fuelT = fuels.reduce((sum, fuel) => sum + (record.fuelGJ[fuel] ?? 0) * fuelFactorsKgPerGJ[fuel] / 1_000, 0)
   const scope1T = fuelT + record.processT
   const scope2T = record.electricityMWh * grid
+  const greenMWh = Math.min(record.electricityMWh, Math.max(0, record.greenMWh ?? 0))
+  const scope2MarketT = (record.electricityMWh - greenMWh) * marketFactor(settings)
   const totalT = scope1T + scope2T
-  return { month: record.month, scope1T, scope2T, totalT, productionT: record.productionT, intensityKg: record.productionT > 0 ? totalT / record.productionT * 1_000 : null }
+  return { month: record.month, scope1T, scope2T, scope2MarketT, greenMWh, totalT, productionT: record.productionT, intensityKg: record.productionT > 0 ? totalT / record.productionT * 1_000 : null }
 }
 
 /* ---------------- Months ---------------- */
@@ -59,15 +68,15 @@ const valid = (y: number, m: number) => y >= 2000 && y <= 2100 && m >= 1 && m <=
 /* ---------------- CSV import ---------------- */
 
 export const CSV_TEMPLATE = [
-  'month,electricity_kwh,natural_gas_gj,diesel_litres,fuel_oil_gj,coal_gj,biomass_gj,process_t,production_t',
-  '2025-01,24500000,61000,12000,0,0,0,3600,51000',
-  '2025-02,22100000,55500,11000,0,0,0,3250,46000',
+  'month,electricity_kwh,green_kwh,natural_gas_gj,diesel_litres,fuel_oil_gj,coal_gj,biomass_gj,process_t,production_t',
+  '2025-01,24500000,0,61000,12000,0,0,0,3600,51000',
+  '2025-02,22100000,5000000,55500,11000,0,0,0,3250,46000',
 ].join('\n')
 
 /** Diesel: 0.0386 GJ per litre (net calorific value, IPCC 2006 / typical density). */
 const GJ_PER_LITRE_DIESEL = 0.0386
 
-type Column = { field: 'month' | 'electricity' | Fuel | 'process' | 'production'; scale: number }
+type Column = { field: 'month' | 'electricity' | 'green' | Fuel | 'process' | 'production'; scale: number }
 
 /** Recognised headers, with the factor that converts the column into MWh, GJ or tonnes. */
 function columnFor(header: string): Column | null {
@@ -75,6 +84,8 @@ function columnFor(header: string): Column | null {
   if (/^(month|period|date|bulan)$/.test(h)) return { field: 'month', scale: 1 }
   if (/^electricity(_mwh)?$/.test(h)) return { field: 'electricity', scale: 1 }
   if (/^electricity_kwh$|^kwh$/.test(h)) return { field: 'electricity', scale: 1 / 1_000 }
+  if (/^(green|get|rec|recs|green_electricity|green_ppa)(_mwh)?$/.test(h)) return { field: 'green', scale: 1 }
+  if (/^(green|get|rec|green_electricity|green_ppa)_kwh$/.test(h)) return { field: 'green', scale: 1 / 1_000 }
   if (/^(natural_)?gas(_gj)?$/.test(h) || h === 'ng_gj') return { field: 'natural-gas', scale: 1 }
   if (/^(natural_)?gas_mmbtu$/.test(h)) return { field: 'natural-gas', scale: 1.055056 }
   if (/^diesel(_gj)?$/.test(h)) return { field: 'diesel', scale: 1 }
@@ -123,10 +134,12 @@ export function importRows(rows: string[][]): ImportResult {
       if (column.field === 'electricity') record.electricityMWh += scaled
       else if (column.field === 'process') record.processT += scaled
       else if (column.field === 'production') record.productionT += scaled
+      else if (column.field === 'green') record.greenMWh = (record.greenMWh ?? 0) + scaled
       else record.fuelGJ[column.field] = (record.fuelGJ[column.field] ?? 0) + scaled
     })
     if (!record.month) { warnings.push(`Row ${index + 2}: month not recognised, skipped.`); return }
     if (bad) { warnings.push(`Row ${index + 2} (${record.month}): a number could not be read, skipped.`); return }
+    if ((record.greenMWh ?? 0) > record.electricityMWh) { warnings.push(`${record.month}: green electricity is more than total electricity; capped at the total.`); record.greenMWh = record.electricityMWh }
     if (byMonth.has(record.month)) warnings.push(`${record.month} appears twice; the later row is used.`)
     byMonth.set(record.month, record)
   })
@@ -145,13 +158,48 @@ export function importCsv(text: string): ImportResult {
   return importRows(lines.map((line) => splitLine(line, separator)))
 }
 
+/* ---------------- Audit trail ---------------- */
+
+const tracked: { field: string; value: (r: MonthlyRecord) => number }[] = [
+  { field: 'Electricity MWh', value: (r) => r.electricityMWh },
+  { field: 'Green electricity MWh', value: (r) => r.greenMWh ?? 0 },
+  ...fuels.map((fuel) => ({ field: `${fuel} GJ`, value: (r: MonthlyRecord) => r.fuelGJ[fuel] ?? 0 })),
+  { field: 'Process t', value: (r) => r.processT },
+  { field: 'Production t', value: (r) => r.productionT },
+]
+
+/** Field-level differences between two versions of the monthly data (null = month absent). */
+export function diffRecords(before: MonthlyRecord[], after: MonthlyRecord[]): { month: string; field: string; from: number | null; to: number | null }[] {
+  const old = new Map(before.map((r) => [r.month, r])), next = new Map(after.map((r) => [r.month, r]))
+  const months = [...new Set([...old.keys(), ...next.keys()])].sort((a, b) => monthIndex(a) - monthIndex(b))
+  const changes: { month: string; field: string; from: number | null; to: number | null }[] = []
+  for (const month of months) {
+    const a = old.get(month), b = next.get(month)
+    if (!a || !b) { changes.push({ month, field: 'Month', from: a ? 1 : null, to: b ? 1 : null }); continue }
+    for (const item of tracked) {
+      const x = item.value(a), y = item.value(b)
+      if (Math.abs(x - y) > 1e-6 * Math.max(1, Math.abs(x))) changes.push({ month, field: item.field, from: x, to: y })
+    }
+  }
+  return changes
+}
+
+/** Share of months (0–1) with at least one evidence document. */
+export const evidenceShare = (records: MonthlyRecord[]) => records.length ? records.filter((r) => r.evidence?.length).length / records.length : 0
+
+/** SHA-256 of a file as hex, using the browser's crypto. */
+export async function sha256Hex(data: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 /* ---------------- Sample history ---------------- */
 
 /** Malaysian steel demand dips around Hari Raya and in the year-end shutdown. Index by month 1–12. */
 const SEASON = [0.97, 0.9, 0.98, 1.02, 1.03, 1.0, 1.02, 1.04, 1.03, 1.05, 1.01, 0.88]
 
 /**
- * 36 illustrative months ending last month, built from the site's own yearly machine figures, with
+ * TEST FIXTURE ONLY: never shown in the app. 36 synthetic months ending last month, built from the site's own yearly machine figures, with
  * seasonality, slow growth, a little noise, a mid-period efficiency gain and one faulty month.
  */
 export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(monthIndex(new Date().toISOString().slice(0, 7)) - 1), months = 36): MonthlyRecord[] {
@@ -178,9 +226,12 @@ export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(mon
     // Part of the energy is drawn whatever the output (base load: lighting, compressors, idle furnaces).
     const elecLoad = 0.25 + 0.75 * output, fuelLoad = 0.15 + 0.85 * output
     const fuelGJ = Object.fromEntries(Object.entries(yearly.fuel).map(([fuel, gj]) => [fuel, Math.round(gj / 12 * fuelLoad * efficiency * (1 + noise()))]))
+    const electricityMWh = Math.round(yearly.electricity / 12 * elecLoad * efficiency * fault * (1 + noise()))
     return {
       month,
-      electricityMWh: Math.round(yearly.electricity / 12 * elecLoad * efficiency * fault * (1 + noise())),
+      electricityMWh,
+      // From the third year the site buys 10% of its electricity under TNB's Green Electricity Tariff.
+      ...(k >= 24 ? { greenMWh: Math.round(electricityMWh * 0.1) } : {}),
       fuelGJ,
       processT: Math.round(yearly.process / 12 * output * (1 + noise())),
       productionT: Math.round(production / 12 * output),
@@ -188,9 +239,9 @@ export function sampleHistory(state: FactoryState, endMonth = monthFromIndex(mon
   })
 }
 
-/** The site's uploaded history, or the sample history when nothing has been uploaded. */
-export function historyFor(state: FactoryState): { records: MonthlyRecord[]; sample: boolean } {
-  return state.monthly?.length ? { records: state.monthly, sample: false } : { records: sampleHistory(state), sample: true }
+/** The site's uploaded history. Nothing is invented: an empty list until the site uploads data. */
+export function historyFor(state: FactoryState): { records: MonthlyRecord[] } {
+  return { records: state.monthly ?? [] }
 }
 
 /* ---------------- Forecast ---------------- */
@@ -318,19 +369,19 @@ export function anomalies(records: MonthlyRecord[], threshold = 3.5): Anomaly[] 
 
 /* ---------------- Years and targets ---------------- */
 
-export type YearTotal = { year: number; scope1T: number; scope2T: number; totalT: number; productionT: number; months: number; actualMonths: number }
+export type YearTotal = { year: number; scope1T: number; scope2T: number; /** Market-based Scope 2; forecast months assume no green instruments. */ scope2MarketT: number; totalT: number; productionT: number; months: number; actualMonths: number }
 
 /** Calendar-year totals from actual months, topped up with forecast months. */
 export function yearTotals(actual: MonthScopes[], projected: ForecastMonth[]): YearTotal[] {
   const years = new Map<number, YearTotal>()
-  const add = (month: string, s1: number, s2: number, p: number, isActual: boolean) => {
+  const add = (month: string, s1: number, s2: number, p: number, isActual: boolean, s2m = s2) => {
     const year = Number(month.slice(0, 4))
-    const entry = years.get(year) ?? { year, scope1T: 0, scope2T: 0, totalT: 0, productionT: 0, months: 0, actualMonths: 0 }
-    entry.scope1T += s1; entry.scope2T += s2; entry.totalT += s1 + s2; entry.productionT += p; entry.months += 1
+    const entry = years.get(year) ?? { year, scope1T: 0, scope2T: 0, scope2MarketT: 0, totalT: 0, productionT: 0, months: 0, actualMonths: 0 }
+    entry.scope1T += s1; entry.scope2T += s2; entry.scope2MarketT += s2m; entry.totalT += s1 + s2; entry.productionT += p; entry.months += 1
     if (isActual) entry.actualMonths += 1
     years.set(year, entry)
   }
-  actual.forEach((item) => add(item.month, item.scope1T, item.scope2T, item.productionT, true))
+  actual.forEach((item) => add(item.month, item.scope1T, item.scope2T, item.productionT, true, item.scope2MarketT))
   projected.forEach((item) => add(item.month, item.scope1T, item.scope2T, item.productionT, false))
   return [...years.values()].sort((a, b) => a.year - b.year)
 }

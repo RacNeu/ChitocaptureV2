@@ -111,13 +111,14 @@ export function answer(question: CopilotQuestion, state: FactoryState): CopilotA
 
   if (question === 'tax') {
     const view = outlook(state)
+    if (view.empty) return { title: 'Carbon tax outlook', lines: ['Upload monthly bills (Monthly data) to estimate your carbon tax.'] }
     const next = view.tax.find((item) => item.year > Number(view.last12.to.slice(0, 4))) ?? view.tax.at(-1)
     const at2030 = view.tax.find((item) => item.year === 2030)
     const cheapest = options.filter((option) => option.economics.costPerTonneRM !== null && next && option.economics.costPerTonneRM < next.rmPerT).sort((a, b) => b.economics.netT - a.economics.netT).slice(0, 3)
     return {
       title: 'Carbon tax outlook (Singapore rate as reference)',
       lines: [
-        `Last 12 months: Scope 1 ${t(view.last12.scope1T)}, Scope 2 ${t(view.last12.scope2T)}${view.sample ? ' (sample history: upload your bills on the Dashboard)' : ''}.`,
+        `Last 12 months: Scope 1 ${t(view.last12.scope1T)}, Scope 2 ${t(view.last12.scope2T)}${view.empty ? ' (no data yet: upload your bills on the Dashboard)' : ''}.`,
         next ? `${next.year}: about ${rm(next.billRM)} on ${t(next.taxableT)} of Scope 1 at RM ${Math.round(next.rmPerT)}/t.` : 'Not enough history to project a bill yet.',
         at2030 ? `2030: about ${rm(at2030.billRM)} at RM ${Math.round(at2030.rmPerT)}/t if emissions follow the forecast.` : '',
         cheapest.length ? 'Cheaper to cut than to pay the tax:' : '',

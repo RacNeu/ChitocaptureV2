@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultTaxInputs, rmPerTonne, singaporePath, taxBill, taxableT } from './carbonTax'
-import { anomalies, CSV_TEMPLATE, fitSeries, forecast, importCsv, monthFromIndex, monthIndex, parseMonth, predict, sampleHistory, scopesFor, targetCheck, yearTotals } from './history'
+import { anomalies, CSV_TEMPLATE, diffRecords, evidenceShare, fitSeries, forecast, importCsv, monthFromIndex, monthIndex, parseMonth, predict, sampleHistory, scopesFor, targetCheck, yearTotals } from './history'
 import { outlook } from './outlook'
 import { freshState } from './store'
 
@@ -51,6 +51,28 @@ describe('monthly history', () => {
     const s = scopesFor({ month: '2025-01', electricityMWh: 1_000, fuelGJ: { 'natural-gas': 1_000, biomass: 500 }, processT: 10, productionT: 100 }, mill.settings)
     expect(s.scope1T).toBeCloseTo(56.1 + 10)
     expect(s.scope2T).toBeCloseTo(1_000 * 0.774)
+    expect(s.scope2MarketT).toBeCloseTo(s.scope2T)
+  })
+  it('reports market-based Scope 2 with green electricity at zero', () => {
+    const record = { month: '2025-01', electricityMWh: 1_000, greenMWh: 300, fuelGJ: {}, processT: 0, productionT: 100 }
+    const s = scopesFor(record, mill.settings)
+    expect(s.scope2T).toBeCloseTo(774)
+    expect(s.scope2MarketT).toBeCloseTo(700 * 0.774)
+    expect(scopesFor(record, { ...mill.settings, residualKgPerKWh: 0.8 }).scope2MarketT).toBeCloseTo(560)
+    expect(scopesFor({ ...record, greenMWh: 5_000 }, mill.settings).scope2MarketT).toBe(0)
+  })
+  it('reads a green electricity column in kWh', () => {
+    const { records, warnings } = importCsv(['month,electricity_kwh,green_kwh', '2025-01,1000000,250000', '2025-02,1000000,2000000'].join('\n'))
+    expect(records[0].greenMWh).toBeCloseTo(250)
+    expect(records[1].greenMWh).toBeCloseTo(1_000)
+    expect(warnings.some((w) => w.includes('capped'))).toBe(true)
+  })
+  it('lists field-level changes between two uploads', () => {
+    const a = [{ month: '2025-01', electricityMWh: 100, fuelGJ: { 'natural-gas': 10 }, processT: 0, productionT: 5 }]
+    const b = [{ month: '2025-01', electricityMWh: 120, fuelGJ: { 'natural-gas': 10 }, processT: 0, productionT: 5 }, { month: '2025-02', electricityMWh: 90, fuelGJ: {}, processT: 0, productionT: 4 }]
+    expect(diffRecords(a, b)).toEqual([{ month: '2025-01', field: 'Electricity MWh', from: 100, to: 120 }, { month: '2025-02', field: 'Month', from: null, to: 1 }])
+    expect(diffRecords(b, b)).toEqual([])
+    expect(evidenceShare([{ ...a[0], evidence: [{ name: 'bill.pdf', sizeBytes: 1, sha256: 'x', kind: 'electricity', at: '', who: '' }] }, b[1]])).toBe(0.5)
   })
 })
 
@@ -86,8 +108,10 @@ describe('forecast', () => {
     expect(check.gapT).toBeGreaterThan(0)
   })
   it('builds a full outlook without NaN', () => {
-    const view = outlook(mill)
-    expect(view.sample).toBe(true)
+    expect(outlook(mill).empty).toBe(true)
+    expect(outlook(mill).months).toHaveLength(0)
+    const view = outlook({ ...mill, monthly: sampleHistory(mill, '2026-10') })
+    expect(view.empty).toBe(false)
     expect(view.last12.count).toBe(12)
     expect(view.tax.length).toBeGreaterThan(0)
     expect(JSON.stringify(view)).not.toMatch(/NaN|null,"scope1T"|Infinity/)
