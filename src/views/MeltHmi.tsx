@@ -312,7 +312,7 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
       {screen !== 'energy' && <p className="h3-note">This screen shows your uploaded data at the replay time ({stamp(Math.floor(repT))}). Switch to “Replay data” to move through it.</p>}
     </div>}
 
-    {mode === 'live' && <div className="h3-faults"><b>Demo faults on {lf}</b>{faults.map((x) => <button key={x.id} type="button" title={x.what} onClick={() => live.inject(x.id, lf)} className={liveState.faults[x.id]?.furnace === lf ? 'on' : ''}>{x.label}</button>)}<button type="button" className="clear" onClick={() => live.clearFaults()}>Clear faults</button><span>Simulated live feed · in a plant this comes from sensors and the PLC over MQTT</span></div>}
+    {mode === 'live' && <div className="h3-faults"><b>Demo faults on {lf}</b>{faults.map((x) => <button key={x.id} type="button" title={x.what} onClick={() => live.inject(x.id, lf)} className={liveState.faults[x.id]?.furnace === lf ? 'on' : ''}>{x.label}</button>)}<button type="button" className="clear" onClick={() => live.clearFaults()}>Clear faults</button><span>Simulated live feed · in a plant this comes from sensors and the PLC through Supabase</span></div>}
     {mode === 'replay' && <div className="h3-replay"><input type="range" min={tMin} max={tMax} value={repT} onChange={(e) => { setPlay(false); setRepT(Number(e.target.value)) }} aria-label="Replay time" /><span>{stamp(Math.floor(repT))}</span></div>}
 
     <div className={`h3-alarmbar ${activeAlarms.length ? 'on' : ''}`} role="status">

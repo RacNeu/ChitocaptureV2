@@ -4,7 +4,7 @@
  *
  * Readings come from the induction heat physics in model/furnaceSim.ts, so they behave like the real
  * thing (power on while melting, coil water heating up, bath temperature rising). Faults can be
- * injected for demos. In a real plant this module is replaced by an MQTT subscription; the reading
+ * injected for demos. In a real plant this module is replaced by readings from Supabase (src/live/sources.ts); the reading
  * format and the alert engine stay the same (see docs/live-monitoring.md).
  */
 import { defaultSetPoints, pointAt, simulateHeat, type SetPoints, type SimHeat, type SimPhase } from '../model/furnaceSim'
