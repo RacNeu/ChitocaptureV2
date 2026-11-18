@@ -2,7 +2,7 @@ import { scopesFor } from './history'
 import type { Settings } from './types'
 
 /**
- * Real published data used to check ChitoCapture's calculation: Malaysia Steel Works (KL) Bhd
+ * Real published data used to check CarbonPath's calculation: Malaysia Steel Works (KL) Bhd
  * (Masteel, Bursa-listed), Sustainability Report FY2024 — energy table p.50, electricity in kWh
  * p.51, GHG table and methodology p.152. Masteel used the grid factor published at the time of each
  * report, so each year is checked with that year's factor.

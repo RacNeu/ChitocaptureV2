@@ -127,7 +127,7 @@ export default function App() {
 
   return <div className="app shell">
     <aside className="sidebar" aria-label="Main menu">
-      <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span></div>
+      <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">CarbonPath</span></div>
       <nav className="side-nav" aria-label="Company">
         {companyMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>

@@ -165,7 +165,7 @@ export const live = {
     if (on) live.start()
   },
   async sendTest() {
-    const m: SentMessage = { id: `test-${Date.now()}`, text: '✅ Test from ChitoCapture\nAlerts for the melt shop will arrive in this chat.', level: 'warn', clock: clockOf(state.t), delivered: 'preview', payload: { kind: 'test' } }
+    const m: SentMessage = { id: `test-${Date.now()}`, text: '✅ Test from CarbonPath\nAlerts for the melt shop will arrive in this chat.', level: 'warn', clock: clockOf(state.t), delivered: 'preview', payload: { kind: 'test' } }
     addMessage(m)
     const delivered = await deliver(m)
     addMessage({ ...m, delivered })

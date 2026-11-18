@@ -43,7 +43,7 @@ export default function ValidationPanel() {
       <ul className="validation-notes">
         <li><b>Scope 2</b> matches to the cent once the same grid factor is used. Grid factors are editable in Settings and saved when a year is signed off.</li>
         <li><b>Diesel</b> differs because we use the IPCC 2006 CO₂-only factor and Masteel uses US EPA factors, which add CH₄ and N₂O. The FY2023 gap (+8%) isn’t explained by the report; our figure is the higher, conservative one. FY2022 used Masteel’s older method, so its diesel line isn’t compared.</li>
-        <li><b>Natural gas</b> ({num(latest.gasT)} t in FY{latest.year}) sits inside Masteel’s “process” line, which also holds about {num(latest.carbonInputsT)} t of carbon inputs (electrodes, additives); in ChitoCapture those go in <code>process_t</code>.</li>
+        <li><b>Natural gas</b> ({num(latest.gasT)} t in FY{latest.year}) sits inside Masteel’s “process” line, which also holds about {num(latest.carbonInputsT)} t of carbon inputs (electrodes, additives); in CarbonPath those go in <code>process_t</code>.</li>
         <li><b>Not yet covered:</b> fugitive refrigerant emissions (Masteel reports about 350–490 t a year) and CH₄/N₂O from combustion. Masteel publishes no production tonnage, so per-tonne figures can’t be checked.</li>
       </ul>
       <p className="muted small">Source: <a href={MASTEEL_SOURCE.url} target="_blank" rel="noreferrer">{MASTEEL_SOURCE.label}</a>. The same check runs as an automated test on every change (<code>src/model/validation.test.ts</code>).</p>

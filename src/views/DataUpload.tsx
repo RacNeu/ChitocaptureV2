@@ -63,7 +63,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
         <h1>Upload bills</h1>
         <p className="muted">{state.settings.factoryName} · one row per month: bills + production</p>
       </div>
-      <div className="dash-actions"><a className="btn ghost" href={templateHref} download="chitocapture-monthly-template.csv">⤓ Download template</a></div>
+      <div className="dash-actions"><a className="btn ghost" href={templateHref} download="carbonpath-monthly-template.csv">⤓ Download template</a></div>
     </header>
 
     <section className={`card dropzone${dragging ? ' dragging' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void take(event.dataTransfer.files[0]) }}>
@@ -116,7 +116,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
     {attachRecord && <section className="card">
       <header className="card-head">
         <div><h2>Evidence · {monthLabel(attachRecord.month)}</h2>
-          <p className="muted small">Attach the TNB bill, fuel invoice or production log behind this month. The file stays on your computer: ChitoCapture keeps its name and SHA-256 fingerprint, so an assurance provider can check that the document you hand over is the one the figures came from.</p></div>
+          <p className="muted small">Attach the TNB bill, fuel invoice or production log behind this month. The file stays on your computer: CarbonPath keeps its name and SHA-256 fingerprint, so an assurance provider can check that the document you hand over is the one the figures came from.</p></div>
         <button type="button" className="btn ghost small" onClick={() => setAttachTo(null)}>Close</button>
       </header>
       {attachRecord.evidence?.length ? <div className="table-wrap"><table className="grid-table">

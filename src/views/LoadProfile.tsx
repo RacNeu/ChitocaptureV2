@@ -187,7 +187,7 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     <header className="dash-head">
       <div><h1>Electricity load</h1><p className="muted">{state.settings.factoryName} · half-hourly demand{a ? ` · ${timeLabel(a.from).split(', ')[1]} – ${timeLabel(a.to).split(', ')[1]}` : ''}</p></div>
       <div className="dash-actions">
-        <a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>
+        <a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="carbonpath-half-hourly-template.csv">⤓ Template</a>
         <label className={`btn file-btn${a ? ' ghost' : ''}`}>⇪ Upload<input type="file" accept=".csv,.txt,.xlsx,.xlsm" onChange={(event) => { void take(event.target.files?.[0]); event.target.value = '' }} /></label>
         {a && <button type="button" className="btn" onClick={onFindings}>Ways to save</button>}
       </div>
@@ -205,7 +205,7 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     {series && !result && <p className="muted small">Using {series.source}. <button type="button" className="link" onClick={() => { if (confirm('Remove the uploaded half-hourly data?')) actions.setInterval(null) }}>Remove</button></p>}
   </>
 
-  if (!a) return <div className="dashboard load-profile">{top}{!result && <EmptyState icon="bolt" title="No half-hourly data yet" action={<a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="chitocapture-half-hourly-template.csv">⤓ Template</a>}>Upload your meter’s readings: a timestamp and kW (or kWh per half hour). <Info>Medium- and high-voltage customers can usually request this load profile from TNB.</Info></EmptyState>}</div>
+  if (!a) return <div className="dashboard load-profile">{top}{!result && <EmptyState icon="bolt" title="No half-hourly data yet" action={<a className="btn ghost" href={`data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`} download="carbonpath-half-hourly-template.csv">⤓ Template</a>}>Upload your meter’s readings: a timestamp and kW (or kWh per half hour). <Info>Medium- and high-voltage customers can usually request this load profile from TNB.</Info></EmptyState>}</div>
   const last = a.months.at(-1)!
   const shave = last.shave.find((s) => s.hours === hours)!
 

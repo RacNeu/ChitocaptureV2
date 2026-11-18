@@ -280,7 +280,7 @@ export default function Reports() {
     <div className="no-print"><MalaysiaRules state={state} /></div>
     <article className="report-paper">
       <header className="rep-head">
-        <div className="rep-brand"><span className="brand-mark">◭</span><div><b>ChitoCapture</b><small>Carbon tracking platform</small></div></div>
+        <div className="rep-brand"><span className="brand-mark">◭</span><div><b>CarbonPath</b><small>Carbon tracking platform</small></div></div>
         <div className="rep-meta"><span>{company.name}</span><span>{templateById(state.settings.industryId)?.icon} {state.settings.factoryName}</span>{stateById(state.settings.stateId) && <span>{state.settings.industrialPark ? `${state.settings.industrialPark}, ` : ''}{stateById(state.settings.stateId)?.label}, Malaysia</span>}</div>
       </header>
       <h1>{titles[kind]}</h1>

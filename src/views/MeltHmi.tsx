@@ -174,7 +174,7 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
   const kwhPerT = heat.kwhPerT
 
   return <div className="h3">
-    <div className="h3-title"><span className="h3-brand">ChitoCapture</span><b>Melt shop HMI · {mode === 'sim' ? 'Simulator' : f} · Induction furnace monitoring</b><span className="h3-clock">{clock}</span></div>
+    <div className="h3-title"><span className="h3-brand">CarbonPath</span><b>Melt shop HMI · {mode === 'sim' ? 'Simulator' : f} · Induction furnace monitoring</b><span className="h3-clock">{clock}</span></div>
     <div className="h3-status">
       <span className={activeAlarms.some((a) => a.level === 'alarm') ? 'red' : ''}>CRITICAL ALARMS</span>
       <span>Electrical data</span>

@@ -41,7 +41,7 @@ const withMentions = (text: string, level: 'warn' | 'alarm' | 'test') => { const
 function message(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null
   const b = body as Record<string, unknown>
-  if (b.kind === 'test') return withMentions('✅ Test from ChitoCapture\nAlerts for the melt shop will arrive in this chat.', 'test')
+  if (b.kind === 'test') return withMentions('✅ Test from CarbonPath\nAlerts for the melt shop will arrive in this chat.', 'test')
   if (b.kind !== 'alert') return null
   const rule = typeof b.rule === 'string' ? RULES[b.rule] : undefined
   if (!rule || typeof b.furnace !== 'string' || !/^IF[1-4]$/.test(b.furnace) || (b.level !== 'warn' && b.level !== 'alarm')) return null

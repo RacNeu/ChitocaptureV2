@@ -39,7 +39,7 @@ export default function Login({ onSignedIn }: { onSignedIn: (company: string | n
     </div>
     <main className="login-main">
       <form className="login-card" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-        <div className="login-brand"><BrandLogo size={44} /><div><strong>ChitoCapture</strong><small>Company sign-in</small></div></div>
+        <div className="login-brand"><BrandLogo size={44} /><div><strong>CarbonPath</strong><small>Company sign-in</small></div></div>
         <label>Company ID
           <input value={id} onChange={(event) => setId(event.target.value)} placeholder="e.g. MSD-001" autoComplete="username" autoCapitalize="characters" spellCheck={false} />
         </label>
