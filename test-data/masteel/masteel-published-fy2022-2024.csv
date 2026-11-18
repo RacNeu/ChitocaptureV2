@@ -1,4 +1,0 @@
-year,electricity_kwh,electricity_gj,natural_gas_gj,diesel_gj,grid_factor_used_kg_per_kwh,grid_factor_source,reported_scope1_process_t,reported_scope1_diesel_t,reported_scope2_t,reported_overall_intensity_t_per_t,source
-2022,381787214,1374433.97,182994.00,54265.69,0.585,Malaysia 2017 CDM Electricity Baseline,152306.57,1128.64,223345.52,0.519,"Masteel Sustainability Report FY2024 p.50 (energy), p.152 (GHG)"
-2023,428835395,1543807.42,71054.00,21955.60,0.758,Energy Commission GEF 2021,4943.03,1505.08,325057.23,0.396,"Masteel Sustainability Report FY2024 p.50-51 (energy), p.152 (GHG)"
-2024,398450750,1434422.70,42327.00,21616.15,0.774,Energy Commission GEF 2022,3228.77,1622.61,308400.88,0.369,"Masteel Sustainability Report FY2024 p.50-51 (energy), p.152 (GHG)"
