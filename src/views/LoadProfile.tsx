@@ -34,26 +34,39 @@ const quantile = (sorted: number[], q: number) => sorted.length ? sorted[Math.mi
 const shortDate = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /**
- * Carpet plot: one row per day, one column per half hour. Cells touch (no gaps) so the pattern
- * reads as a picture, colour is stretched between the 2nd and 99.5th percentile so one spike does
- * not wash everything else out, and each month's demand-charge peak is labelled in the right margin.
+ * Demand calendar: one row per day, one tile per hour (or half hour), read like a calendar.
+ * - Tiles sit on a hairline grid with a little air between weeks; Mondays are numbered on the left.
+ * - Colour runs from the 2nd to the 99.5th percentile and is bent (power CURVE) so only real highs go
+ *   dark: night against day and stops against running separate, heat-to-heat noise stays quiet.
+ *   The legend prints the MW at each step.
+ * - The right column is energy per day (MWh), so stopped and short days stand out at a glance.
+ * - The half hour that set each month's demand charge is a rose dot, labelled beside its day.
  */
+const TILE = 15, GAP = 1, ROW = 7, WEEK_GAP = 4, CURVE = 1.7
 function Carpet({ a }: { a: IntervalAnalysis }) {
   const [hover, setHover] = useState<{ d: number; c: number } | null>(null)
   const [res, setRes] = useState<'hour' | 'half'>('hour')
   const rows = a.days_
   const step = res === 'hour' ? 2 : 1, cols = PER_DAY / step
-  const sw = 15, cw = sw * step, ch = Math.max(5, Math.min(9, Math.floor(540 / Math.max(1, rows.length))))
-  const left = 64, top = 22, gutter = 150
-  const plotW = PER_DAY * sw, plotH = rows.length * ch
-  const width = left + plotW + gutter, height = top + plotH + 8
+  const cw = TILE * step
   // Hourly view averages the two half hours: same pattern, half the speckle.
   const grid = useMemo(() => rows.map((row) => Array.from({ length: cols }, (_, c) => {
     const part = row.kW.slice(c * step, c * step + step).filter((v): v is number => v !== null)
     return part.length ? part.reduce((x, y) => x + y, 0) / part.length : null
   })), [rows, cols, step])
-  const values = useMemo(() => grid.flat().filter((v): v is number => v !== null).sort((x, y) => x - y), [grid])
-  const lo = quantile(values, 0.02), hi = Math.max(lo + 1, quantile(values, 0.995))
+  const sorted = useMemo(() => grid.flat().filter((v): v is number => v !== null).sort((x, y) => x - y), [grid])
+  const lo = quantile(sorted, 0.02), hi = Math.max(lo + 1, quantile(sorted, 0.995))
+  /** Colour position 0–1: linear between the 2nd and 99.5th percentile, bent so only real highs go dark. */
+  const shade = (v: number) => Math.pow(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), CURVE)
+  /** The reading (kW) at a colour position, for the legend. */
+  const valueAt = (s: number) => lo + (hi - lo) * Math.pow(s, 1 / CURVE)
+  // Vertical layout: weeks start on Monday, with a small gap before each one.
+  const ys = useMemo(() => { let y = 0; return rows.map((row, d) => { const monday = new Date(`${row.date}T00:00:00Z`).getUTCDay() === 1; if (d > 0 && monday) y += WEEK_GAP; const at = y; y += ROW; return at }) }, [rows])
+  const daily = useMemo(() => rows.map((row) => { const v = row.kW.filter((x): x is number => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) * 0.5 / 1_000 : 0 }), [rows])
+  const maxDaily = Math.max(1, ...daily)
+  const left = 70, top = 26, plotW = PER_DAY * TILE, barX = left + plotW + 18, barW = 70, labelX = barX + barW + 14
+  const plotH = (ys[ys.length - 1] ?? 0) + ROW
+  const width = labelX + 150, height = top + plotH + 6
   const peaks = a.months.map((m) => {
     const [date, time] = m.mdAt.split('T')
     const d = rows.findIndex((row) => row.date === date)
@@ -61,42 +74,53 @@ function Carpet({ a }: { a: IntervalAnalysis }) {
     return { d, s, c: Math.floor(s / step), date, time, kW: d >= 0 && s >= 0 ? rows[d].kW[s] : null }
   }).filter((p) => p.d >= 0 && p.s >= 0)
   const isPeak = (d: number, c: number) => peaks.some((p) => p.d === d && p.c === c)
-  const h = hover ? { date: rows[hover.d].date, c: hover.c, kW: grid[hover.d][hover.c] } : null
+  const h = hover ? { date: rows[hover.d].date, c: hover.c, kW: grid[hover.d][hover.c], mwh: daily[hover.d] } : null
+  const steps = [0, 0.25, 0.5, 0.75, 1]
   return <div className="mchart carpet-wrap">
     <div className="carpet-controls" role="tablist" aria-label="Resolution">
       {(['hour', 'half'] as const).map((key) => <button key={key} type="button" role="tab" aria-selected={res === key} className={res === key ? 'active' : ''} onClick={() => setRes(key)}>{key === 'hour' ? 'Hourly' : 'Half-hourly'}</button>)}
     </div>
-    <svg className="chart carpet" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Electricity demand, one row per day" onPointerLeave={() => setHover(null)}>
-      {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hr) => <text key={hr} x={left + hr * 2 * sw} y={top - 8} textAnchor={hr === 0 ? 'start' : hr === 24 ? 'end' : 'middle'} className="chart-tick">{String(hr).padStart(2, '0')}:00</text>)}
+    <svg className="chart carpet" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Electricity demand, one row per day, with energy per day" onPointerLeave={() => setHover(null)}>
+      <defs>
+        <pattern id="carpet-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="#f1f5f9" /><line x1="0" y1="0" x2="0" y2="4" stroke="#cbd5e1" strokeWidth="1.5" /></pattern>
+      </defs>
+      {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((hr) => <text key={hr} x={left + hr * 2 * TILE} y={top - 10} textAnchor={hr === 0 ? 'start' : hr === 24 ? 'end' : 'middle'} className="chart-tick">{String(hr).padStart(2, '0')}:00</text>)}
+      <text x={barX} y={top - 10} className="chart-tick">MWh / day</text>
       <g shapeRendering="crispEdges">
-        {grid.map((row, d) => row.map((v, c) => <rect key={`${d}:${c}`} x={left + c * cw} y={top + d * ch} width={cw} height={ch}
-          fill={v === null ? 'var(--carpet-missing)' : ramp((v - lo) / (hi - lo))} onPointerEnter={() => setHover({ d, c })} />))}
+        {grid.map((row, d) => row.map((v, c) => <rect key={`${d}:${c}`} x={left + c * cw + GAP / 2} y={top + ys[d]} width={cw - GAP} height={ROW - GAP}
+          fill={v === null ? 'url(#carpet-hatch)' : ramp(shade(v))} onPointerEnter={() => setHover({ d, c })} />))}
+        {daily.map((mwh, d) => <rect key={`e${d}`} className={`carpet-day${hover?.d === d ? ' on' : ''}`} x={barX} y={top + ys[d]} width={Math.max(1, mwh / maxDaily * barW)} height={ROW - GAP} />)}
       </g>
-      {/* Six-hourly guides and month boundaries, drawn over the cells but kept faint. */}
-      {[6, 12, 18].map((hr) => <line key={hr} x1={left + hr * 2 * sw} x2={left + hr * 2 * sw} y1={top} y2={top + plotH} className="carpet-guide" />)}
-      {rows.map((row, d) => (d === 0 || row.date.endsWith('-01')) && <g key={`m${d}`}>
-        {d > 0 && <line x1={left - 6} x2={left + plotW} y1={top + d * ch} y2={top + d * ch} className="carpet-month" />}
-        <text x={left - 10} y={top + d * ch + 10} textAnchor="end" className="chart-tick carpet-month-label">{monthLabel(row.date.slice(0, 7))}</text>
-      </g>)}
+      {rows.map((row, d) => {
+        const day = new Date(`${row.date}T00:00:00Z`)
+        const first = d === 0 || row.date.endsWith('-01')
+        return <g key={`l${d}`}>
+          {first && <text x={8} y={top + ys[d] + ROW - 1} className="chart-tick carpet-month-label">{monthLabel(row.date.slice(0, 7)).replace(/ \d{4}$/, '')}</text>}
+          {day.getUTCDay() === 1 && <text x={left - 8} y={top + ys[d] + ROW - 1} textAnchor="end" className="chart-tick carpet-day-num">{day.getUTCDate()}</text>}
+        </g>
+      })}
       {peaks.map((p) => <g key={`p${p.d}`} className="carpet-peak">
-        <rect className="halo" x={left + p.c * cw - 2} y={top + p.d * ch - 2} width={cw + 4} height={ch + 4} rx={2} />
-        <rect x={left + p.c * cw - 2} y={top + p.d * ch - 2} width={cw + 4} height={ch + 4} rx={2} />
-        <line x1={left + (p.c + 1) * cw + 3} x2={left + plotW + 10} y1={top + p.d * ch + ch / 2} y2={top + p.d * ch + ch / 2} />
-        <circle cx={left + plotW + 10} cy={top + p.d * ch + ch / 2} r={3} />
-        <text x={left + plotW + 18} y={top + p.d * ch + ch / 2 - 2} className="carpet-peak-value">{p.kW !== null ? mw(p.kW) : '—'} peak</text>
-        <text x={left + plotW + 18} y={top + p.d * ch + ch / 2 + 11} className="carpet-peak-when">{shortDate(p.date)} · {p.time}</text>
+        <circle cx={left + p.c * cw + cw / 2} cy={top + ys[p.d] + (ROW - GAP) / 2} r={4.5} />
+        <circle className="dot" cx={labelX - 6} cy={top + ys[p.d] + (ROW - GAP) / 2} r={3} />
+        <text x={labelX + 2} y={top + ys[p.d] + 4} className="carpet-peak-value">{p.kW !== null ? mw(p.kW) : '—'}</text>
+        <text x={labelX + 2} y={top + ys[p.d] + 17} className="carpet-peak-when">{shortDate(p.date)} · {p.time}</text>
       </g>)}
-      {hover && <rect x={left + hover.c * cw - 1} y={top + hover.d * ch - 1} width={cw + 2} height={ch + 2} className="carpet-hover" />}
+      {hover && <rect x={left + hover.c * cw} y={top + ys[hover.d] - GAP / 2} width={cw} height={ROW} className="carpet-hover" />}
     </svg>
-    {h && <div className="chart-tip" style={{ left: `${Math.min(68, (left + h.c * cw) / width * 100)}%` }}>
+    {h && <div className="chart-tip" style={{ left: `${Math.min(64, (left + h.c * cw) / width * 100)}%` }}>
       <b>{res === 'hour' ? `${shortDate(h.date)} · ${slotLabel(h.c * 2)}–${h.c === 23 ? '24:00' : slotLabel(h.c * 2 + 2)}` : timeLabel(`${h.date}T${slotLabel(h.c)}`)}</b>
       <span>{h.kW === null ? 'No reading' : `${num(h.kW)} kW${res === 'hour' ? ' average' : ''}`}</span>
+      <small className="muted">{num(h.mwh)} MWh that day</small>
       {isPeak(hover!.d, hover!.c) && <small className="tip-flag">Set this month’s demand charge</small>}
     </div>}
     <div className="legend carpet-legend">
-      <span className="carpet-scale"><small>{mw(lo)}</small><i style={{ background: `linear-gradient(90deg, ${[0, 0.25, 0.5, 0.75, 1].map(ramp).join(', ')})` }} /><small>{mw(hi)}</small></span>
-      <span><i className="legend-md" />Sets the month’s demand charge</span>
-      <span><i style={{ background: 'var(--carpet-missing)' }} />No reading</span>
+      <span className="carpet-scale">
+        <span className="carpet-steps">{steps.map((s) => <i key={s} style={{ background: ramp(s) }} />)}</span>
+        <span className="carpet-ticks">{steps.map((s) => <small key={s}>{num(valueAt(s) / 1_000, 0)}</small>)}</span>
+        <small className="carpet-unit">MW</small>
+      </span>
+      <span><i className="legend-md" />Set the month’s demand charge</span>
+      <span><i className="legend-hatch" />No reading</span>
     </div>
   </div>
 }
@@ -199,7 +223,7 @@ export default function LoadProfile({ onFindings }: { onFindings: () => void }) 
     </div>
 
     <section className="card">
-      <header className="card-head"><div><h2>Demand through the day <Info>Each row is a day, each square an hour or a half hour; darker = more demand. Pale bands are stops. Red outlines are the half-hours that set your demand charge.</Info></h2><p className="muted small">Red = sets your demand charge</p></div></header>
+      <header className="card-head"><div><h2>Demand through the day <Info>Each row is a day, each tile an hour or a half hour. Darker means more demand. Pale bands are stops. The bars on the right are each day’s energy. A rose dot marks the half hour that set the month’s demand charge.</Info></h2><p className="muted small">{monthLabel(a.days_[0]?.date.slice(0, 7) ?? '')} – {monthLabel(a.days_[a.days_.length - 1]?.date.slice(0, 7) ?? '')} · weeks start on Monday</p></div></header>
       <Carpet a={a} />
     </section>
 

@@ -2649,3 +2649,37 @@ input:disabled, select:disabled, fieldset.lock:disabled input, fieldset.lock:dis
 /* Violet has no meaning in the chrome: the role picker is a quiet emerald control like the rest of the top bar. */
 .role-switch select { background-color: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
 .role-switch select:hover { border-color: #34d399; }
+
+/* Demand calendar (Electricity load): tiles on a hairline grid, energy per day, rose peak dots */
+.carpet-wrap { --carpet-missing: #f1f5f9; }
+.carpet rect { cursor: crosshair; }
+.carpet-month-label { font-size: 12px; font-weight: 700; fill: #1e293b; }
+.carpet-day-num { font-size: 10.5px; fill: #64748b; font-variant-numeric: tabular-nums; }
+.carpet-day { fill: #b9cfe9; transition: fill .12s ease; }
+.carpet-day.on { fill: #1d5fae; }
+.carpet-peak circle { fill: #e11d48; stroke: #fff; stroke-width: 2; pointer-events: none; }
+.carpet-peak circle.dot { stroke-width: 0; }
+.carpet-peak-value { font: 600 12.5px var(--mono, monospace); fill: #0f172a; font-variant-numeric: tabular-nums; }
+.carpet-peak-when { font-size: 11px; fill: #5b6779; }
+.carpet-hover { fill: none; stroke: #0f172a; stroke-width: 1.5; pointer-events: none; }
+.carpet-legend { align-items: flex-end; gap: 22px; margin-top: 14px; }
+.carpet-scale { display: inline-grid; grid-template-columns: auto; gap: 3px; }
+.carpet-steps { display: inline-flex; gap: 2px; }
+.mchart .legend .carpet-steps i { width: 34px; height: 10px; border-radius: 2px; }
+.carpet-ticks { display: grid; grid-template-columns: repeat(5, 36px); }
+.carpet-ticks small { color: #475569; font: 500 11px var(--mono, monospace); font-variant-numeric: tabular-nums; }
+.carpet-unit { color: #5b6779; font-size: 11px; }
+.mchart .legend i.legend-md { width: 10px; height: 10px; border: 0; border-radius: 50%; background: #e11d48; box-shadow: 0 0 0 2px #fff, 0 0 0 3px #fecdd3; }
+.mchart .legend i.legend-hatch { width: 12px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, #f1f5f9 0 2px, #cbd5e1 2px 3px); }
+@media (max-width: 720px) {
+  .carpet-controls { position: static; margin-bottom: 8px; }
+}
+.mchart .legend .carpet-scale { display: inline-grid; gap: 3px; }
+.mchart .legend .carpet-steps { display: inline-flex; gap: 2px; }
+.mchart .legend .carpet-ticks { display: grid; grid-template-columns: repeat(5, 36px); gap: 0; }
+@media (max-width: 720px) {
+  /* Keep the calendar legible on phones: it scrolls sideways inside the card instead of shrinking. */
+  .carpet-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .carpet-wrap .carpet { min-width: 720px; }
+  .carpet-wrap .chart-tip { position: sticky; left: 0 !important; }
+}
