@@ -2241,3 +2241,65 @@ a.dash-kpi:hover { border-color: #d97706; }
   .draw { stroke-dashoffset: 0; }
 }
 @media print { *, *::before, *::after { animation: none !important; transition: none !important; } .toasts { display: none; } }
+
+/* ---------- Live data & alerts ---------- */
+.h3-mode { grid-template-columns: 1fr 1fr 1fr !important; }
+.h3-mode button.live { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.h3-mode button.live i { width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+.h3-mode button.live.on i { background: #e11d48; box-shadow: 0 0 0 3px rgba(225, 29, 72, .25); animation: ms-pulse 1.4s infinite; }
+.h3-faults { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 4px; background: #fff7ed; color: #7c2d12; font-size: 12.5px; }
+.h3-faults button, .lf-faults button { padding: 4px 10px; border: 1px solid #fdba74; border-radius: 999px; background: #fff; color: #9a3412; font-weight: 700; font-size: 12px; cursor: pointer; }
+.h3-faults button.on, .lf-faults button.on { background: #f97316; border-color: #f97316; color: #fff; }
+.h3-faults button.clear, .lf-faults button.clear { border-color: #cbd5e1; color: #475569; }
+.h3-faults span { margin-left: auto; color: #9a3412; font-size: 11.5px; }
+.h3-legend .b::before { content: ''; display: inline-block; width: 12px; height: 3px; margin-right: 5px; vertical-align: middle; background: #38bdf8; }
+.lf-speed { min-height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-weight: 600; }
+.lf-conn { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.lf-conn .ms-card { display: flex; flex-direction: column; gap: 6px; }
+.lf-conn .ms-card > span { color: var(--muted); font-size: 12.5px; font-weight: 700; }
+.lf-conn small { color: var(--muted); font-size: 12px; }
+.lf-pill { display: inline-flex; align-items: center; gap: 7px; align-self: flex-start; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.lf-pill i { width: 8px; height: 8px; border-radius: 50%; }
+.lf-pill.on { background: #dcfce7; color: #166534; } .lf-pill.on i { background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, .2); }
+.lf-pill.off { background: #ffe4e6; color: #9f1239; } .lf-pill.off i { background: #e11d48; }
+.lf-pill.idle { background: #f1f5f9; color: #475569; } .lf-pill.idle i { background: #94a3b8; }
+.lf-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); gap: 14px; }
+@media (max-width: 1000px) { .lf-grid { grid-template-columns: 1fr; } }
+.lf-table td { vertical-align: middle; }
+.lf-table tr.bad td { background: #fff1f2; }
+.lf-spark { width: 40%; }
+.lf-spark .ms-spark { margin: 0; height: 28px; }
+.lf-faults { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 10px; border-radius: 10px; background: #fff7ed; color: #7c2d12; font-size: 12.5px; }
+.lf-phone-card { display: flex; flex-direction: column; }
+.lf-phone { overflow: hidden; border: 8px solid #0f172a; border-radius: 26px; background: #0f172a; box-shadow: 0 12px 30px rgba(15, 23, 42, .25); }
+.lf-phone-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #17212b; color: #fff; }
+.lf-phone-top small { display: block; color: #8ea3b8; font-size: 11px; }
+.lf-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #0e7490); font-size: 13px; font-weight: 800; }
+.lf-chat { display: flex; flex-direction: column; gap: 8px; height: 360px; padding: 12px; overflow-y: auto; background: #0e1621 radial-gradient(circle at 20% 20%, rgba(16, 185, 129, .07), transparent 40%); }
+.lf-empty { margin: auto; color: #8ea3b8; font-size: 12.5px; text-align: center; }
+.lf-msg { display: flex; flex-direction: column; gap: 2px; max-width: 92%; padding: 8px 10px 6px; border-radius: 12px 12px 12px 4px; background: #182533; color: #e6edf3; font-size: 12.5px; line-height: 1.45; animation: card-in .35s var(--ease-out) both; }
+.lf-msg b { color: #fff; }
+.lf-msg.alarm b { color: #fda4af; } .lf-msg.warn b { color: #fde68a; }
+.lf-msg em { align-self: flex-end; color: #7c8fa3; font-size: 10.5px; font-style: normal; }
+.lf-alerts { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lf-alerts li { display: grid; grid-template-columns: 52px 1fr auto; align-items: start; gap: 10px; padding: 9px 10px; border-left: 3px solid #cbd5e1; border-radius: 8px; background: var(--bg-2); font-size: 13px; }
+.lf-alerts li.alarm.active { border-left-color: #e11d48; background: #fff1f2; } .lf-alerts li.warn.active { border-left-color: #f59e0b; background: #fffbeb; }
+.lf-alerts li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lf-alerts small { color: var(--muted); }
+.lf-alerts em { color: var(--ink-2); font-size: 12px; font-style: normal; }
+.lf-time { color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.lf-cleared { color: #059669; font-size: 11.5px; font-weight: 700; }
+.arch { display: block; width: 100%; height: auto; margin: 6px 0 4px; }
+.arch-box rect { stroke-width: 1.5; }
+.arch-box.plant rect { fill: #fff7ed; stroke: #fdba74; } .arch-box.cloud rect { fill: #eff6ff; stroke: #93c5fd; } .arch-box.app rect { fill: #ecfdf5; stroke: #6ee7b7; } .arch-box.out rect { fill: #f0f9ff; stroke: #38bdf8; }
+.arch-title { fill: var(--ink); font-size: 15px; font-weight: 800; }
+.arch-sub { fill: var(--muted); font-size: 11.5px; }
+.arch-sim { fill: #f97316; } .arch-simtext { fill: #fff; font-size: 9.5px; font-weight: 700; }
+.arch-zone { fill: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.arch-arrow path { fill: none; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 6 5; animation: arch-flow 1.2s linear infinite; }
+.arch-arrow text { fill: #475569; font-size: 11px; font-weight: 600; }
+#arch-head path { fill: #64748b; }
+@keyframes arch-flow { to { stroke-dashoffset: -22; } }
+.lf-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 18px; margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.lf-usb summary { cursor: pointer; }
+.lf-usb[open] summary { margin-bottom: 12px; }

@@ -274,7 +274,7 @@ export function buildWorld(root: THREE.Group, placed: Placed[], electricity: Map
     flow(steel, pts, C.steel, 16, 5, hotGeo, agents, true)
   }
 
-  // ---- Grass patches and extra trees along the site edge.
+  // ---- Grass patches along the site edge.
   const grass = std(C.grass, { roughness: 1 })
   for (const [x, z, w, d] of [[xMin - 18, (zMin + zMax) / 2, 20, zMax - zMin], [xMax + 18, (zMin + zMax) / 2, 20, zMax - zMin]] as const) add(root, new THREE.BoxGeometry(w, 0.1, d), grass, x, 0.05, z, false)
 
