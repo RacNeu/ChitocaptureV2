@@ -133,7 +133,7 @@ export default function MeltSimulator({ melt }: { melt: Melt }) {
         {r.steps.length ? <HBars rows={[...r.steps].sort((a, b) => b.rmPerMonth - a.rmPerMonth).map((s) => ({ label: s.label, value: Math.max(0, s.rmPerMonth), color: s.rmPerMonth >= 0 ? '#10b981' : '#f43f5e', note: `${s.rmPerMonth < 0 ? `costs ${ringgit(-s.rmPerMonth)} · ` : ''}${num(s.co2TPerMonth, 1)} t CO₂/month · ${s.basis}` }))} unit="RM/mo" /> : <p className="ms-note">Move a lever or pick a preset.</p>}
       </section>
       <section className="ms-card sim-ai">
-        <div className="ms-card-head"><h3>✦ Explain this scenario</h3><button type="button" className="btn small" onClick={() => void explain()} disabled={busy}>{busy ? 'Thinking…' : 'Explain'}</button></div>
+        <div className="ms-card-head"><h3>Explain this scenario</h3><button type="button" className="btn small" onClick={() => void explain()} disabled={busy}>{busy ? 'Thinking…' : 'Explain'}</button></div>
         {ai ? <><div className="sim-ai-text">{ai.lines.map((l, i) => <p key={i}>{l}</p>)}</div><small className="muted">Answer from {ai.source}. The numbers come from the model above, not from the AI.</small></> : <p className="ms-note">Claude reads this scenario’s numbers and explains them in plain words for the shift team. The optimisation itself is the maths above, so every number stays traceable.</p>}
       </section>
     </div>

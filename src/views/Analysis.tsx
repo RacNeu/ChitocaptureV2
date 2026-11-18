@@ -7,7 +7,7 @@ import { templateById } from '../model/templates'
 type StackSegment = { key: 'electricity' | 'fuel' | 'process'; label: string; value: number }
 type StackItem = { machine: Machine; segments: StackSegment[]; total: number; before?: number }
 const zoneColours = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#0f766e']
-import { kindIcon, num, ringgit, tonnes } from '../format'
+import { num, ringgit, tonnes } from '../format'
 import { areaSummary, contextFor, machineEmissions, performance, summarise } from '../model/calc'
 import { openLiveView } from '../model/focus'
 import { performanceLabel } from '../components/PerformanceBlock'
@@ -62,9 +62,9 @@ export default function Analysis() {
     </header>
 
     <div className="kpis">
-      <div className="kpi warn"><span>Biggest source</span><strong>{top ? top.machine.name : '—'}</strong><small>{top ? `${tonnes(top.total)}/yr · ${num(top.total / Math.max(1, total) * 100, 1)}% of the factory` : ''}</small></div>
+      <div className="kpi warn"><span>Biggest source</span><strong className="word">{top ? top.machine.name : '—'}</strong><small>{top ? `${tonnes(top.total)}/yr · ${num(top.total / Math.max(1, total) * 100, 1)}% of the factory` : ''}</small></div>
       <div className="kpi"><span>The 80% rule</span><strong>{paretoCount} of {ranked.length}</strong><small>sources make up 80% of emissions: focus there first</small></div>
-      <div className="kpi"><span>Main cause</span><strong className="cap">{topCause ? causeLabel[topCause[0]].split(' (')[0] : '—'}</strong><small>{topCause ? `${num(topCause[1] / Math.max(1, total) * 100)}% of all CO₂e` : ''}</small></div>
+      <div className="kpi"><span>Main cause</span><strong className="cap word">{topCause ? causeLabel[topCause[0]].split(' (')[0] : '—'}</strong><small>{topCause ? `${num(topCause[1] / Math.max(1, total) * 100)}% of all CO₂e` : ''}</small></div>
       <div className="kpi accent"><span>Carbon cost at RM {carbonPrice}/t</span><strong>{ringgit(total * carbonPrice)}</strong><small>per year · illustrative price, adjust below</small></div>
     </div>
 
@@ -158,7 +158,7 @@ export default function Analysis() {
           <thead><tr><th>#</th><th>Source</th><th>Area</th><th className="num">t CO₂e/yr</th><th>Share</th><th>vs target</th><th className="num">Carbon cost/yr</th><th>Data</th></tr></thead>
           <tbody>{ranked.map((item, index) => <tr key={item.machine.id}>
             <td>{index + 1}</td>
-            <td title={item.machine.role}>{kindIcon[item.machine.kind]} {item.machine.name}</td>
+            <td title={item.machine.role}>{item.machine.name}</td>
             <td className="muted">{item.machine.area ?? '—'}</td>
             <td className="num">{tonnes(item.total)}</td>
             <td><div className="sharebar"><span style={{ width: `${item.total / Math.max(1e-9, total) * 100}%` }} /></div><small>{num(item.total / Math.max(1e-9, total) * 100, 1)}%</small></td>

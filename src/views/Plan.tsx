@@ -21,11 +21,11 @@ export default function Plan({ onShowTwin }: { onShowTwin: () => void }) {
   const rows = state.plan.map((action) => ({ action, machineName: state.machines.find((item) => item.id === action.machineId)?.name ?? 'Machine', planned: planned.find((item) => item.action.id === action.id) }))
   if (state.plan.length === 0) {
     return <div className="empty">
-      <span className="empty-icon">🗺️</span>
+      
       <h1>Your plan is empty</h1>
       <p>Click machines on the twin and choose <b>Add to plan</b>, or let the copilot build a plan that hits your target at the lowest cost per tonne.</p>
       <div className="row-actions center">
-        {can.propose(role) ? <button type="button" className="btn big" onClick={() => actions.setPlan(autoPlan(state))}>✦ Build a plan for me</button> : <p className="muted">Viewing as {roleById(role).label}: switch “View as” to an engineer or sustainability to propose actions.</p>}
+        {can.propose(role) ? <button type="button" className="btn big" onClick={() => actions.setPlan(autoPlan(state))}>Build a plan for me</button> : <p className="muted">Viewing as {roleById(role).label}: switch “View as” to an engineer or sustainability to propose actions.</p>}
         <button type="button" className="btn ghost" onClick={onShowTwin}>Open the twin</button>
       </div>
     </div>
@@ -37,7 +37,7 @@ export default function Plan({ onShowTwin }: { onShowTwin: () => void }) {
       <div className="row-actions no-print">
         {can.propose(role) && state.plan.every((item) => (item.status ?? 'proposed') === 'proposed') && <button type="button" className="btn ghost" onClick={() => actions.setPlan(autoPlan(state))}>✦ Re-plan with copilot</button>}
         <button type="button" className="btn" onClick={() => window.print()}>Save as PDF</button>
-        <button type="button" className="btn ghost danger" title="Remove every action and start again" onClick={() => { if (confirm(`Clear all ${state.plan.length} actions from the plan for ${state.settings.factoryName}? This cannot be undone.`)) actions.clearPlan() }}>🗑 Clear plan</button>
+        <button type="button" className="btn ghost danger" title="Remove every action and start again" onClick={() => { if (confirm(`Clear all ${state.plan.length} actions from the plan for ${state.settings.factoryName}? This cannot be undone.`)) actions.clearPlan() }}>Clear plan</button>
       </div>
     </header>
 

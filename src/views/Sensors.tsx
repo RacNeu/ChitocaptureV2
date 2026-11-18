@@ -18,9 +18,10 @@ export default function Sensors() {
       <div>
         <h1>Sensors</h1>
         <p className="muted">Plug a CO₂ sensor board into this computer and stream it straight into the twin. No cloud and no drivers: the browser reads the USB port directly. No board? Use a simulation so the demo still runs.</p>
+        <p className="note">This is the USB CO₂ demo board: readings stay in this browser tab and are not saved. Furnace sensors (coil water flow and temperatures) connect over Wi-Fi, are stored and raise 24/7 alerts: see <a href="#live">Settings → Live data &amp; alerts</a>.</p>
       </div>
       <div className="row-actions">
-        <button type="button" className="btn" onClick={() => void connectSerial()} disabled={!serialSupported()}>🔌 Connect USB sensor</button>
+        <button type="button" className="btn" onClick={() => void connectSerial()} disabled={!serialSupported()}>Connect USB sensor</button>
         <button type="button" className="btn ghost" onClick={() => void startSimulation('duct')}>Simulate duct sensor</button>
         {sensor.status !== 'off' && <button type="button" className="btn ghost" onClick={() => void stop()}>Stop</button>}
       </div>

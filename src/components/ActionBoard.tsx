@@ -36,7 +36,7 @@ function ActionCard({ row }: { row: Row }) {
       <span className="action-meta">
         {planned && <b className={planned.economics.netT > 0 ? 'good' : 'bad'}>−{tonnes(Math.max(0, planned.economics.netT))}/yr</b>}
         {action.measuredT !== undefined && <span className="measured">measured −{tonnes(action.measuredT)}</span>}
-        {(action.comments?.length ?? 0) > 0 && <span>💬 {action.comments!.length}</span>}
+        {(action.comments?.length ?? 0) > 0 && <span>{action.comments!.length} comments</span>}
       </span>
       <span className="action-owner">{action.owner ?? 'Unassigned'}{action.dueDate ? ` · due ${action.dueDate}` : ''}</span>
       {mine && <em className="your-turn">Your move</em>}

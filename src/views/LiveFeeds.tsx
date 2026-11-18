@@ -87,7 +87,7 @@ export default function LiveFeeds() {
       <select value={s.speed} onChange={(e) => live.setSpeed(Number(e.target.value))} aria-label="Speed" className="lf-speed">{[1, 4, 12].map((v) => <option key={v} value={v}>{v} plant-min / s</option>)}</select>
       <span className="lf-sep" />
       <label className="sim-toggle lf-pub" title="The simulated plant plays the devices and sends each furnace’s latest reading through the real cloud path every 2 seconds (demo site, rate-limited)"><input type="checkbox" checked={s.publish.supabase} onChange={(e) => live.setPublish(e.target.checked)} /><span className="sim-switch" aria-hidden="true" /><span><b>Test publisher</b><small>{s.publish.last || 'Send sim readings to Supabase (demo site)'}</small></span></label>
-      <details className="lf-settings"><summary>⚙ Connection</summary>
+      <details className="lf-settings"><summary>Connection</summary>
         <div className="lf-pop">
           <div className="lf-form">
             {([

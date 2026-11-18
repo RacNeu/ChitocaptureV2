@@ -11,7 +11,9 @@
  *
  * Built-in events: night shift holds longer; Sunday 08:00–14:00 maintenance stop (next heat on each
  * furnace starts on a cold lining); a new lining on IF2 on 12 Oct; IF3 coil cooling water flow falls
- * on the last afternoon (should raise an anomaly); a few heats over the copper / CEV limits.
+ * on the last afternoon (should raise an anomaly); IF1's coil-water ΔT creeps up ~0.5 °C a day over
+ * the last 48 hours, like scale building up (the Risks page should forecast it); a few heats over the
+ * carbon / CEV limits.
  */
 import { seeded } from './regress'
 import { minutesOf, stamp, type Chem, type MeltHeat, type MeltShop, type Reading, type ScrapType } from './meltshop'
@@ -103,6 +105,8 @@ function demoReadings(heats: MeltHeat[], r: ReturnType<typeof seeded>): Reading[
       const waterIn = 32 + r.gauss() * 0.3
       // Melting: ~26% of the power leaves in coil water (DOE measured 26–29%): 31 MW × 0.26 ≈ 8 MW ≈ 410 m³/h × 17 °C.
       let dT = (on ? 17 : 3) + r.gauss() * 0.3
+      // IF1 coil circuit slowly scaling up: melting ΔT creeps up ~0.5 °C a day (the Risks page should forecast it).
+      if (f === 'IF1' && on) dT += 0.02 * (t - from) / 60
       // IF3 coil cooling fault on the last afternoon: flow falls, ΔT climbs.
       if (f === 'IF3' && t > last - 6 * 60 && t < last - 5 * 60) { const k = (t - (last - 6 * 60)) / 60; flow -= 140 * k; dT *= 1 + 0.9 * k }
       out.push({ at: stamp(t), furnace: f, kw: Math.round(kw), bathC: bath !== undefined ? Math.round(bath) : undefined, waterInC: +waterIn.toFixed(1), waterOutC: +(waterIn + dT).toFixed(1), flowM3h: Math.round(flow), hz: on ? Math.round(200 + 20 * r.next()) : undefined })

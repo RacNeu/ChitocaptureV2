@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import BrandLogo from '../components/BrandLogo'
 import { demoAccounts, signIn } from '../model/auth'
 
@@ -8,6 +8,14 @@ export default function Login({ onSignedIn }: { onSignedIn: (company: string | n
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showDemo, setShowDemo] = useState(false)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  /** A failed attempt shakes the password field once and puts the cursor back in it. */
+  const shake = () => {
+    const el = passwordRef.current
+    if (!el) return
+    el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake')
+    el.focus(); el.select()
+  }
 
   const submit = async (accountId = id, secret = password) => {
     if (!accountId.trim() || !secret) { setError('Enter your company ID and password.'); return }
@@ -15,7 +23,7 @@ export default function Login({ onSignedIn }: { onSignedIn: (company: string | n
     setError('')
     const session = await signIn(accountId, secret)
     setBusy(false)
-    if (!session) { setError('That company ID or password is not right.'); return }
+    if (!session) { setError('That company ID or password is not right.'); shake(); return }
     onSignedIn(session.company)
   }
 
@@ -24,7 +32,7 @@ export default function Login({ onSignedIn }: { onSignedIn: (company: string | n
       <div className="login-orb a" /><div className="login-orb b" />
       <div className="login-pitch">
         <BrandLogo size={72} />
-        <h2>Track every tonne.<br />Cut what matters.</h2>
+        <h2>Every tonne of CO₂,<br />from the bill to the furnace.</h2>
         <p>Carbon tracking, process simulation and verified reduction plans for Malaysian factories.</p>
         <ul><li>CBAM, carbon tax and EECA ready</li><li>Engineers, sustainability and management in one plan</li><li>Every factor sourced</li></ul>
       </div>
@@ -36,7 +44,7 @@ export default function Login({ onSignedIn }: { onSignedIn: (company: string | n
           <input value={id} onChange={(event) => setId(event.target.value)} placeholder="e.g. MSD-001" autoComplete="username" autoCapitalize="characters" spellCheck={false} />
         </label>
         <label>Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
+          <input ref={passwordRef} onAnimationEnd={(event) => event.currentTarget.classList.remove('shake')} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
         </label>
         {error && <p className="login-error" role="alert">{error}</p>}
         <button type="submit" className="btn login-submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>

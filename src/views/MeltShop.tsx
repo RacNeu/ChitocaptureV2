@@ -6,16 +6,17 @@ import {
 } from '../model/meltshop'
 import { demoMeltShop } from '../model/meltshopDemo'
 import { actions, useFactory } from '../model/store'
-import PlantArt from '../components/PlantArt'
 import { toast } from '../model/toast'
 import MeltHmi from './MeltHmi'
+import PlantArt from '../components/PlantArt'
+import LineIcon from '../components/LineIcon'
 import { MeltChemistry, MeltCarbon, MeltSimulator } from './MeltTabs'
 
 export type Tab = 'hmi' | 'material' | 'carbon'
 const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'hmi', label: 'Furnace HMI', icon: '🎛' },
-  { id: 'material', label: 'Material & yield', icon: '⚗' },
-  { id: 'carbon', label: 'Carbon & decarbonisation', icon: '🍃' },
+  { id: 'hmi', label: 'Furnace HMI', icon: 'sliders' },
+  { id: 'material', label: 'Material & yield', icon: 'flask' },
+  { id: 'carbon', label: 'Carbon & decarbonisation', icon: 'leaf' },
 ]
 
 async function readFile(file: File): Promise<MeltImport> {
@@ -77,7 +78,7 @@ export default function MeltShop() {
     }
     setBusy(false)
   }
-  const uploader = <label className="btn">{busy ? 'Reading…' : '⬆ Upload files'}<input type="file" multiple accept=".csv,.txt,.xlsx,.xlsm" hidden onChange={(e) => { void upload(e.target.files); e.target.value = '' }} /></label>
+  const uploader = <label className="btn">{busy ? 'Reading…' : 'Upload files'}<input type="file" multiple accept=".csv,.txt,.xlsx,.xlsm" hidden onChange={(e) => { void upload(e.target.files); e.target.value = '' }} /></label>
   const templates = <details className="ms-templates"><summary className="btn ghost">Templates</summary><div>
     <button type="button" className="link" onClick={() => download('meltshop-heats-template.csv', TEMPLATES.heats)}>Heat log</button>
     <button type="button" className="link" onClick={() => download('meltshop-spectrometer-template.csv', TEMPLATES.chem)}>Spectrometer</button>
@@ -87,22 +88,22 @@ export default function MeltShop() {
   if (!melt) return <div className="ms">
     <section className="ms-hero">
       <PlantArt variant="hero" />
-      <span className="eyebrow">Melt shop</span>
+      <span className="eyebrow">Melt shop · no furnace data yet</span>
       <h1>Induction furnace intelligence</h1>
       <p>Upload your furnace heat log, spectrometer results and live readings. The app learns your furnaces’ own energy factors and shows where money and carbon are lost.</p>
-      <div className="row-actions center">{uploader}{templates}<button type="button" className="btn ghost" onClick={() => actions.setMeltShopDemo(true)}>▶ Open demo melt shop</button></div>
+      <div className="row-actions center">{uploader}{templates}<button type="button" className="btn ghost" onClick={() => actions.setMeltShopDemo(true)}>Open demo melt shop</button></div>
       {msg && <ImportMsg msg={msg} />}
     </section>
   </div>
 
   return <div className="ms">
-    {melt.isDemo && <div className="ms-demo" role="note"><b>DEMO DATA</b><span>Illustrative melt shop sized like Masteel (4 × 60 t induction furnaces + ladle furnace). Not a real plant.</span><button type="button" className="btn small ghost" onClick={() => actions.setMeltShopDemo(false)}>Close demo</button></div>}
+    {melt.isDemo && <div className="ms-demo" role="note"><b>Demo data</b><span>Illustrative melt shop sized like Masteel (4 × 60 t induction furnaces + ladle furnace). Not a real plant.</span><button type="button" className="btn small ghost" onClick={() => actions.setMeltShopDemo(false)}>Close demo</button></div>}
     <header className="ms-head">
       <div><span className="eyebrow">Melt shop · {melt.data.source}</span><h1>{tabs.find((t) => t.id === tab)!.label}</h1></div>
       <div className="row-actions">{uploader}{templates}</div>
     </header>
     {msg && <ImportMsg msg={msg} />}
-    <nav className="ms-tabs" role="tablist">{tabs.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}><span aria-hidden="true">{t.icon}</span>{t.label}</button>)}</nav>
+    <nav className="ms-tabs" role="tablist">{tabs.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}><LineIcon name={t.icon} />{t.label}</button>)}</nav>
     {tab === 'hmi' && <MeltHmi melt={melt} />}
     {tab === 'material' && <MeltChemistry melt={melt} />}
     {tab === 'carbon' && <div className="ms-stack"><MeltCarbon melt={melt} /><h2 className="ms-section">Decarbonisation simulator</h2><MeltSimulator melt={melt} /></div>}

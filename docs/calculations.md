@@ -204,6 +204,21 @@ tax = rate (RM/t) × Scope 1 (or Scope 1+2) × (1 − exempt share)
 The rate follows Singapore's legislated path converted to RM, because Malaysia has not set one. The
 arithmetic is simple and tested. **The rate is the uncertain part** (C1).
 
+### B13. Plant early warnings (Risks page)
+
+Each warning is **leading signal → trend → time to the limit → action**:
+
+| Warning | Signal | Limit | Method |
+|---|---|---|---|
+| Coil cooling (per furnace) | Hourly median ΔT and flow while melting | ΔT 20 °C, flow 300 m³/h (example limits) | Theil–Sen trend; days = gap ÷ slope; recent anomalies (B6) raise it to "watch" |
+| Lining (per furnace) | Heats on the current lining, heats a day | Usual lining life: the plant's setting, else its own past relines, else (demo only) 450 | Heats left ÷ heats a day; range from the 25th–75th percentile of heats a day |
+| Chemistry (shop) | Off-spec heats in the last 7 days; 95th percentile of the tightest element | BS 4449 limits | Counts plus a Theil–Sen trend of the daily average |
+| Furnace energy (per furnace) | kWh/t minus what the learned factors (B2) expect for that heat's practice | The shop's own normal | Mean gap with its standard error; a rising Theil–Sen trend means "creeping up" |
+
+**Why it is right:** the Theil–Sen slope is the median of all pairwise slopes, so one bad hour or heat can't swing it (a standard robust trend; its 90% range uses the Mann–Kendall rank formula). A date is only shown when the whole 90% range points at the limit and the date is within ~3 months. **Test:** on the demo data it forecasts IF1's ΔT reaching 20 °C in 4–5 days, keeps the healthy coils at "OK", flags IF3's drop as an event without a date, orders relines IF4 → IF3 → IF1 → IF2, finds IF4's extra +10 kWh/t, and reports the 5 off-spec heats (`src/model/warnings.test.ts`).
+
+**Limits:** trends assume the recent rate continues; real wear often speeds up near the end, so the "act" threshold is 7 days. Flood and heat risks (NASA climate data) were removed: they couldn't be acted on and rested on a 50 km grid.
+
 ---
 
 ## C. Uncertain: treat as estimates
@@ -239,7 +254,7 @@ arithmetic is simple and tested. **The rate is the uncertain part** (C1).
 | **Consistency tests:** the same thing calculated two ways must agree (sandbox vs Plan, 3D vs annual, machines vs bills) | No page contradicts another | B8, B10 |
 | **Physics guards in the app:** a heat below 389 kWh/t, or tapping more than was charged, is flagged as a data error | Bad uploads can't produce impossible results | B2 |
 | **Compliance mapping:** Scope 1/2 split, location- and market-based Scope 2, and IPCC factors follow the GHG Protocol; Bursa CSI uses the same factors | Results can go into Bursa / NSRF reporting | A1–A5 |
-| **155 automated tests** run on every change (`npx vitest run`) | Nothing silently breaks | all |
+| **164 automated tests** run on every change (`npx vitest run`) | Nothing silently breaks | all |
 
 **What this does NOT prove:** that the learned factors or savings are right for a specific real
 plant. That needs that plant's heat log. See [accuracy-and-validation.md](accuracy-and-validation.md), section 4.

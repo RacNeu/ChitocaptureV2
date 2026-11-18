@@ -2,7 +2,7 @@ import { fuelLabels, gridRegions } from '../model/factors'
 import { actions, companyActions, useCompany, useFactory, useRole } from '../model/store'
 import { can, roleById } from '../model/roles'
 import type { FuelType, MachineKind } from '../model/types'
-import { kindIcon, num } from '../format'
+import { num } from '../format'
 import { gridHint, LocationFields } from '../components/Malaysia'
 
 const kinds: MachineKind[] = ['kiln', 'boiler', 'furnace', 'mill', 'fan', 'pump', 'compressor', 'chiller', 'production-line', 'genset', 'wastewater', 'cold-room', 'office']
@@ -51,7 +51,7 @@ export default function Settings({ onRestart, onRemoved }: { onRestart: () => vo
         <tbody>{state.machines.map((machine) => <tr key={machine.id}>
           <td><input aria-label="Machine name" value={machine.name} onChange={(event) => actions.updateMachine({ ...machine, name: event.target.value })} /></td>
           <td><input aria-label="Area" value={machine.area ?? ''} placeholder="e.g. Melt shop" onChange={(event) => actions.updateMachine({ ...machine, area: event.target.value || undefined })} /></td>
-          <td><select aria-label="Type" value={machine.kind} onChange={(event) => actions.updateMachine({ ...machine, kind: event.target.value as MachineKind })}>{kinds.map((kind) => <option key={kind} value={kind}>{kindIcon[kind]} {kind.replace('-', ' ')}</option>)}</select></td>
+          <td><select aria-label="Type" value={machine.kind} onChange={(event) => actions.updateMachine({ ...machine, kind: event.target.value as MachineKind })}>{kinds.map((kind) => <option key={kind} value={kind}>{kind.replace('-', ' ')}</option>)}</select></td>
           <td><input aria-label="Electricity" type="number" min="0" value={machine.electricityMWh} onChange={(event) => actions.updateMachine({ ...machine, electricityMWh: Number(event.target.value) })} /></td>
           <td><select aria-label="Fuel" value={machine.fuel} onChange={(event) => actions.updateMachine({ ...machine, fuel: event.target.value as FuelType })}>{fuels.map((fuel) => <option key={fuel} value={fuel}>{fuelLabels[fuel]}</option>)}</select></td>
           <td><input aria-label="Fuel" type="number" min="0" value={machine.fuelGJ} onChange={(event) => actions.updateMachine({ ...machine, fuelGJ: Number(event.target.value) })} /></td>

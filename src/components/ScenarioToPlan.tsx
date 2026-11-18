@@ -17,6 +17,6 @@ export default function ScenarioToPlan({ items, label }: { items: ScenarioItem[]
       {result && <small className="scenario-done">✓ {result.added} added{result.updated ? `, ${result.updated} updated` : ''} · <a href="#plan">Open the plan →</a></small>}
     </div>
     <button type="button" className="btn" disabled={!items.length || !allowed} title={allowed ? '' : `Viewing as ${roleById(role).label}: engineers and sustainability propose actions`}
-      onClick={() => setResult(actions.addScenario(items, label))}>➕ Add to plan</button>
+      onClick={() => setResult(actions.addScenario(items, label))}>Add to plan</button>
   </div>
 }

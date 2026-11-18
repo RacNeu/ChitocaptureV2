@@ -7,14 +7,15 @@ import type { FactoryState, FindingState } from './types'
 
 /**
  * Site risk register for the plant manager: likelihood (1–5) × impact (1–5), per horizon.
- * Nothing is invented. Each risk is computed only from the site's uploads, NASA POWER climate data,
- * the site checklist, or a published rate; when an input is missing the risk says what it needs.
+ * Business risks (cost, compliance, targets). Plant early warnings are in warnings.ts.
+ * Nothing is invented. Each risk is computed only from the site's uploads, the site checklist or a
+ * published rate; when an input is missing the risk says what it needs.
  */
 
 export type Horizon = 'month' | 'years' | '2030'
 export const horizonLabel: Record<Horizon, string> = { month: 'Next month', years: '1–3 years', '2030': 'To 2030' }
-export type Basis = 'your data' | 'NASA POWER' | 'checklist' | 'published rate' | 'assumption'
-export type View = 'load' | 'dashboard' | 'data' | 'findings' | 'plan' | 'settings'
+export type Basis = 'your data' | 'checklist' | 'published rate' | 'assumption'
+export type View = 'load' | 'dashboard' | 'data' | 'findings' | 'plan' | 'meltshop' | 'settings'
 
 export type Risk = {
   id: string
@@ -63,7 +64,6 @@ export function risks({ state, view, load }: RiskInputs): { risks: Risk[]; energ
   const energyBillRM = last12.length
     ? last12.reduce((sum, r) => sum + r.electricityMWh * s.electricityPriceRMPerMWh + fuels.reduce((f, fuel) => f + (r.fuelGJ[fuel] ?? 0) * s.fuelPriceRMPerGJ[fuel], 0), 0) * 12 / last12.length
     : null
-  const climate = state.climate
   const out: Risk[] = []
   const add = (r: Omit<Risk, 'impact'> & { impact?: number | null }) => out.push({ ...r, impact: r.impact !== undefined ? r.impact : r.rm !== null ? impactLevel(r.rm, energyBillRM) : null })
 
@@ -85,33 +85,6 @@ export function risks({ state, view, load }: RiskInputs): { risks: Risk[]; energ
       evidence: [`Electricity ~${rm(elec)}/yr × your expected ${c.tariffRisePct}% rise.`, 'Likelihood “possible” until TNB announces its next review.'],
       actions: ['Cut the always-on load and peaks first: they shrink any tariff rise.', 'Price a solar or green-electricity contract against the higher tariff.'] })
   } else add({ id: 'tariff', name: 'Electricity tariff rise', horizon: 'years', likelihood: null, rm: null, rmLabel: '', missing: [...(energyBillRM === null ? ['Monthly bills'] : []), ...(c.tariffRisePct === undefined ? ['Expected tariff change % (checklist)'] : [])], basis: [], links: ['data'], evidence: [], actions: [] })
-
-  // 3. Flood (checklist + NASA rainfall trend).
-  const floodAnswered = c.pastFloods !== undefined && c.floodProneArea !== undefined && c.riverDistance !== undefined
-  const costKnown = c.costPerDayRM !== undefined && c.downtimeDaysPerFlood !== undefined
-  if (floodAnswered && costKnown) {
-    const rainUp = climate ? climate.rain.recentPerYear / Math.max(0.01, climate.rain.earlyPerYear) : 1
-    const score = [0, 2, 3][c.pastFloods!] + (c.floodProneArea === 'yes' ? 2 : 0) + ({ near: 2, mid: 1, far: 0 })[c.riverDistance!] + (rainUp > 1.25 ? 1 : 0)
-    const level = score <= 1 ? 1 : score <= 3 ? 2 : score <= 5 ? 3 : score <= 7 ? 4 : 5
-    const perEvent = c.downtimeDaysPerFlood! * c.costPerDayRM! * (c.groundLevelCritical ? 1.5 : 1)
-    add({ id: 'flood', name: 'Flood shutdown', horizon: 'years', likelihood: level, rm: perEvent, rmLabel: '/event',
-      missing: climate ? [] : ['NASA climate data (optional)'], basis: climate ? ['checklist', 'NASA POWER'] : ['checklist'], links: ['settings'],
-      evidence: [
-        `Checklist: ${['no', 'one', 'two or more'][c.pastFloods!]} floods in 10 years · ${c.floodProneArea === 'yes' ? 'in' : 'outside'} a JPS flood-prone area · river ${({ near: '<500 m', mid: '0.5–2 km', far: '>2 km' })[c.riverDistance!]}.`,
-        `One flood ≈ ${c.downtimeDaysPerFlood} days × ${rm(c.costPerDayRM!)}${c.groundLevelCritical ? ' × 1.5 (critical equipment at ground level)' : ''}.`,
-        ...(climate ? [`NASA POWER: extreme-rain days ${climate.rain.earlyPerYear.toFixed(1)}/yr (1996–2010) → ${climate.rain.recentPerYear.toFixed(1)}/yr (2011–2025). Wettest 3 days: ${Math.round(climate.rain.max3DayMm)} mm (${climate.rain.max3DayDate}).`] : []),
-      ],
-      actions: ['Raise or bund transformers, switchgear and drives above past flood level.', 'Agree a flood shutdown plan; subscribe to JPS and MetMalaysia warnings.'] })
-  } else add({ id: 'flood', name: 'Flood shutdown', horizon: 'years', likelihood: null, rm: null, rmLabel: '', missing: [...(floodAnswered ? [] : ['Flood questions (checklist)']), ...(costKnown ? [] : ['Downtime days and cost per day (checklist)'])], basis: [], links: ['settings'], evidence: [], actions: [] })
-
-  // 4. Heat (NASA trend + checklist cost).
-  if (climate && c.heatLostDaysPerYear !== undefined && c.costPerDayRM !== undefined) {
-    const ratio = climate.hot.recentPerYear / Math.max(0.01, climate.hot.earlyPerYear)
-    add({ id: 'heat', name: 'Heat disruption', horizon: '2030', likelihood: ratio <= 1.1 ? 2 : ratio <= 1.5 ? 3 : ratio <= 2.5 ? 4 : 5, rm: c.heatLostDaysPerYear * c.costPerDayRM * Math.max(1, ratio), rmLabel: '/yr',
-      missing: [], basis: ['NASA POWER', 'checklist'], links: ['settings'],
-      evidence: [`NASA POWER: days above ${climate.hot.thresholdC.toFixed(1)} °C went from ${climate.hot.earlyPerYear.toFixed(1)}/yr (1996–2010) to ${climate.hot.recentPerYear.toFixed(1)}/yr (2011–2025), ×${ratio.toFixed(1)}.`, `Your ${c.heatLostDaysPerYear} lost days/yr scaled by that trend.`],
-      actions: ['Check transformer and drive cooling; clean fins and filters before hot months.', 'Heat-stress breaks and cooling for melt-shop crews.'] })
-  } else add({ id: 'heat', name: 'Heat disruption', horizon: '2030', likelihood: null, rm: null, rmLabel: '', missing: [...(climate ? [] : ['Site location + NASA climate data']), ...(c.heatLostDaysPerYear === undefined || c.costPerDayRM === undefined ? ['Heat lost days and cost per day (checklist)'] : [])], basis: [], links: ['settings'], evidence: [], actions: [] })
 
   // 5. Missing the target (forecast range vs target).
   const tg = view.target

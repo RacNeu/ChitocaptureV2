@@ -141,7 +141,7 @@ export default function SteelSimulation() {
       </div>
       <div className="control-status">
         <span className={`phase-badge ${live.phase.toLowerCase()}`}><i />Heat #{live.heatNumber} · {live.phase} {num(live.phaseProgress * 100)}%</span>
-        <span className="sim-clock">🕒 {clock}</span>
+        <span className="sim-clock">{clock}</span>
         <div className="toggle" role="radiogroup" aria-label="Simulation speed">{speeds.map((item) => <button key={item.value} type="button" role="radio" aria-checked={speed === item.value} className={speed === item.value ? 'active' : ''} onClick={() => setSpeed(item.value)}>{item.label}</button>)}</div>
         {deepDive && <button type="button" className="btn small ghost" onClick={() => setDeepDive(null)}>← Back to the mill</button>}
         <label className="flow-switch"><input type="checkbox" checked={showFlows} onChange={(event) => setShowFlows(event.target.checked)} /> Energy flows</label>
@@ -170,10 +170,10 @@ export default function SteelSimulation() {
       <aside className="panel live-panel">
         {!selected && !deepDive && <p className="pick-hint">Click a unit in the mill to see its details. Double-click the induction furnaces to go inside.</p>}
         {selected === 'melt' && <div className="pilot-card eaf-card">
-          <div className="pilot-head"><span className="eaf-icon" aria-hidden="true">🔥</span><b>Induction furnaces</b><em>{live.phase}</em><button type="button" className="icon-btn" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
+          <div className="pilot-head"><b>Induction furnaces</b><em>{live.phase}</em><button type="button" className="icon-btn" aria-label="Close" onClick={() => setSelected(null)}>✕</button></div>
           <p>Drawing <b>{num(live.mw.melt, 1)} MW</b> · heat #{live.heatNumber}, {num(live.phaseProgress * 100)}% through {live.phase.toLowerCase()} · <b>{num(unitCo2('melt'), 1)} t CO₂/h</b>, the mill’s biggest electricity user</p>
           <small>{num(now.kwh.melt)} kWh per tonne of steel · target {num(steelTargets.melt)} kWh/t{now.kwh.melt > steelTargets.melt * 1.02 ? ` (+${num((now.kwh.melt / steelTargets.melt - 1) * 100)}%)` : ' ✓'}</small>
-          {deepDive !== 'melt' && <button type="button" className="btn small pilot-dive" onClick={() => setDeepDive('melt')}>🔍 Look inside the furnace</button>}
+          {deepDive !== 'melt' && <button type="button" className="btn small pilot-dive" onClick={() => setDeepDive('melt')}>Look inside the furnace</button>}
         </div>}
         <h2>Where the CO₂ is coming from right now</h2>
         <ul className="unit-bars">
@@ -231,7 +231,7 @@ export default function SteelSimulation() {
       ]
       const chainMax = Math.max(...chain.map((item) => item.value))
       return <section className="card ledger">
-        <header><div><h2>📒 Carbon ledger: where each kg of CO₂ per tonne comes from</h2><p className="muted">The tracking behind the headline number. Every line is activity × emission factor, following the process route. Scope 1 is burnt or released on site; Scope 2 is from purchased grid electricity.</p></div>
+        <header><div><h2>Carbon ledger: where each kg of CO₂ per tonne comes from</h2><p className="muted">The tracking behind the headline number. Every line is activity × emission factor, following the process route. Scope 1 is burnt or released on site; Scope 2 is from purchased grid electricity.</p></div>
           <div className="sandbox-result"><span>Per tonne of steel</span><strong>{num(now.totalKgPerT)} kg CO₂</strong><em>Scope 1: {num(now.directKgPerT)} · Scope 2: {num(now.indirectKgPerT)}</em></div></header>
         <div className="chain">{chain.map((item) => <div key={item.name} className={`chain-step${item.value === chainMax ? ' hot' : ''}`}>
           <span>{item.name}</span><strong>{num(item.value)} <small className="muted">kg/t</small></strong>
@@ -252,7 +252,7 @@ export default function SteelSimulation() {
     })()}
 
     <section className="card sandbox">
-      <header><div><h2>🧪 What-if sandbox</h2><p className="muted">Switch upgrades on and watch the mill, the tickers and CBAM exposure respond. Every estimate is an indicative planning assumption.</p></div>
+      <header><div><h2>What-if sandbox</h2><p className="muted">Switch upgrades on and watch the mill, the tickers and CBAM exposure respond. Every estimate is an indicative planning assumption.</p></div>
         <div className="sandbox-result"><span>CO₂ per year</span><strong>{tonnes(nowYear.co2T)}</strong><em className={nowYear.co2T < baseYear.co2T ? 'good' : ''}>{nowYear.co2T < baseYear.co2T ? `−${tonnes(baseYear.co2T - nowYear.co2T)} (−${num((1 - nowYear.co2T / baseYear.co2T) * 100, 1)}%)` : 'no upgrades yet'}</em><small>capex {ringgit(capex)}</small></div>
       </header>
       <div className="upgrade-grid">

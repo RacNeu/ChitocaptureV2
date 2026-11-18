@@ -1,3 +1,4 @@
+import LineIcon from '../components/LineIcon'
 import { useMemo, useState } from 'react'
 import { num, ringgit, tonnes } from '../format'
 import Info from '../components/Info'
@@ -64,7 +65,7 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
       <div className="dash-actions">
         {companies.length > 1 && <label className="field inline"><span className="sr-only">Switch company</span><select value={company.id} onChange={(event) => companyActions.switchCompany(event.target.value)}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
         {canAddCompany && <button type="button" className="btn ghost" onClick={() => go('add-company')}>+ Add company</button>}
-        {!company.fixed && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Delete ${company.name} and all its sites? This cannot be undone.`)) companyActions.removeCompany(company.id) }}>🗑 Delete company</button>}
+        {!company.fixed && <button type="button" className="btn ghost" onClick={() => { if (confirm(`Delete ${company.name} and all its sites? This cannot be undone.`)) companyActions.removeCompany(company.id) }}>Delete company</button>}
         <button type="button" className="btn ghost" onClick={() => setAdding(!adding)}>+ Add site</button>
         <button type="button" className="btn" onClick={() => go('reports')}>⤓ Reports</button>
       </div>
@@ -108,22 +109,22 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
         const active = r.site.id === company.activeId
         return <article key={r.site.id} className={`site-row${active ? ' active' : ''}`} style={{ borderLeftColor: r.colour }}>
           <div className="site-who">
-            <span className="site-icon">{r.template?.icon ?? '🏭'}</span>
+            <span className="site-icon"><LineIcon name={({ '🏢': 'building', '🧷': 'wire' } as Record<string, string>)[r.template?.icon ?? ''] ?? 'furnace'} size={18} /></span>
             <div><h3>{s.factoryName}</h3><small className="muted">{r.template?.label ?? 'Site'}{where ? ` · ${s.industrialPark ? `${s.industrialPark}, ` : ''}${where.label}` : ''}{!r.site.state.onboarded ? ' · setup not finished' : ''}</small></div>
           </div>
           <div className="site-data">
             <span className={`chip-data${r.hasBills ? ' on' : ''}`}>{r.hasBills ? `✓ ${r.months} months of bills` : 'No bills'}</span>
             <span className={`chip-data${r.hasMeter ? ' on' : ''}`}>{r.hasMeter ? '✓ Meter data' : 'No meter data'}</span>
           </div>
-          <div className="site-stat"><span>Emissions</span>{r.hasBills ? <><b>{tonnes(r.total)}</b><small className={r.change === null ? 'muted' : r.change <= 0 ? 'good-text' : 'bad-text'}>{r.change === null ? `${monthLabel(r.from)} – ${monthLabel(r.to)}` : `${r.change <= 0 ? '▼' : '▲'} ${num(Math.abs(r.change), 1)}%`}</small></> : <b className="muted">—</b>}</div>
+          <div className="site-stat"><span>Emissions</span>{r.hasBills ? <><b>{tonnes(r.total)}</b><small className={r.change === null ? 'muted' : r.change <= 0 ? 'good-text' : 'bad-text'}>{r.change === null ? `${monthLabel(r.from)} – ${monthLabel(r.to)}` : `${r.change <= 0 ? '▼' : '▲'} ${num(Math.abs(r.change), 1)}% vs year before`}</small></> : <b className="muted">—</b>}</div>
           <div className="site-stat"><span>Could save</span>{r.saving > 0 ? <><b className="good-text">{ringgit(r.saving)}</b><small className="muted">/month</small></> : <b className="muted">—</b>}</div>
           <div className="site-stat"><span>Target</span><b className={r.onTrack === null ? 'muted' : r.onTrack ? 'good-text' : 'bad-text'}>{r.onTrack === null ? '—' : r.onTrack ? '✓ On track' : '⚠ Off track'}</b></div>
           <div className="site-stat"><span>Top risk</span>{r.topRisk ? <><b>{r.topRisk.name}</b><small className="muted">{likelihoodLabel[r.topRisk.likelihood!]}</small></> : <b className="muted">—</b>}</div>
           <div className="site-go">
             {r.hasBills ? <button type="button" className="btn small" onClick={() => openSite(r.site.id)}>Open site →</button>
-              : <button type="button" className="btn small" onClick={() => openSite(r.site.id, 'data')}>⇪ Upload bills</button>}
+              : <button type="button" className="btn small" onClick={() => openSite(r.site.id, 'data')}>Upload bills</button>}
             {!r.site.fixed && <button type="button" className="icon-btn" title="Delete this site" aria-label={`Delete ${s.factoryName}`}
-              onClick={() => { if (confirm(`Delete “${s.factoryName}” and everything entered for it? This cannot be undone.`)) companyActions.removeSite(r.site.id) }}>🗑</button>}
+              onClick={() => { if (confirm(`Delete “${s.factoryName}” and everything entered for it? This cannot be undone.`)) companyActions.removeSite(r.site.id) }}><LineIcon name="trash" /></button>}
           </div>
         </article>
       })}

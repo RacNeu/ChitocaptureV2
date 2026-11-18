@@ -179,7 +179,7 @@ Being upfront about these makes the rest more believable.
 npx vitest run
 ```
 
-This runs all 155 tests. The ones behind this document:
+This runs all 164 tests. The ones behind this document:
 
 | Claim | Test file |
 |---|---|

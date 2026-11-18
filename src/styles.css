@@ -2386,3 +2386,218 @@ a.dash-kpi:hover { border-color: #d97706; }
 .lf-how-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 18px; align-items: center; margin-top: 10px; }
 @media (max-width: 1000px) { .lf-how-body { grid-template-columns: 1fr; } }
 .lf-how-body .lf-steps { grid-template-columns: 1fr; margin: 0; }
+
+/* ================= The moment: every figure reads like a mill test certificate =================
+   Figures are set in mono with tabular digits and their unit; each carries a small tag saying where it came from. */
+:root { --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace; }
+.ms-kpi-value, .dash-kpi strong, .kpi strong, .ticker strong, .big-number, .h2-rm, .home-tile strong, .rig-results dd, .ov-delta b, .home .hero-value {
+  font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ms-kpi-value small, .dash-kpi strong small, .kpi strong small, .ticker strong small, .h2-rm small { font-family: Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: 0; }
+.ms-kpi-value.word, .dash-kpi .risk-name { font-family: Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: -0.01em; }
+.ms-kpi-value.word { font-size: 22px; }
+.ms-donut-big { font-family: var(--mono); font-size: 20px; }
+.src-tag { margin-left: auto; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--muted); font: 500 11px/1.3 var(--mono); white-space: nowrap; }
+.ms-kpi-delta, .dash-kpi small, .site-stat small, td, .ms-axis { font-variant-numeric: tabular-nums; }
+
+/* ================= Motion: only what explains something =================
+   No page fade, card stagger, hover lift or decorative loops. Live things may pulse; simulated and idle ones do not. */
+.content > *, .ms-kpis > *, .ov > *, .home-tiles > *, .site-cards > *, .ms-grid > *, .hmi2-units > *, .upgrade-grid > *, .kpis > *, .ms-donut { animation: none; }
+.ms-kpi:hover, .home-tile:hover, .hmi2-unit:hover, .upgrade:hover, .site-row:hover, .ms-card.ov-sim:hover, .h2-list button:hover, .industry:hover, .home .hero-list button:hover { transform: none; }
+.btn:hover:not(:disabled) { transform: none; }
+.live-pill.simulated i, .status-line.simulated i { animation: none; }
+.chat-fab:hover { transform: none; filter: brightness(1.06); }
+.chat-fab > span[aria-hidden] { display: inline-flex; animation: none; }
+.login-orb { animation: none; }
+.company-logo .logo-ring { animation: none; }
+
+/* ================= Polish: states and details ================= */
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sidebar :focus-visible, .login-art :focus-visible, .chat-fab:focus-visible, .home .hero :focus-visible { outline-color: #ecfdf5; }
+input:focus-visible, select:focus-visible { outline: 3px solid #10b98126; outline-offset: 0; }
+.rwf-labels span.on { font-weight: inherit; }
+h1, h2, h3 { text-wrap: balance; }
+p, small, .ms-note { text-wrap: pretty; }
+
+/* Hit areas: icon buttons reach 36px with a 44px touch target */
+.icon-btn { position: relative; display: inline-grid; place-items: center; width: 36px; height: 36px; }
+.icon-btn::after { content: ''; position: absolute; inset: -4px; }
+.pl-c-head .icon-btn { width: 28px; height: 28px; }
+.btn:active:not(:disabled), .tour-btn:active, .chat-fab:active { transform: scale(.97); }
+
+/* Disabled buttons stay readable */
+.btn:disabled { opacity: 1; background: #cbd5e1; color: #475569; box-shadow: none; }
+.btn.ghost:disabled { background: #fff; color: #94a3b8; }
+
+/* Locked settings: read-only fields stay legible instead of fading the whole form to 60% */
+fieldset.lock:disabled { opacity: 1; }
+fieldset.lock:disabled input, fieldset.lock:disabled select, input:disabled, select:disabled { background: var(--bg-2); color: var(--ink-2); }
+
+/* Risks checklist: the Longitude field spilled into the Flood column */
+.checklist-grid > * { min-width: 0; }
+.checklist-grid input:not([type="checkbox"]), .checklist-grid select { width: 100%; min-width: 0; }
+
+/* Line icons in places that used to hold emoji */
+.empty-icon svg, .site-icon svg, .ms-kpi-icon svg, .ov-leaf svg { display: block; }
+.site-icon { color: var(--ink-2); }
+
+/* Ask AI never covers the last row of content */
+.content { padding-bottom: 96px; }
+
+/* Phone: full-width site picker, compact sensor pill, 16px fields so iOS doesn't zoom */
+@media (max-width: 720px) {
+  .main-col .topbar { row-gap: 8px; }
+  .site-pick { flex: 1 1 100%; order: 5; }
+  .site-pick select { width: 100%; max-width: none !important; }
+  .topbar-sep, .side-label { display: none; }
+  .topbar-company { min-width: 0; flex: 1 1 auto; }
+  .role-switch select { max-width: 170px; }
+  .live-pill { font-size: 0; gap: 0; padding: 9px; }
+  input, select, textarea { font-size: 16px; }
+}
+@media (max-width: 720px) {
+  .main-col .topbar { gap: 8px; }
+  .topbar-company b { max-width: 120px; }
+  .role-switch select { max-width: 132px; }
+}
+@media (max-width: 720px) {
+  .site-pick { flex: 1 1 220px; }
+  .live-pill { order: 6; }
+  .topbar-spacer { display: none; }
+}
+
+/* ================= Motion tokens and review =================
+   One set of curves and durations. Frequent things are instant; few-times-a-session things stay under 300ms. */
+:root {
+  --ease-enter: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 120ms; --dur-pop: 200ms; --dur-sheet: 250ms; --dur-exit: 180ms;
+}
+/* Charts are content at rest: they appear drawn, every visit. (bar-in also animated width, a layout property.) */
+.draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+.fade-in, .sweep, .grow-up, .ms-hbar-track i, .sharebar span, .hmi2-progress i { animation: none; }
+/* Site 3D: buildings are there when the page opens, no overshooting growth */
+.is-body, .is-tower, .iso-body, .iso-label { animation: none; }
+/* Tabs switch many times a session: a short underline, on the move curve */
+.section-tabs button::after { transition: transform 150ms var(--ease-move); }
+/* Name what moves instead of transition: all */
+.iso-face { transition: fill .3s ease, opacity .3s ease; }
+.tour-spot { transition: top .3s var(--ease-move), left .3s var(--ease-move), width .3s var(--ease-move), height .3s var(--ease-move); }
+/* Toasts: ease out in 250ms, leave quieter and faster */
+.toast { animation: toast-in var(--dur-sheet) var(--ease-enter) both, toast-out var(--dur-exit) var(--ease-exit) 3s forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px) scale(.97); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(6px); } }
+.chat-panel { animation: chat-in var(--dur-sheet) var(--ease-enter) both; }
+.chat-msg { animation: chat-in var(--dur-pop) var(--ease-enter) both; }
+/* Simulation chooser: no overshoot, hover is a surface change not a zoom */
+.logo-card { animation: sim-in .3s var(--ease-enter) both; transition: background-color .15s ease; }
+.logo-card:hover, .logo-card:focus-visible { transform: none; background: #ffffff12; }
+/* Press: buttons and chips scale; wide surfaces only change background */
+.btn, .tour-btn, .chat-fab, .icon-btn, .chip { transition-property: transform, background-color, border-color, color, box-shadow, filter; transition-duration: var(--dur-press); transition-timing-function: ease; }
+@media (hover: none) { .btn:hover, .h2-list button:hover, .journey-step:hover { filter: none; } }
+/* Failed sign-in: the password field shakes once */
+@keyframes field-shake { 0%, 100% { transform: none; } 17% { transform: translateX(-10px); } 33% { transform: translateX(10px); } 50% { transform: translateX(-6px); } 67% { transform: translateX(6px); } 83% { transform: translateX(-3px); } }
+.login-card input.shake { animation: field-shake 360ms var(--ease-move); border-color: #e11d48; }
+
+/* ================= Colour: contrast fixes, same hues =================
+   Each change keeps the hue and moves lightness only, so the emerald, amber and rose palette reads the same. */
+:root {
+  --green: #047857;   /* was #059669: white on it 3.77 → 5.48:1, as text on the page 3.48 → 5.07:1 */
+  --muted: #5b6779;   /* was #64748b: 4.40 → 5.1:1 on the tinted page and cards */
+  --amber: #b45309;   /* was #d97706: amber text on its own tint 2.88 → 4.54:1 */
+  --blue: #0369a1;    /* was #0284c7: 3.44 → 4.98:1 on its tint */
+  --red: #be123c;     /* was #e11d48: white on it 3.71 → 6.29:1 */
+  --h3-ok: #08875d;   /* HMI lamps: white labels 2.54 → 4.53:1, still a lit green on the dark panel */
+}
+.foot { color: var(--muted); }
+.ms-kpi-delta.good, .home-tile .good, .ticker em.good, .good { color: #047857; }
+.ms-kpi-delta.bad { color: #be123c; }
+.ms-demo b { color: #422006; }                         /* dark text on amber: 2.15 → 6.79:1 */
+.hall-label.hot { background: #be123c; }
+.hall-label.hot span, .hall-label.capture span { color: #ffffffe6; }  /* the grey sub-label sat at 1.01:1 on red */
+.h3-big i { background: #6b7280; }                     /* POWER OFF tag: 3.54 → 4.83:1 */
+.chip-data.on, .tabs button.active, .scope-tabs button.active, .h2-rank { color: #047857; }
+::placeholder { color: #6b7280; }
+.h3 { --h3-ok: #08875d; }
+.iso-pin-flag.warn { color: #422006; }                 /* amber pin numbers: 2.15 → 6.79:1 */
+.iso-pin-flag.bad { background: #be123c; }
+fieldset.lock:disabled input::placeholder, input:disabled::placeholder { color: #5b6779; }
+/* Fields are known only by their edge: 1.37 → 3.46:1 (WCAG 1.4.11). Locked fields keep the soft edge. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { border-color: #7f8b9c; }
+input:disabled, select:disabled, fieldset.lock:disabled input, fieldset.lock:disabled select { border-color: #d5dde6; }
+.sidebar .side-label, .sidebar .side-group { color: #a3c4bb; }  /* 10.5px label on the emerald sidebar: Lc 45 → 70 */
+
+/* ---- Risks: plant early warnings ---- */
+.warn-section, .biz-section { display: flex; flex-direction: column; gap: 12px; }
+.warn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.warn-head h2 { margin: 0; font-size: 17px; }
+.warn-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.warn-count { padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: #f1f5f9; color: #475569; }
+.warn-count.act { background: #ffe4e6; color: #9f1239; }
+.warn-count.watch { background: #fef3c7; color: #92400e; }
+.warn-count.ok { background: var(--green-soft); color: #065f46; }
+.warn-demo { margin: 0; padding: 8px 12px; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: 12.5px; line-height: 1.5; }
+.warn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 12px; }
+.warn-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-left: 4px solid #cbd5e1; border-radius: var(--radius); background: var(--panel); box-shadow: var(--shadow); animation: card-in .35s var(--ease-out) both; }
+.warn-card.act { border-left-color: var(--red); }
+.warn-card.watch { border-left-color: #f59e0b; }
+.warn-card.needs { border-left-style: dashed; }
+.warn-card.done { opacity: .62; }
+.warn-card > header { display: flex; align-items: center; gap: 8px; }
+.warn-badge { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: .02em; }
+.warn-badge.act { background: var(--red); color: #fff; }
+.warn-badge.watch { background: #fef3c7; color: #92400e; }
+.warn-badge.needs { background: #f1f5f9; color: #475569; }
+.warn-badge.ok { background: var(--green-soft); color: #065f46; }
+.warn-area { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.warn-card h3 { margin: 0; font-size: 15.5px; line-height: 1.3; }
+.warn-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.warn-time b { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.warn-card.act .warn-time b { color: #be123c; }
+.warn-card.watch .warn-time b { color: #b45309; }
+.warn-time span { color: var(--muted); font-size: 12.5px; }
+.warn-headline { margin: 0; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.warn-chart { display: block; width: 100%; height: auto; }
+.wc-line { fill: none; stroke: #0ea5e9; stroke-width: 1.6; stroke-linejoin: round; }
+.warn-card.act .wc-line { stroke: #e11d48; }
+.wc-fit { stroke: var(--ink); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.wc-limit { stroke: var(--red); stroke-width: 1.2; stroke-dasharray: 3 3; }
+.wc-now { stroke: #94a3b8; stroke-width: 1; }
+.wc-future { fill: #f8fafc; }
+.wc-cross { fill: var(--red); stroke: #fff; stroke-width: 1.5; }
+.wc-label { fill: var(--muted); font-size: 10px; }
+.warn-missing { margin: 0; color: #92400e; font-size: 12.5px; }
+.warn-life { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12.5px; font-weight: 600; }
+.warn-life input { width: 84px; min-height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+.warn-life input:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.warn-action { display: flex; gap: 8px; margin: 0; padding: 8px 10px; border-radius: 8px; background: #f0fdf4; color: #14532d; font-size: 13px; line-height: 1.45; }
+.warn-action b { flex: none; color: var(--green); }
+.warn-evidence summary { color: var(--green); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.warn-evidence ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 12.5px; line-height: 1.5; }
+.warn-card footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); }
+.warn-card footer .finding-controls { margin: 0; }
+.warn-ok { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); font-size: 12.5px; }
+.warn-ok > b { margin-right: 4px; color: #065f46; }
+.warn-ok-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--green-soft); color: #065f46; font-weight: 600; }
+.warn-ok-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--green-2); }
+.warn-empty h2 { margin: 0 0 6px; font-size: 17px; }
+.biz-section { margin-top: 8px; }
+.assumptions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 24px; }
+.assumptions h2 { margin: 0; font-size: 15px; flex-basis: 100%; }
+.assumptions .field { max-width: 360px; }
+@media (max-width: 720px) {
+  .warn-card { padding: 12px 14px; }
+  .warn-time b { font-size: 19px; }
+}
+.lining-rows { display: flex; flex-direction: column; gap: 7px; margin: 2px 0; padding: 0; list-style: none; font-size: 12.5px; }
+.lining-rows li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 64px; align-items: center; gap: 8px; }
+.lining-bar { height: 8px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+.lining-bar i { display: block; height: 100%; border-radius: inherit; background: var(--green-2); transition: width .4s var(--ease-out); }
+.lining-rows li.watch .lining-bar i { background: #f59e0b; }
+.lining-rows li.act .lining-bar i { background: var(--red); }
+.lining-num { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.lining-days { color: var(--muted); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.lining-rows li.act .lining-days { color: #be123c; }
+
+/* Polish: mono is for figures only. Names and causes in a figure slot stay in the interface face. */
+.kpi strong.word, .dash-kpi strong.word, .ticker strong.word { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; text-wrap: balance; }
