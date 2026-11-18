@@ -8,12 +8,13 @@ import { demoMeltShop } from '../model/meltshopDemo'
 import { actions, useFactory } from '../model/store'
 import PlantArt from '../components/PlantArt'
 import MeltOverview from './MeltOverview'
-import { MeltTwin, MeltEnergy, MeltChemistry, MeltCarbon, MeltSimulator } from './MeltTabs'
+import MeltControl from './MeltControl'
+import { MeltEnergy, MeltChemistry, MeltCarbon, MeltSimulator } from './MeltTabs'
 
 export type Tab = 'overview' | 'twin' | 'energy' | 'chemistry' | 'carbon' | 'simulator'
 const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: '⌂' },
-  { id: 'twin', label: 'Furnace twin', icon: '◉' },
+  { id: 'twin', label: 'Control room', icon: '◉' },
   { id: 'energy', label: 'Energy & thermal', icon: '⚡' },
   { id: 'chemistry', label: 'Chemistry & yield', icon: '⚗' },
   { id: 'carbon', label: 'Carbon & emissions', icon: '☁' },
@@ -105,7 +106,7 @@ export default function MeltShop() {
     {msg && <ImportMsg msg={msg} />}
     <nav className="ms-tabs" role="tablist">{tabs.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}><span aria-hidden="true">{t.icon}</span>{t.label}</button>)}</nav>
     {tab === 'overview' && <MeltOverview melt={melt} go={setTab} />}
-    {tab === 'twin' && <MeltTwin melt={melt} />}
+    {tab === 'twin' && <MeltControl melt={melt} />}
     {tab === 'energy' && <MeltEnergy melt={melt} />}
     {tab === 'chemistry' && <MeltChemistry melt={melt} />}
     {tab === 'carbon' && <MeltCarbon melt={melt} />}

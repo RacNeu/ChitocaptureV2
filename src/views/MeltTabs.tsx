@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { num, ringgit } from '../format'
 import Info from '../components/Info'
-import InductionFurnace3D, { type FurnaceState } from '../components/InductionFurnace3D'
 import { Donut, HBars, Kpi, Legend, Ring, StackBars, TrendChart } from '../components/MsCharts'
 import {
-  LIQUID_STEEL_KWH_T, checkChem, coilLossKW, gradeLimits, learnCopper, minutesOf, period, priors, scrapTypes,
-  type ChemKey, type HeatView, type Reading,
+  LIQUID_STEEL_KWH_T, checkChem, coilLossKW, gradeLimits, learnCopper, period, priors, scrapTypes,
+  type ChemKey, type HeatView,
 } from '../model/meltshop'
 import { mean, quantile } from '../model/regress'
 import type { Melt } from './MeltShop'
@@ -35,110 +34,6 @@ function FurnacePick({ melt, value, onChange, all = true }: { melt: Melt; value:
   </div>
 }
 const pick = (melt: Melt, f: string) => f === 'all' ? melt.heats : melt.heats.filter((h) => h.furnace === f)
-
-/* ---------------- 1 · Furnace twin ---------------- */
-
-type Phase = FurnaceState['phase']
-function phaseAt(r: Reading, maxKw: number, heats: HeatView[]): Phase {
-  const t = minutesOf(r.at)
-  if (r.kw > 0.45 * maxKw) return 'melting'
-  const h = heats.find((x) => x.furnace === r.furnace && t >= x.tapMin - 3 && t <= x.tapMin + 6)
-  if (h) return 'tapping'
-  return r.bathC !== undefined ? 'holding' : 'idle'
-}
-const phaseText: Record<Phase, string> = { melting: 'Melting', holding: 'Holding', tapping: 'Tapping', idle: 'Idle / charging' }
-const signalText = { waterDT: 'Coil water ΔT', flowM3h: 'Coil water flow' }
-
-export function MeltTwin({ melt }: { melt: Melt }) {
-  const withReadings = melt.furnaces.filter((f) => melt.data.readings.some((r) => r.furnace === f))
-  const [f, setF] = useState(melt.anomalies[0]?.furnace ?? withReadings[0] ?? melt.furnaces[0])
-  const rs = useMemo(() => melt.data.readings.filter((r) => r.furnace === f), [melt.data.readings, f])
-  const [idx, setIdx] = useState(Math.max(0, rs.length - 1))
-  const [play, setPlay] = useState(false)
-  useEffect(() => { setIdx(Math.max(0, rs.length - 1)); setPlay(false) }, [rs])
-  useEffect(() => {
-    if (!play) return
-    const id = setInterval(() => setIdx((i) => (i + 2 >= rs.length ? 0 : i + 2)), 120)
-    return () => clearInterval(id)
-  }, [play, rs.length])
-  const maxKw = Math.max(1, ...rs.map((r) => r.kw))
-  const r = rs[idx]
-  const heats = melt.heats.filter((h) => h.furnace === f)
-  const lastHeat = heats[heats.length - 1]
-  const t = r ? minutesOf(r.at) : lastHeat?.tapMin ?? 0
-  const heat = heats.find((h) => t >= h.startMin && t <= h.tapMin + 6) ?? lastHeat
-  const phase: Phase = r ? phaseAt(r, maxKw, melt.heats) : 'holding'
-  const onStart = heat ? heat.tapMin - (heat.holdMin ?? 0) - 8 - heat.powerOnMin : t
-  const fill = phase === 'melting' && heat ? Math.min(1, Math.max(0.15, (t - onStart) / heat.powerOnMin)) : 1
-  const alarms = melt.anomalies.filter((a) => a.furnace === f)
-  const activeAlarm = r ? alarms.some((a) => Math.abs(minutesOf(a.at) - t) <= 45) : alarms.length > 0
-  const loss = r ? coilLossKW(r) : null
-  const state: FurnaceState = { power: r ? Math.min(1, r.kw / maxKw) : 0, bathC: r?.bathC ?? heat?.tapTempC ?? null, phase, fill, alarm: activeAlarm }
-  // 10-minute series for the strip charts.
-  const ten = rs.filter((_, i) => i % 10 === 0)
-  const xs = ten.map((x) => x.at.slice(11, 16))
-  const cursor = Math.round(idx / 10)
-  const alarmBands = alarms.map((a) => { const k = ten.findIndex((x) => x.at >= a.at); return { from: Math.max(0, k - 1), to: Math.max(0, k) } }).filter((b) => b.to > 0)
-  const energySoFar = phase === 'melting' && heat ? Math.round(rs.slice(Math.max(0, idx - (t - onStart)), idx + 1).reduce((a, x) => a + x.kw / 60, 0)) : heat?.kwh
-
-  return <div className="ms-grid twin">
-    <section className="ms-card ms-stage">
-      <div className="ms-card-head"><h3>{f} · induction furnace</h3><FurnacePick melt={melt} value={f} onChange={setF} all={false} /></div>
-      <div className="ms-stage-wrap">
-        <InductionFurnace3D state={state} label={f} />
-        <div className={`ms-phase p-${phase}`}><i />{phaseText[phase]}{heat && <small>Heat {heat.heat}</small>}</div>
-        {activeAlarm && <div className="ms-stage-alarm">⚠ Coil cooling alarm</div>}
-        <div className="ms-stage-hint">Drag to rotate · scroll to zoom</div>
-      </div>
-      {rs.length > 0 ? <div className="ms-replay">
-        <button type="button" className="btn small" onClick={() => setPlay(!play)}>{play ? '❚❚ Pause' : '▶ Replay'}</button>
-        <input type="range" min={0} max={rs.length - 1} value={idx} onChange={(e) => { setPlay(false); setIdx(Number(e.target.value)) }} aria-label="Replay time" />
-        <span className="ms-time">{r?.at}</span>
-      </div> : <p className="ms-note">No live readings for {f}: showing the last heat. Upload a readings file (kW, bath and coil water every 1–5 min) to replay the furnace.</p>}
-    </section>
-
-    <aside className="ms-side">
-      <section className="ms-card">
-        <h3>Live readings {melt.isDemo && <span className="ms-badge b-none">demo</span>}</h3>
-        <div className="ms-readouts">
-          <div><span>Power</span><b>{r ? num(r.kw / 1_000, 1) : '—'}<small> MW</small></b></div>
-          <div><span>Frequency</span><b>{r?.hz ?? '—'}<small> Hz</small></b></div>
-          <div><span>Bath</span><b>{state.bathC !== null ? num(state.bathC) : '—'}<small> °C</small></b></div>
-          <div className={activeAlarm ? 'bad' : ''}><span>Coil water ΔT</span><b>{r?.waterOutC !== undefined && r.waterInC !== undefined ? num(r.waterOutC - r.waterInC, 1) : '—'}<small> °C</small></b></div>
-          <div className={activeAlarm ? 'bad' : ''}><span>Water flow</span><b>{r?.flowM3h ?? '—'}<small> m³/h</small></b></div>
-          <div><span>Heat to coil water <Info>Flow × 4.18 kJ/kg·K × ΔT. Measured studies put the cooling-water loss at 26–29% of the electricity (Missouri S&T / US DOE).</Info></span><b>{loss !== null ? num(loss / 1_000, 2) : '—'}<small> MW{loss !== null && r && r.kw > 1_000 ? ` · ${num(loss / r.kw * 100)}%` : ''}</small></b></div>
-        </div>
-      </section>
-      {heat && <section className="ms-card">
-        <h3>Heat {heat.heat}</h3>
-        <dl className="ms-dl">
-          <dt>Grade</dt><dd>{heat.grade ?? '—'}</dd>
-          <dt>Charge</dt><dd>{num(heat.chargeT, 1)} t{heat.coldLining ? ' · cold lining' : ''}</dd>
-          <dt>Energy</dt><dd>{energySoFar !== undefined ? `${num(energySoFar / 1_000, 1)} MWh` : '—'}</dd>
-          <dt>kWh/t</dt><dd>{num(heat.kwhPerT)} <small className="muted">(physics min {LIQUID_STEEL_KWH_T})</small></dd>
-          <dt>Tap</dt><dd>{heat.at.slice(11)} · {heat.tapTempC ?? '—'} °C</dd>
-          <dt>Lining</dt><dd>heat {heat.liningHeat ?? '—'} of campaign</dd>
-        </dl>
-      </section>}
-      <section className="ms-card">
-        <h3>Alarms <Info>Each signal is compared with its own normal band (melting and idle separately) over the previous hour. An alarm needs 3 readings in a row outside the band by a minimum margin, so one noisy reading never alarms.</Info></h3>
-        {alarms.length ? <ul className="ms-alarms">{alarms.slice(0, 5).map((a) => <li key={a.at + a.signal}>
-          <b>{signalText[a.signal]} {a.kind === 'drop' ? 'dropped' : 'rose'} to {num(a.value, 1)}</b>
-          <small>{a.at} · normal {num(a.normalLow, 1)}–{num(a.normalHigh, 1)}</small>
-          <em>Check coil cooling pumps, filters and hoses. Low coil cooling risks coil damage and a water–steel contact.</em>
-        </li>)}</ul> : <p className="ms-note">No alarms for {f}.</p>}
-      </section>
-    </aside>
-
-    {ten.length > 2 && <section className="ms-card ms-span">
-      <div className="ms-card-head"><h3>Last {Math.round(rs.length / 60)} hours · {f}</h3><Legend items={[{ label: 'Power (MW)', color: COL.sky }, { label: 'Coil water ΔT (°C)', color: COL.amber }, { label: 'Alarm', color: COL.red }]} /></div>
-      <div className="ms-two">
-        <TrendChart x={xs} series={[{ label: 'Power MW', values: ten.map((x) => x.kw / 1_000), color: COL.sky, area: true }]} bands={[...alarmBands, { from: Math.max(0, cursor - 0.5), to: cursor + 0.5 }]} height={170} onPick={(i) => { setPlay(false); setIdx(i * 10) }} />
-        <TrendChart x={xs} series={[{ label: 'Coil water ΔT', values: ten.map((x) => x.waterOutC !== undefined && x.waterInC !== undefined ? x.waterOutC - x.waterInC : null), color: COL.amber }]} bands={alarmBands} height={170} onPick={(i) => { setPlay(false); setIdx(i * 10) }} />
-      </div>
-    </section>}
-  </div>
-}
 
 /* ---------------- 2 · Energy & thermal ---------------- */
 

@@ -1930,3 +1930,100 @@ a.dash-kpi:hover { border-color: #d97706; }
   .home2 .ov-donut, .home2 .h2-risks, .home2 .ov-sim { grid-column: span 5; }
   .home2 .h2-save { order: 1; } .home2 .ov-donut { order: 2; } .home2 .ov-emis { order: 3; } .home2 .h2-risks { order: 4; } .home2 .h2-sources { order: 5; } .home2 .ov-sim { order: 6; } .home2 .h2-journey { order: 7; } .home2 .ov-banner { order: 8; }
 }
+.f3d-tags { position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; }
+.f3d-tag { position: absolute; left: 0; top: 0; padding: 2px 7px; border: 1px solid rgba(148, 163, 184, .5); border-radius: 5px; background: rgba(15, 23, 42, .72); color: #e2e8f0; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; white-space: nowrap; transition: opacity .2s; }
+
+/* ---------- Melt shop control room (HMI layout, light) ---------- */
+.hmi2 { --mono: ui-monospace, "Cascadia Mono", Consolas, monospace; display: flex; flex-direction: column; gap: 10px; font-variant-numeric: tabular-nums; }
+.hmi2-header { display: grid; grid-template-columns: repeat(6, minmax(90px, 1fr)) repeat(4, minmax(78px, .8fr)) minmax(110px, 1fr); gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--ms-shadow); }
+@media (max-width: 1300px) { .hmi2-header { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); } }
+.hmi2-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding: 5px 0; border-bottom: 1px solid #eef2f7; font-size: 12.5px; }
+.hmi2-field > span { color: var(--muted); white-space: nowrap; }
+.hmi2-field > b { min-width: 64px; padding: 2px 8px; border: 1px solid #dbe3ec; border-radius: 6px; background: #f8fafc; font-family: var(--mono); font-size: 12.5px; text-align: right; white-space: nowrap; }
+.hmi2-field > b small { color: var(--muted); font-family: Inter, system-ui, sans-serif; font-size: 10.5px; font-weight: 600; }
+.hmi2-field.hot > b { border-color: #fdba74; background: #fff7ed; color: #c2410c; }
+.hmi2-field.warn > b { border-color: #fcd34d; background: #fffbeb; color: #b45309; }
+.hmi2-field.bad > b { border-color: #fda4af; background: #fff1f2; color: #be123c; }
+.hmi2-header .hmi2-field { flex-direction: column; align-items: stretch; gap: 3px; padding: 0; border: 0; }
+.hmi2-header .hmi2-field > span { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.hmi2-header .hmi2-field > b { text-align: left; font-size: 13.5px; }
+.hmi2-hero { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; border: 1px solid #fecdd3; border-radius: 10px; background: #fff1f2; }
+.hmi2-hero span { color: #be123c; font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.hmi2-hero b { color: #9f1239; font-family: var(--mono); font-size: 22px; }
+.hmi2-pcs { display: grid; place-items: center; border-radius: 10px; font-size: 12px; font-weight: 800; letter-spacing: .04em; }
+.hmi2-pcs.ok { background: #dcfce7; color: #166534; } .hmi2-pcs.bad { background: #e11d48; color: #fff; animation: ms-blink 1.6s infinite; }
+.hmi2-screen { min-height: 520px; }
+.hmi2-grid { display: grid; grid-template-columns: minmax(230px, 270px) minmax(0, 1fr) minmax(230px, 270px); gap: 10px; align-items: start; }
+@media (max-width: 1150px) { .hmi2-grid { grid-template-columns: 1fr 1fr; } .hmi2-centre { grid-column: 1 / -1; order: -1; } }
+.hmi2-col { display: flex; flex-direction: column; gap: 10px; }
+.hmi2-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--ms-shadow); }
+.hmi2-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px; background: linear-gradient(180deg, #1e4f9c, #173f7d); color: #fff; font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+.hmi2-panel > header small { color: #cfe0f6; font-weight: 500; }
+.hmi2-panel > header .info-btn { background: rgba(255, 255, 255, .2); color: #fff; border-color: transparent; }
+.hmi2-body { padding: 8px 12px 10px; }
+.hmi2-vbars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+.hmi2-vbar { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.hmi2-vbar-label { padding: 1px 8px; border-radius: 5px; background: #1e4f9c; color: #fff; font-size: 11px; font-weight: 800; }
+.hmi2-vbar-track { position: relative; width: 26px; height: 110px; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 4px; background: #e2e8f0; }
+.hmi2-vbar-track i { position: absolute; left: 0; right: 0; bottom: 0; transition: height .4s; }
+.hmi2-vbar-track em { position: absolute; left: 0; right: 0; height: 1px; background: rgba(15, 23, 42, .15); }
+.hmi2-vbar b { padding: 1px 6px; border: 1px solid #dbe3ec; border-radius: 5px; background: #f8fafc; font-family: var(--mono); font-size: 12.5px; }
+.hmi2-vbar small { color: var(--muted); font-size: 10.5px; }
+.hmi2-status { display: inline-block; padding: 1px 8px; border-radius: 5px; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-weight: 800; letter-spacing: .03em; }
+.hmi2-status.ok { background: #22c55e; color: #fff; } .hmi2-status.bad { background: #e11d48; color: #fff; } .hmi2-status.idle { background: #e2e8f0; color: #475569; }
+.hmi2-big { font-family: var(--mono); font-size: 30px; font-weight: 800; }
+.hmi2-big small { color: var(--muted); font-family: Inter, sans-serif; font-size: 13px; }
+.hmi2-big.ok { color: #059669; } .hmi2-big.bad { color: #e11d48; }
+.hmi2-missing .hmi2-big { color: #1e4f9c; }
+.hmi2-progress { height: 8px; margin: 6px 0; overflow: hidden; border-radius: 4px; background: #e2e8f0; }
+.hmi2-progress i { display: block; height: 100%; background: linear-gradient(90deg, #f59e0b, #f97316); transition: width .4s; }
+.hmi2-centre { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hmi2-stage { position: relative; height: clamp(360px, 48vh, 520px); overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: radial-gradient(700px 380px at 50% 30%, #1d3f6b 0%, #0f2443 55%, #091729 100%); }
+.hmi2-chips { position: absolute; left: 10px; top: 10px; z-index: 2; display: flex; gap: 4px; }
+.hmi2-chips button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid rgba(255, 255, 255, .25); border-radius: 7px; background: rgba(15, 23, 42, .6); color: #e2e8f0; font-size: 12px; font-weight: 700; cursor: pointer; }
+.hmi2-chips button.on { border-color: #34d399; background: #059669; color: #fff; }
+.hmi2-stage .ms-stage-alarm { z-index: 2; }
+.hmi2-views { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.hmi2-views button { padding: 7px 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.hmi2-views button.on { border-color: #1e4f9c; background: #eff6ff; color: #1e4f9c; }
+.hmi2-row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 800px) { .hmi2-row3, .hmi2-views { grid-template-columns: 1fr 1fr; } }
+.hmi2-timeline { display: flex; gap: 3px; margin-top: 8px; }
+.hmi2-timeline span { min-width: 0; padding: 3px 0; border-radius: 4px; background: #e2e8f0; color: var(--muted); font-size: 10.5px; font-weight: 700; text-align: center; }
+.hmi2-timeline span.done { background: #cbd5e1; } .hmi2-timeline span.on { background: #f97316; color: #fff; }
+.hmi2-replay { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.hmi2-replay input { flex: 1; min-width: 200px; accent-color: var(--green); }
+.hmi2-alarmbar { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 4px 6px 4px 14px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 13px; }
+.hmi2-alarmbar b { flex: none; letter-spacing: .05em; }
+.hmi2-alarmbar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hmi2-alarmbar.on { background: #e11d48; color: #fff; }
+.hmi2-alarmbar button { padding: 5px 12px; border: 0; border-radius: 7px; background: #fff; color: #be123c; font-weight: 800; cursor: pointer; }
+.hmi2-fkeys { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.hmi2-fkeys button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(180deg, #fff, #f1f5f9); color: var(--ink); font-weight: 700; cursor: pointer; }
+.hmi2-fkeys button.on { border-color: #1e4f9c; background: linear-gradient(180deg, #2563eb, #1e4f9c); color: #fff; }
+.hmi2-fkeys kbd { padding: 1px 6px; border-radius: 4px; background: rgba(15, 23, 42, .08); font: 700 11px var(--mono); }
+.hmi2-fkeys button.on kbd { background: rgba(255, 255, 255, .2); }
+@media (max-width: 700px) { .hmi2-fkeys { grid-template-columns: repeat(3, 1fr); } }
+.hmi2-shop { display: flex; flex-direction: column; gap: 10px; }
+.hmi2-units { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.hmi2-unit { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--ms-shadow); }
+.hmi2-unit-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.hmi2-unit-head b { font-size: 16px; }
+.hmi2-band { padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.hmi2-band.on { background: #22c55e; color: #fff; } .hmi2-band.hold { background: #facc15; color: #713f12; } .hmi2-band.tap { background: #f97316; color: #fff; } .hmi2-band.off { background: #e2e8f0; color: #475569; } .hmi2-band.bad { background: #e11d48; color: #fff; }
+.hmi2-ficon { width: 100%; height: 96px; }
+.hmi2-unit-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }
+.hmi2-unit-grid .hmi2-field { padding: 3px 0; font-size: 11.5px; }
+.hmi2-unit-grid .hmi2-field > b { min-width: 0; padding: 1px 5px; font-size: 11.5px; }
+.hmi2-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.hmi2-table th { padding: 5px 8px; border-bottom: 1px solid var(--line); background: #f1f5f9; color: var(--ink-2); font-size: 11px; font-weight: 700; text-align: left; }
+.hmi2-table td { padding: 5px 8px; border-bottom: 1px solid #eef2f7; }
+.hmi2-table tbody tr:nth-child(even) td { background: #f8fafc; }
+.hmi2-table tr.bad td { background: #fff1f2; color: #9f1239; }
+.hmi2-table .num { text-align: right; font-family: var(--mono); }
+.hmi2-events td:first-child { white-space: nowrap; font-family: var(--mono); }
+.hmi2-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 260px)); gap: 16px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.hmi2-trends { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 900px) { .hmi2-trends, .hmi2-totals { grid-template-columns: 1fr; } }
+.hmi2-unit-grid { grid-template-columns: 1fr; }
+@media (min-width: 1500px) { .hmi2-unit-grid { grid-template-columns: 1fr 1fr; } }
