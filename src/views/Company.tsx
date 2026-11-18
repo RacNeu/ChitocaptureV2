@@ -116,8 +116,8 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
             <span className={`chip-data${r.hasBills ? ' on' : ''}`}>{r.hasBills ? `✓ ${r.months} months of bills` : 'No bills'}</span>
             <span className={`chip-data${r.hasMeter ? ' on' : ''}`}>{r.hasMeter ? '✓ Meter data' : 'No meter data'}</span>
           </div>
-          <div className="site-stat"><span>Emissions</span>{r.hasBills ? <><b>{tonnes(r.total)}</b><small className={r.change === null ? 'muted' : r.change <= 0 ? 'good-text' : 'bad-text'}>{r.change === null ? `${monthLabel(r.from)} – ${monthLabel(r.to)}` : `${r.change <= 0 ? '▼' : '▲'} ${num(Math.abs(r.change), 1)}% vs year before`}</small></> : <b className="muted">—</b>}</div>
-          <div className="site-stat"><span>Could save</span>{r.saving > 0 ? <><b className="good-text">{ringgit(r.saving)}</b><small className="muted">/month</small></> : <b className="muted">—</b>}</div>
+          <div className="site-stat"><span>Emissions</span>{r.hasBills ? <><b className="fig">{tonnes(r.total)}</b><small className={r.change === null ? 'muted' : r.change <= 0 ? 'good-text' : 'bad-text'}>{r.change === null ? `${monthLabel(r.from)} – ${monthLabel(r.to)}` : `${r.change <= 0 ? '▼' : '▲'} ${num(Math.abs(r.change), 1)}% YoY`}</small></> : <b className="muted">—</b>}</div>
+          <div className="site-stat"><span>Could save</span>{r.saving > 0 ? <><b className="good-text fig">{ringgit(r.saving)}</b><small className="muted">/month</small></> : <b className="muted">—</b>}</div>
           <div className="site-stat"><span>Target</span><b className={r.onTrack === null ? 'muted' : r.onTrack ? 'good-text' : 'bad-text'}>{r.onTrack === null ? '—' : r.onTrack ? '✓ On track' : '⚠ Off track'}</b></div>
           <div className="site-stat"><span>Top risk</span>{r.topRisk ? <><b>{r.topRisk.name}</b><small className="muted">{likelihoodLabel[r.topRisk.likelihood!]}</small></> : <b className="muted">—</b>}</div>
           <div className="site-go">

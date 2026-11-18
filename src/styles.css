@@ -2601,3 +2601,17 @@ input:disabled, select:disabled, fieldset.lock:disabled input, fieldset.lock:dis
 
 /* Polish: mono is for figures only. Names and causes in a figure slot stay in the interface face. */
 .kpi strong.word, .dash-kpi strong.word, .ticker strong.word { font-family: Inter, 'Segoe UI', system-ui, sans-serif; font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; text-wrap: balance; }
+
+/* Polish: the Base load explanation was always open (".eva-stat span" also matched the popover) */
+.eva-stat .info-pop { display: none; }
+.eva-stat .info:hover .info-pop, .eva-stat .info:focus-within .info-pop { display: block; }
+@media (max-width: 720px) {
+  /* Popovers become a strip above the bottom edge instead of running off the right side */
+  .info-pop { position: fixed; top: auto; left: 12px; right: 12px; bottom: 96px; width: auto; max-width: none; }
+  /* Section tabs scroll sideways instead of wrapping mid-label */
+  .section-tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .section-tabs button { white-space: nowrap; flex: none; }
+  .section-head { flex-wrap: wrap; }
+}
+.site-stat b.fig { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.site-stat small { white-space: nowrap; }
