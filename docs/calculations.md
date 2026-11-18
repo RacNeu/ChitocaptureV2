@@ -53,32 +53,33 @@ holding → tapping) and keeps an energy balance at every step:
 
 ```
 electricity in × 97% (converter)
-  = coil copper loss (20%)          → coil water
+  = coil copper loss (24%)          → coil water
   + conduction through the lining   → coil water
   + radiation from the bath (εσT⁴, lid open or closed)
   + heat absorbed by the steel
 ```
 
-- **Melting:** the scrap needs 389 − 0.23 × 70 = 373 kWh/t to be liquid at 1,530 °C, plus +30 kWh/t × turnings share, −15 × shredded share, and +100 if the lining is cold.
+- **Melting:** the scrap needs 389 − 0.23 × 70 = 373 kWh/t to be liquid at 1,530 °C, plus +30 kWh/t × turnings share, −15 × shredded share, and +75 if the lining is cold (heat the lining soaks up).
 - **Superheat:** after that, the bath heats at 0.23 kWh/t per °C until it reaches the tap aim.
 - **Holding:** power covers only the losses.
+- **Lid:** the set lid-open minutes happen once the bath is liquid (sampling, additions), when radiation is ~1 MW with the lid open.
 - **Coil water:** the outlet temperature is inlet + (copper loss + conduction) ÷ (flow × 4.18).
 
 **Why it is right:**
-1. Each piece is a physics law (A13–A15) or a published figure (389 kWh/t, 0.23 kWh/t·°C, 97%, cold lining +100).
-2. The total lands inside published measurements. At the default set points it gives **558 kWh/t**, which is inside Otto Junker's good practice (500–560 kWh/t) and below DOE's "typical" 584–661 kWh/t (530–600 kWh/short ton).
-3. It turns ~**70%** of the electricity into hot steel (389 × 56.8 t ÷ total kWh = 0.698). DOE's best-practice efficiency is ~70%.
+1. Each piece is a physics law (A13–A15) or a published figure (389 kWh/t, 0.23 kWh/t·°C, 97%).
+2. The total lands inside published measurements. At the default set points (14 min holding, 6 min lid open, 15% turnings) it gives **589 kWh/t**, inside DOE's "typical" 584–661 kWh/t (530–600 kWh/short ton) and the 521–734 kWh/t DOE measured on real heats. Good practice (Otto Junker 500–560) needs less holding and lid time, which the HMI shows when you lower them.
+3. Its energy split matches DOE's measured heats: **66%** into the liquid steel (DOE 54–71%) and **26%** into the coil water (DOE 26–29%).
 4. Each set point moves the result the way physics says. These are tested (`furnaceSim.test.ts`):
 
 | Change | Simulator result | Published | Agrees? |
 |---|---|---|---|
-| Hold 30 min instead of 14 | +5.4 kWh/t (0.34 per min) | ~0.3 per min (Otto Junker, 275 kW on 15 t) | ✔ |
-| Tap at 1,650 °C instead of 1,620 | +9.2 kWh/t (0.31 per °C) | 0.23 (into steel) to 0.4 (from grid) per °C | ✔ |
-| Cold lining | +139 kWh/t | DOE: +105 to +119 kWh/t | ⚠ about 20–30% high |
-| Lid open 0 min instead of 6 | 0 kWh/t | ~0.75 per min (Otto Junker, 20 min ≈ +15 kWh/t) | ✘ see C-list |
+| Hold 30 min instead of 14 | +5.6 kWh/t (0.35 per min) | ~0.3 per min (Otto Junker, 275 kW on 15 t) | ✔ |
+| Tap at 1,650 °C instead of 1,620 | +8.8 kWh/t (0.29 per °C) | 0.23 (into steel) to 0.4 (from grid) per °C | ✔ |
+| Cold lining | +111 kWh/t | DOE: +105 to +119 kWh/t | ✔ |
+| Lid open 20 min instead of 0 | +0.40 kWh/t per min | 0.3–0.9 per min (Otto Junker 20 min ≈ +15 kWh/t; radiation physics) | ✔ |
 | Half power (16 MW) | higher kWh/t, ≥ 1.6× longer power-on | Otto Junker: running below full power costs more | ✔ |
 
-**Tuned parts:** the 20% coil copper loss and the 700 kW lining conduction were set by us so the total lands in the published range. They are not measured. See C5.
+**Tuned parts:** the 24% coil copper loss, the 700 kW lining conduction and the 75 kWh/t cold-lining heat were set by us so the energy split and the cold-lining penalty match DOE's measurements. They are not measured directly. See C5.
 
 ### B2. Learning a plant's own factors (Melt shop → Energy & thermal)
 
@@ -213,7 +214,7 @@ arithmetic is simple and tested. **The rate is the uncertain part** (C1).
 | C2 | IGBT vs thyristor saving | Vendor claims of 5–25%, no independent steel data | Uses the low end (5%); asks for a supplier quote |
 | C3 | Upgrade costs (capex) and the measures library percentages | Design estimates, not quotes | Labelled "indicative planning assumption"; editable |
 | C4 | Holding, lid, rust, sand, charge-density effects | From one vendor (Otto Junker), not independent measurements | Used only until the plant has 30+ heats; then its own data replaces them |
-| C5 | Simulator coil copper loss (20%) and lining conduction (700 kW) | Tuned, not measured. Average coil-water share comes out ~21% vs DOE's measured 26–29% | Total kWh/t is still in range; see the accuracy doc |
+| C5 | Simulator coil copper loss (24%), lining conduction (700 kW) and cold-lining heat (75 kWh/t) | Tuned to DOE's measured split, not measured on a 60 t furnace | Tests hold the coil-water share at 25–30%, steel share at 63–72% and cold lining at +100–125 kWh/t |
 | C6 | Alarm set points (flow 300, outlet 55 °C, ΔT 20, leakage 15/25 mA) | Every coil maker sets its own | Labelled "example"; the anomaly check learns each furnace's normal band instead |
 | C7 | LF electrode consumption | No clean LF-only source (EAF: 1.1–3.0 kg/t) | Learned from the plant's own LF data |
 | C8 | TNB HV energy rates (44.52 / 40.43 sen) | From consultancy guides, not seen on the official page | Editable; tagged as assumption until the plant enters its bill |
@@ -222,7 +223,7 @@ arithmetic is simple and tested. **The rate is the uncertain part** (C1).
 | C11 | CBAM phase-in schedule | Simplified from the EU schedule, which may change | Labelled "simplified, check the current regulation" |
 | C12 | HMI electrical values (coil V, kA, DC link, Hz) | Indicative only | Not used in any energy, money or CO₂ figure |
 | C13 | 3D simulation phase shares and power profile | Assumptions | The average is forced to equal the annual figure, so totals are not affected |
-| C14 | Lid-open effect in the simulator | The lid is only open at the start of melting, when the scrap is cold, so it barely changes kWh/t | Known limitation (accuracy doc); the learned/published factor (B2/B4) is what prices lid losses |
+| C14 | Lid-open effect in the simulator | Comes from radiation physics with an assumed 85% kept in by a closed lid; gives 0.40 kWh/t per min, at the low end of the vendor's ~0.75 | A plant's own heats (B2) replace it |
 | C15 | Grid factor: 0.774 (Energy Commission 2022) in most of the app, 0.74 (Single Buyer 2024) in the sample mill | Two official sources, different years | Both editable; see the accuracy doc |
 
 ---
@@ -238,7 +239,7 @@ arithmetic is simple and tested. **The rate is the uncertain part** (C1).
 | **Consistency tests:** the same thing calculated two ways must agree (sandbox vs Plan, 3D vs annual, machines vs bills) | No page contradicts another | B8, B10 |
 | **Physics guards in the app:** a heat below 389 kWh/t, or tapping more than was charged, is flagged as a data error | Bad uploads can't produce impossible results | B2 |
 | **Compliance mapping:** Scope 1/2 split, location- and market-based Scope 2, and IPCC factors follow the GHG Protocol; Bursa CSI uses the same factors | Results can go into Bursa / NSRF reporting | A1–A5 |
-| **154 automated tests** run on every change (`npx vitest run`) | Nothing silently breaks | all |
+| **155 automated tests** run on every change (`npx vitest run`) | Nothing silently breaks | all |
 
 **What this does NOT prove:** that the learned factors or savings are right for a specific real
 plant. That needs that plant's heat log. See [accuracy-and-validation.md](accuracy-and-validation.md), section 4.

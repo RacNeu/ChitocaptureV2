@@ -6,8 +6,13 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import type { LiveReading } from './feed'
 
-export type LiveConfig = { supabaseUrl: string; supabaseKey: string; ingestKey: string; site: string }
-const KEY = 'chitocapture.live.config'
+/**
+ * demoKey is the DEMO ingest key: it ships in the website, so the ingest function only lets it write
+ * to site "demo", in small rate-limited batches. Real devices use the private device key, which never
+ * goes in the website.
+ */
+export type LiveConfig = { supabaseUrl: string; supabaseKey: string; demoKey: string; site: string }
+const KEY = 'chitocapture.live.config.v2'
 const env = import.meta.env as Record<string, string | undefined>
 
 export function loadConfig(): LiveConfig {
@@ -16,7 +21,7 @@ export function loadConfig(): LiveConfig {
   return {
     supabaseUrl: saved.supabaseUrl || env.VITE_SUPABASE_URL || '',
     supabaseKey: saved.supabaseKey || env.VITE_SUPABASE_PUBLISHABLE_KEY || '',
-    ingestKey: saved.ingestKey || env.VITE_INGEST_KEY || '',
+    demoKey: saved.demoKey || env.VITE_DEMO_INGEST_KEY || '',
     site: saved.site || 'demo',
   }
 }
@@ -56,11 +61,11 @@ export async function supabaseSubscribe(c: LiveConfig, on: { readings: (rows: Re
   return () => { void db.removeChannel(channel) }
 }
 
-/** Post readings to the 24/7 ingest function (what a device or gateway does). */
-export async function ingest(c: LiveConfig, readings: DeviceReading[], source: 'simulator' | 'device' = 'simulator') {
-  if (!c.supabaseUrl || !c.ingestKey) return { ok: false, error: 'Not configured' }
+/** Post the test publisher's readings to the 24/7 ingest function with the demo key (site "demo"). */
+export async function ingest(c: LiveConfig, readings: DeviceReading[]) {
+  if (!c.supabaseUrl || !c.demoKey) return { ok: false, error: 'Not configured' }
   try {
-    const r = await fetch(`${c.supabaseUrl}/functions/v1/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-ingest-key': c.ingestKey, 'x-source': source }, body: JSON.stringify({ site: c.site, readings }) })
+    const r = await fetch(`${c.supabaseUrl}/functions/v1/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-ingest-key': c.demoKey, 'x-source': 'simulator' }, body: JSON.stringify({ site: 'demo', readings }) })
     const body = await r.json().catch(() => ({}))
     return r.ok ? { ok: true, raised: (body.raised ?? []) as string[] } : { ok: false, error: body.error ?? `HTTP ${r.status}` }
   } catch (e) { return { ok: false, error: (e as Error).message } }

@@ -12,10 +12,28 @@ describe('induction heat simulator', () => {
     expect(base.powerOnMin).toBeGreaterThan(45)
     expect(base.powerOnMin).toBeLessThan(90)
   })
-  it('puts ~26–29% of the power into the coil water while melting', () => {
-    const p = base.points.find((x) => x.phase === 'melting' && x.meltPct > 50)!
-    expect(p.coilHeatKW / p.powerKW).toBeGreaterThan(0.18)
-    expect(p.coilHeatKW / p.powerKW).toBeLessThan(0.32)
+  it('sends ~26–29% of the heat’s electricity into the coil water, as DOE measured', () => {
+    const sum = (f: (x: (typeof base.points)[number]) => number) => base.points.reduce((a, x) => a + f(x), 0)
+    const share = sum((x) => x.coilHeatKW) / sum((x) => x.powerKW)
+    expect(share).toBeGreaterThan(0.25)
+    expect(share).toBeLessThan(0.3)
+    // ~63–71% of the electricity ends up in the liquid steel (Missouri S&T/DOE Sankey diagrams)
+    expect(389 * base.tappedT / base.kwh).toBeGreaterThan(0.63)
+    expect(389 * base.tappedT / base.kwh).toBeLessThan(0.72)
+  })
+  it('matches the published size of each loss', () => {
+    // Cold lining: DOE measured +105 to +119 kWh/t against hot-lining heats
+    const cold = run({ coldLining: true }).kwhPerT - base.kwhPerT
+    expect(cold).toBeGreaterThan(100)
+    expect(cold).toBeLessThan(125)
+    // Lid open on a liquid bath: published 0.3–0.9 kWh/t per minute (Otto Junker; radiation physics)
+    const lid = (run({ lidOpenMin: 20 }).kwhPerT - run({ lidOpenMin: 0 }).kwhPerT) / 20
+    expect(lid).toBeGreaterThan(0.3)
+    expect(lid).toBeLessThan(0.9)
+    // Holding: ~0.15–0.5 kWh/t per minute
+    const hold = (run({ holdMin: 30 }).kwhPerT - run({ holdMin: 10 }).kwhPerT) / 20
+    expect(hold).toBeGreaterThan(0.15)
+    expect(hold).toBeLessThan(0.5)
   })
   it('responds to the set points the right way', () => {
     expect(run({ holdMin: 40 }).kwhPerT).toBeGreaterThan(base.kwhPerT)

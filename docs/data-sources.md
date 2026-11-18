@@ -60,7 +60,7 @@ Code: `src/model/furnaceSim.ts` → `defaultSetPoints`.
 | Scrap mix | HMS 44%, shredded 30%, turnings 15%, pig iron 4%, own returns 7%, DRI 0% | Assumption | A typical Malaysian rebar mill mix; no plant publishes theirs |
 | Tap aim | 1,620 °C | Assumption | Normal tap temperature for rebar billets (1,600–1,650 °C) |
 | Holding time | 14 min | Assumption | Mid-range waiting time for LF/caster |
-| Extra lid-open time | 6 min | Assumption | Sampling and additions |
+| Extra lid-open time | 6 min | Assumption | Sampling, temperature readings and additions, once the bath is liquid |
 | Coil water flow / inlet | 410 m³/h, 32 °C | Physics + assumption | Sized so the coil water can carry ~26% of 31 MW at a ~17 °C rise: 31 MW × 0.26 ≈ 8 MW = 410 m³/h × 4.18 × 17 °C. 32 °C is a typical Malaysian cooling-tower supply |
 | Electricity price | RM 424/MWh | Published | Average of TNB HV ToU peak 44.52 and off-peak 40.43 sen/kWh (see §4.2) |
 | Grid factor | 0.774 kg CO₂/kWh | Published | Energy Commission, Peninsular Malaysia, 2022 |
@@ -76,7 +76,7 @@ Code: `src/model/furnaceSim.ts`. The full sources are in [induction-furnace-mode
 | Energy to melt steel and bring it to 1,600 °C | 389 kWh/t | Physics + Published | Steel enthalpy ≈ 1.40 GJ/t. Missouri S&T / US DOE (OSTI 1051407) measured 386–397 kWh/t |
 | Energy to raise liquid steel 1 °C | 0.23 kWh/t·°C | Published + Physics | CTC-N Thailand benchmarking §4.4.2; c_p ≈ 0.82 kJ/kg·K |
 | Power supply efficiency | 97% | Published | US DOE (Schifo 2004): > 96% for large furnaces |
-| Copper coil loss | 20% of converter output | Tuned | Set so coil water carries a large share of the power, as DOE measured (26–29%). The model gives ~21% (see accuracy doc) |
+| Copper coil loss | 24% of converter output | Tuned | Set so the coil water (copper loss + lining conduction) carries 26% of the heat's electricity, as DOE measured (26–29%) |
 | Lining conduction loss when hot | 700 kW (scaled by furnace size^⅔) | Tuned | Set so total losses and kWh/t land in the published range |
 | Bath emissivity | 0.4 | Physics | Typical for liquid steel with some slag |
 | Open bath area | 4.15 m² for 60 t | Physics | 60 t ÷ 7 t/m³ ≈ 8.6 m³ in a ~2.3 m diameter crucible |
@@ -86,7 +86,7 @@ Code: `src/model/furnaceSim.ts`. The full sources are in [induction-furnace-mode
 | Metal yield | 95.5% − 6% × turnings share | Assumption | Light, rusty scrap loses more as oxide and slag |
 | Rusty / light scrap | +30 kWh/t (scaled by turnings share) | Published (vendor) | Otto Junker / Foundry Management & Technology |
 | Dense shredded scrap | −15 kWh/t (scaled by shredded share) | Published (secondary) | BEE India: 15–20 kWh/t |
-| Cold lining | +100 kWh/t | Published | Missouri S&T / DOE: lining heat-up 95 kWh/short ton ≈ 105 kWh/t |
+| Cold lining | lining absorbs 75 kWh/t, which costs ~+111 kWh/t of electricity | Tuned to Published | Missouri S&T / DOE: cold vs hot-lining heats differ by +105 to +119 kWh/t |
 | Alarm limits | Flow < 300 m³/h, outlet > 55 °C, ΔT > 20 °C, bath > aim + 25 °C | Assumption | Example set points. A real furnace uses its maker's limits |
 | Grid side | 33 kV feed, cos φ 0.98 when on | Published (vendor) + Assumption | IGBT supplies run at ~0.98–1.0 (Otto Junker, Kintek). 33 kV is a typical Malaysian HV feed |
 | Coil voltage, current, DC link, frequency | 3,000 V at rating, coil p.f. 0.12, 1,800 V DC, 250 → 205 Hz as the bath melts | Assumption | Shown for realism only. **Indicative, not used in any energy or CO₂ figure** |

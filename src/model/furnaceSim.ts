@@ -6,7 +6,9 @@
  * - coil + cooling-water losses calibrated so the coil water carries ~26–29% of the power while
  *   melting (Missouri S&T/DOE measured) (§2)
  * - radiation from the bath εσT⁴ (ε ≈ 0.4) through an open lid; a closed lid keeps ~85% in (§9)
- * - cold lining +100 kWh/t (DOE), rusty light scrap +30 kWh/t, dense shredded −15 kWh/t (§3, rough)
+ * - cold lining absorbs ~75 kWh/t (≈ +110 kWh/t of electricity, DOE +105–119), rusty light scrap +30 kWh/t,
+ *   dense shredded −15 kWh/t (§3, rough)
+ * - lid open while the bath is liquid (sampling, additions): radiation εσT⁴ at ~1,600 °C
  * Electrical values on the primary and secondary side are indicative (IGBT supply, 33 kV feed).
  */
 import type { ScrapType } from './meltshop'
@@ -52,12 +54,19 @@ export type SimHeat = { points: SimPoint[]; alarms: SimAlarm[]; totalMin: number
 const H_LIQ_1530 = 389 - 0.23 * 70 // kWh/t to bring scrap to liquid at 1,530 °C
 const CP_LIQ = 0.23                // kWh/t per °C (liquid steel)
 const CONVERTER = 0.97
-const COIL_JOULE = 0.2             // share of converter output lost in the copper coil
+const COIL_JOULE = 0.24            // share of converter output lost in the copper coil: with lining conduction, the coil
+                                   // water carries ~26% of the heat's electricity, as Missouri S&T/DOE measured (26–29%)
 const SIGMA = 5.67e-8, EPS = 0.4
 const CHARGE_MIN = 10, TAP_MIN = 6, DT = 0.25
 
 export const yieldFor = (mix: SetPoints['mix']) => 0.955 - 0.06 * mix.turnings / 100
-const extraKwhPerT = (sp: SetPoints) => 30 * sp.mix.turnings / 100 - 15 * sp.mix.shredded / 100 + (sp.coldLining ? 100 : 0)
+/**
+ * Extra heat the charge (and a cold lining) must absorb, kWh per charged tonne. A cold lining soaks up
+ * ~75 kWh/t of heat; drawn through the furnace's losses and the longer heat, that costs ~+110 kWh/t of
+ * electricity, in line with DOE's measured +105–119 kWh/t (cold vs hot-lining heats).
+ */
+const COLD_LINING_KWH_T = 75
+const extraKwhPerT = (sp: SetPoints) => 30 * sp.mix.turnings / 100 - 15 * sp.mix.shredded / 100 + (sp.coldLining ? COLD_LINING_KWH_T : 0)
 
 export function simulateHeat(sp: SetPoints): SimHeat {
   const scale = Math.pow(Math.max(5, sp.chargeT + sp.heelT) / 60, 2 / 3)
@@ -79,7 +88,8 @@ export function simulateHeat(sp: SetPoints): SimHeat {
     const melted = absorbed >= meltNeedKwh
     const hotFrac = Math.min(1, Math.max(0, (bathC - 200) / 1_400))
     let lidOpen = phase === 'charging' || phase === 'tapping'
-    if (!lidOpen && lidLeft > 0 && (phase === 'melting' || phase === 'superheat')) { lidOpen = true; lidLeft -= DT }
+    // Sampling, temperature readings and additions happen once the bath is liquid, so that is when the lid is open.
+    if (!lidOpen && lidLeft > 0 && (phase === 'superheat' || phase === 'holding')) { lidOpen = true; lidLeft -= DT }
     // Power by phase.
     let power = 0
     if (phase === 'melting' || phase === 'superheat') power = Math.min(sp.powerMW * 1_000, pRated)

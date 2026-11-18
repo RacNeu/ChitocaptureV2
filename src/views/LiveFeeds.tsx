@@ -71,7 +71,7 @@ export default function LiveFeeds() {
         <p className="muted">Readings stream in, a 24/7 service checks them and alerts go to the plant’s Telegram group. The demo runs on a simulated plant.</p></div>
       <div className="lf-health">
         {pill(s.config.supabaseUrl ? (s.status.supabase === 'Connected' ? true : null) : false, 'Supabase', s.config.supabaseUrl ? s.config.supabaseUrl.replace('https://', '') : 'Not configured')}
-        {pill(s.config.ingestKey ? true : null, '24/7 alerts', s.config.ingestKey ? 'Ingest function live' : 'Needs ingest key')}
+        {pill(s.config.demoKey ? true : null, '24/7 alerts', s.config.demoKey ? 'Ingest function live' : 'Needs the demo ingest key')}
         {pill(tgOn ? true : null, tgOn ? 'Telegram' : 'Telegram preview', tgOn ? 'Connected' : 'Server needs a bot token')}
       </div>
     </header>
@@ -86,12 +86,12 @@ export default function LiveFeeds() {
       {s.running ? <button type="button" className="btn ghost small" onClick={() => live.stop()}>❚❚ Pause</button> : <button type="button" className="btn small" onClick={() => live.start()}>▶ Start feed</button>}
       <select value={s.speed} onChange={(e) => live.setSpeed(Number(e.target.value))} aria-label="Speed" className="lf-speed">{[1, 4, 12].map((v) => <option key={v} value={v}>{v} plant-min / s</option>)}</select>
       <span className="lf-sep" />
-      <label className="sim-toggle lf-pub" title="The simulated plant plays the devices and sends readings through the real cloud path, every 3 plant-minutes"><input type="checkbox" checked={s.publish.supabase} onChange={(e) => live.setPublish(e.target.checked)} /><span className="sim-switch" aria-hidden="true" /><span><b>Test publisher</b><small>{s.publish.last || 'Send sim readings to Supabase'}</small></span></label>
+      <label className="sim-toggle lf-pub" title="The simulated plant plays the devices and sends each furnace’s latest reading through the real cloud path every 2 seconds (demo site, rate-limited)"><input type="checkbox" checked={s.publish.supabase} onChange={(e) => live.setPublish(e.target.checked)} /><span className="sim-switch" aria-hidden="true" /><span><b>Test publisher</b><small>{s.publish.last || 'Send sim readings to Supabase (demo site)'}</small></span></label>
       <details className="lf-settings"><summary>⚙ Connection</summary>
         <div className="lf-pop">
           <div className="lf-form">
             {([
-              ['supabaseUrl', 'Supabase project URL', 'text'], ['supabaseKey', 'Publishable key', 'password'], ['ingestKey', 'Device ingest key', 'password'], ['site', 'Site ID', 'text'],
+              ['supabaseUrl', 'Supabase project URL', 'text'], ['supabaseKey', 'Publishable key', 'password'], ['demoKey', 'Demo ingest key', 'password'], ['site', 'Site ID', 'text'],
             ] as const).map(([k, label, type]) => <label key={k} className="field"><span>{label}</span><input type={type} value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })} autoComplete="off" /></label>)}
           </div>
           <div className="row-actions"><button type="button" className="btn small" onClick={() => { live.saveConfig(cfg); if (s.source !== 'sim') void live.useSource(s.source) }}>Save and reconnect</button><span className="muted small">Saved in this browser only. Defaults come from .env.local / Vercel.</span></div>
