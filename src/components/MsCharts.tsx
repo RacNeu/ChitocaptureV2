@@ -12,8 +12,8 @@ export function Sparkline({ values, color = 'var(--sky)', height = 34 }: { value
   const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')
   return <svg className="ms-spark" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id={id} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".35" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
-    <polygon points={`0,${height} ${line} ${W},${height}`} fill={`url(#${id})`} />
-    <polyline points={line} fill="none" stroke={color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+    <polygon points={`0,${height} ${line} ${W},${height}`} fill={`url(#${id})`} className="fade-in" />
+    <polyline points={line} fill="none" stroke={color} strokeWidth="1.8" vectorEffect="non-scaling-stroke" pathLength={1} className="draw" />
   </svg>
 }
 
@@ -55,8 +55,8 @@ export function TrendChart({ x, series, target, targetLabel, unit, height = 220,
       const line = pts.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(' ')
       return <g key={k}>
         {s.area && <><defs><linearGradient id={`${id}-${k}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor={s.color} stopOpacity=".28" /><stop offset="1" stopColor={s.color} stopOpacity="0" /></linearGradient></defs>
-          <polygon points={`${pts[0][0]},${height - P.b} ${line} ${pts[pts.length - 1][0]},${height - P.b}`} fill={`url(#${id}-${k})`} /></>}
-        <polyline points={line} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray={s.dashed ? '5 4' : undefined} className="ms-line" />
+          <polygon points={`${pts[0][0]},${height - P.b} ${line} ${pts[pts.length - 1][0]},${height - P.b}`} fill={`url(#${id}-${k})`} className="fade-in" /></>}
+        <polyline points={line} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray={s.dashed ? '5 4' : undefined} className={s.dashed ? 'ms-line' : 'ms-line draw'} pathLength={s.dashed ? undefined : 1} />
         {k === 0 && <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="4" fill={s.color} className="ms-dot" />}
       </g>
     })}
@@ -82,7 +82,7 @@ export function Ring({ pct, label, color = 'var(--green)', size = 150 }: { pct: 
   const r = 58, C = 2 * Math.PI * r, v = Math.max(0, Math.min(100, pct))
   return <svg className="ms-donut" viewBox="0 0 160 160" width={size} height={size} role="img" aria-label={`${label} ${num(pct, 1)}%`}>
     <circle cx="80" cy="80" r={r} className="ms-ring-bg" strokeWidth="14" fill="none" />
-    <circle cx="80" cy="80" r={r} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${v / 100 * C} ${C}`} transform="rotate(-90 80 80)" className="ms-ring-glow" />
+    <circle cx="80" cy="80" r={r} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" strokeDasharray={`${v / 100 * C} ${C}`} transform="rotate(-90 80 80)" className="ms-ring-glow sweep" style={{ ['--len' as string]: `${v / 100 * C}` }} />
     <text x="80" y="84" textAnchor="middle" className="ms-donut-big">{num(pct, 1)}%</text>
     <text x="80" y="104" textAnchor="middle" className="ms-axis">{label}</text>
   </svg>
@@ -110,7 +110,7 @@ export function StackBars({ x, stacks, height = 200, width = 640, unit }: { x: s
   return <svg className="ms-trend" viewBox={`0 0 ${W} ${height}`} role="img" aria-label={stacks.map((s) => s.label).join(', ')}>
     {[0.25, 0.5, 0.75, 1].map((f) => <g key={f}><line x1={P.l} x2={W - P.r} y1={height - P.b - Y(hi * f)} y2={height - P.b - Y(hi * f)} className="ms-grid" /><text x={P.l - 6} y={height - P.b - Y(hi * f) + 4} textAnchor="end" className="ms-axis">{num(hi * f, 0)}</text></g>)}
     {x.map((l, i) => { let y0 = height - P.b; return <g key={i}>
-      {stacks.map((s) => { const h = Y(s.values[i] ?? 0); y0 -= h; return <rect key={s.label} x={P.l + i * bw + bw * 0.18} y={y0} width={bw * 0.64} height={Math.max(0, h)} rx="2" fill={s.color}><title>{`${l} · ${s.label}: ${num(s.values[i] ?? 0, 0)}${unit ? ` ${unit}` : ''}`}</title></rect> })}
+      {stacks.map((s) => { const h = Y(s.values[i] ?? 0); y0 -= h; return <rect key={s.label} x={P.l + i * bw + bw * 0.18} y={y0} width={bw * 0.64} height={Math.max(0, h)} rx="2" fill={s.color} className="grow-up" style={{ animationDelay: `${i * 25}ms` }}><title>{`${l} · ${s.label}: ${num(s.values[i] ?? 0, 0)}${unit ? ` ${unit}` : ''}`}</title></rect> })}
       {i % step === 0 && <text x={P.l + i * bw + bw / 2} y={height - 6} textAnchor="middle" className="ms-axis">{l}</text>}
     </g> })}
   </svg>

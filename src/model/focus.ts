@@ -8,7 +8,7 @@ let pendingAt = 0
 export function openLiveView(unitId: string) {
   pendingUnit = unitId
   pendingAt = Date.now()
-  window.location.hash = 'meltshop'
+  window.location.hash = 'simulate'
   window.scrollTo({ top: 0 })
 }
 

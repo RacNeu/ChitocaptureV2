@@ -22,25 +22,28 @@ import Risks from './views/Risks'
 import Home from './views/Home'
 import Site3D from './views/Site3D'
 import MeltShop from './views/MeltShop'
+import SteelSimulation from './views/SteelSimulation'
 import SourceBadge from './components/SourceBadge'
 import ChatAssistant from './components/ChatAssistant'
+import Polish from './components/Polish'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'analysis' | 'plan' | 'sensors' | 'settings'
 export type { View }
 
 type MenuItem = { id: View; label: string; icon: string; match: View[] }
 /** The company comes first; the open site's pages follow, in the order of the story. */
 const companyMenu: MenuItem[] = [
   { id: 'company', label: 'Company overview', icon: '🏢', match: ['company', 'add-company'] },
+  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
+  { id: 'simulate', label: '3D simulation', icon: '🎛', match: ['simulate'] },
 ]
 const siteMenu: MenuItem[] = [
   { id: 'home', label: 'Site overview', icon: '⌂', match: ['home'] },
   { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'analysis', 'data'] },
   { id: 'meltshop', label: 'Melt shop', icon: '🔥', match: ['meltshop'] },
-  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
   { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
   { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
 ]
@@ -51,7 +54,7 @@ const setupMenu: MenuItem[] = [
   { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings', 'sensors'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
-const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'analysis', 'settings', 'sensors']
+const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'simulate', 'analysis', 'settings', 'sensors']
 const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...setupMenu].flatMap((item) => item.match)
 
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
@@ -99,7 +102,7 @@ export default function App() {
   const finishSetup = () => {
     const next = getCompany().sites.find((site) => !site.state.onboarded)
     if (next) { companyActions.switchSite(next.id); return }
-    go(['steel', 'steel-downstream'].includes(getState().settings.industryId) ? 'meltshop' : 'twin')
+    go(['steel', 'steel-downstream'].includes(getState().settings.industryId) ? 'simulate' : 'twin')
   }
   const cancelSetup = () => {
     const id = company.activeId
@@ -116,7 +119,7 @@ export default function App() {
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
   /** The site's live process page: the melt shop for a steel mill, the galvanising line for the wire plant. */
-  const liveLabel = state.settings.industryId === 'steel' ? { label: 'Melt shop', icon: '🔥' } : state.settings.industryId === 'steel-downstream' ? { label: 'Galvanising line', icon: '🧵' } : null
+  const hasMeltShop = state.settings.industryId === 'steel'
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
   return <div className="app shell">
@@ -128,7 +131,7 @@ export default function App() {
       </nav>
       <span className="side-label">This site</span>
       <nav className="side-nav side-site-nav" aria-label={`Pages for ${state.settings.factoryName}`}>
-        {siteMenu.filter((item) => item.id !== 'meltshop' || liveLabel).map((item) => <MenuButton key={item.id} item={item.id === 'meltshop' && liveLabel ? { ...item, ...liveLabel } : item} view={view} go={go} />)}
+        {siteMenu.filter((item) => item.id !== 'meltshop' || hasMeltShop).map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
       <nav className="side-nav" aria-label="Reports">
         {reportMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
@@ -170,7 +173,7 @@ export default function App() {
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
       </button>
     </header>
-    <main className={`content${view === 'twin' ? ' full' : view === 'meltshop' ? ' wide' : ''}`}>
+    <main className={`content${view === 'twin' ? ' full' : view === 'meltshop' || view === 'simulate' ? ' wide' : ''}`}>
       {(() => {
         const section = sections.find((item) => item.views.includes(view))
         return section && <div className="section-head">
@@ -178,14 +181,15 @@ export default function App() {
           <span className="flow-line">↳ {section.flow[view]}</span>
         </div>
       })()}
-      {(['twin', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
+      {(['twin', 'simulate', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
       {view === 'home' && <Home go={go} />}
       {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
       {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
       {view === 'findings' && <Findings onOpen={(next) => go(next)} />}
       {view === 'risks' && <Risks onOpen={(next) => go(next)} />}
-      {view === 'meltshop' && (state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('company')} /> : <MeltShop />)}
+      {view === 'meltshop' && <MeltShop />}
+      {view === 'simulate' && (state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('company')} /> : state.settings.industryId === 'steel' ? <SteelSimulation /> : <section className="card empty-state"><h2>No live simulation for this site</h2><p className="muted">3D simulations exist for the steel mill and the wire & galvanising plant. Pick one of them in the site menu above.</p></section>)}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
@@ -198,6 +202,7 @@ export default function App() {
     </main>
     {touring && <Tour onClose={() => setTouring(false)} />}
     {!touring && <ChatAssistant />}
+    <Polish />
     <footer className="foot">Prototype · factors are sourced · <a href="#sources">Data & sources</a> · your data stays in this browser</footer>
     </div>
   </div>

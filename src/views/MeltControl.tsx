@@ -146,7 +146,7 @@ function FurnaceScreen({ melt, now, f, setF }: { melt: Melt; now: ShopNow; f: st
   </div>
 }
 
-function ShopScreen({ now }: { now: ShopNow }) {
+export function ShopScreen({ now }: { now: ShopNow }) {
   const band = (x: FurnaceNow) => x.alarm ? 'bad' : x.phase === 'melting' ? 'on' : x.phase === 'holding' ? 'hold' : x.phase === 'tapping' ? 'tap' : 'off'
   const row = (h: HeatView, plant: string) => { const tl = timeline(h); return <tr key={plant + h.heat}><td><b>{plant}</b></td><td>{h.heat}</td><td>{h.grade ?? '—'}</td><td>{hhmm(h.startMin)}</td><td>{hhmm(h.tapMin)}</td><td className="num">{h.tapTempC ?? '—'}</td><td className="num">{num(h.tappedT, 1)}</td><td className="num">{num(h.kwhPerT)}</td><td>{hhmm(tl.lfStart)}–{hhmm(tl.lfEnd)}</td></tr> }
   return <div className="hmi2-shop">
@@ -189,7 +189,7 @@ function ShopScreen({ now }: { now: ShopNow }) {
   </div>
 }
 
-function CoolingScreen({ now }: { now: ShopNow }) {
+export function CoolingScreen({ now }: { now: ShopNow }) {
   return <Panel title="Power and coil cooling, all furnaces">
     <table className="hmi2-table"><thead><tr><th>Furnace</th><th>Phase</th><th className="num">Power MW</th><th className="num">Hz</th><th className="num">Water in °C</th><th className="num">Out °C</th><th className="num">ΔT °C</th><th className="num">Flow m³/h</th><th className="num">Coil heat MW</th><th className="num">% of power</th><th>Status</th></tr></thead>
       <tbody>{now.furnaces.map((x) => <tr key={x.furnace} className={x.alarm ? 'bad' : ''}><td><b>{x.furnace}</b></td><td>{phaseText[x.phase]}</td><td className="num">{num(x.kw / 1_000, 1)}</td><td className="num">{x.hz ?? '—'}</td>
@@ -199,7 +199,7 @@ function CoolingScreen({ now }: { now: ShopNow }) {
   </Panel>
 }
 
-function TrendsScreen({ melt, f, t }: { melt: Melt; f: string; t: number }) {
+export function TrendsScreen({ melt, f, t }: { melt: Melt; f: string; t: number }) {
   const rs = melt.data.readings.filter((r) => r.furnace === f && minutesOf(r.at) <= t && minutesOf(r.at) > t - 12 * 60).filter((_, i) => i % 5 === 0)
   if (rs.length < 3) return <Panel title="Trends"><p className="muted small">No readings around this time for {f}.</p></Panel>
   const x = rs.map((r) => r.at.slice(11, 16))
@@ -211,7 +211,7 @@ function TrendsScreen({ melt, f, t }: { melt: Melt; f: string; t: number }) {
   </div>
 }
 
-function EventsScreen({ now }: { now: ShopNow }) {
+export function EventsScreen({ now }: { now: ShopNow }) {
   return <Panel title="Alarms and events (last 6 hours)">
     <table className="hmi2-table hmi2-events"><thead><tr><th>Time</th><th>Unit</th><th>Type</th><th>Message</th></tr></thead>
       <tbody>{now.events.slice(0, 40).map((e, i) => <tr key={i} className={e.kind === 'alarm' ? 'bad' : ''}><td>{stamp(e.at)}</td><td>{e.furnace ?? (e.kind === 'lf' ? 'LF' : e.kind === 'cast' ? 'CCM' : '—')}</td><td>{{ tap: 'Tap', 'power-on': 'Power on', lf: 'Ladle furnace', cast: 'Casting', alarm: 'ALARM' }[e.kind]}</td><td>{e.text}</td></tr>)}</tbody></table>

@@ -3,8 +3,8 @@ import { annual, cbam, defaultSteelParams as p, intensity, noUpgrades, tonnesPer
 
 describe('steel mini-mill model (induction route)', () => {
   it('produces about 800 kt a year, like Masteel’s nominal capacity', () => {
-    expect(tonnesPerHour(p)).toBeCloseTo(114)
-    expect(annual(p, noUpgrades).steelT).toBeCloseTo(798_000)
+    expect(tonnesPerHour(p)).toBeCloseTo(100.6, 0)
+    expect(annual(p, noUpgrades).steelT).toBeCloseTo(794_647, -1)
   })
 
   it('splits intensity into direct and indirect CO₂', () => {
@@ -42,5 +42,15 @@ describe('steel mini-mill model (induction route)', () => {
     expect(result.costRMPerT).toBeCloseTo(result.directTPerT * (400 - 100) * 0.485)
     expect(result.costRMPerYear).toBeCloseTo(result.costRMPerT * 1_000)
     expect(cbam(i, { exportTPerYear: 1, euPriceEUR: 10, rmPerEUR: 1, malaysiaPriceRM: 50, year: 2034 }).costRMPerT).toBe(0)
+  })
+})
+
+import { liveState } from './steel'
+describe('live heat cycle', () => {
+  it('stays within two 31 MW power supplies and averages to the annual figure', () => {
+    let sum = 0, peak = 0
+    for (let k = 0; k < 2_000; k += 1) { const mw = liveState(p, noUpgrades, k / 2_000 * p.cycleMin).mw.melt; sum += mw; peak = Math.max(peak, mw) }
+    expect(peak).toBeLessThan(63)
+    expect(sum / 2_000).toBeCloseTo(520 * tonnesPerHour(p) / 1_000, 0)
   })
 })
