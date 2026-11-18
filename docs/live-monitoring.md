@@ -43,6 +43,7 @@ Anything starting with `VITE_` is built into the website and anyone can read it.
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` (git-ignored) and Vercel env | Config | App reads live data. Public by design: the browser roles can only read `readings` and `alerts` |
 | `VITE_DEMO_INGEST_KEY` | same | Config | The test publisher's **demo** key. Public by design, so the ingest function fences it in: site forced to `demo`, furnaces IF1–IF4 only, ≤ 24 readings per request, ≤ 360 readings a minute, ≤ 10 Telegram messages an hour, demo data deleted after 24 h |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | **Supabase → Edge Functions → Secrets** (24/7 alerts) and Vercel env (the app's "Send test") | Secret | Telegram alerts |
+| `TELEGRAM_MENTIONS`, `TELEGRAM_MENTIONS_ALARM` (optional) | same two places as the bot token | Config | People to tag, as Telegram @usernames separated by spaces or commas. `TELEGRAM_MENTIONS` is tagged on every message; `TELEGRAM_MENTIONS_ALARM` is added on alarms only (not warnings). Anything that isn't a valid @username is ignored |
 | `ANTHROPIC_API_KEY` | Vercel env | Secret | Claude in the chat and the simulator's Explain |
 | `ALLOWED_ORIGINS` (optional) | Vercel env | Config | Extra web addresses allowed to call `/api/chat` and `/api/telegram`, comma-separated (e.g. a custom domain). The deployment's own address is always allowed |
 
@@ -66,6 +67,10 @@ and re-flash the devices. The demo key (row `demo_ingest_key`) rotates the same 
 3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy the group's `chat.id` (negative number).
 4. Supabase dashboard → project `chitocapture` → Edge Functions → **Secrets**: add `TELEGRAM_BOT_TOKEN`
    and `TELEGRAM_CHAT_ID`. The next alert is delivered (the app shows ✓✓ in the Telegram preview).
+5. Optional, to tag people: add `TELEGRAM_MENTIONS` (e.g. `@aiman_eng @meiling_sus`) and, for alarms only,
+   `TELEGRAM_MENTIONS_ALARM` (e.g. `@plant_manager`), in Supabase secrets and in Vercel (then redeploy Vercel).
+   Each message ends with a `👷 @…` line, and Telegram notifies everyone named there. Only people with a
+   Telegram username can be tagged this way; they must be members of the group.
 
 ## Device message format
 

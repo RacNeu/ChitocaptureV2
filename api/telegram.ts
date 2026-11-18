@@ -25,16 +25,29 @@ const RULES: Record<string, { title: string; detail: (v: number | null) => strin
 const HOUR = 3_600_000
 let sent: number[] = []
 
+/**
+ * People to tag, from server settings only (never from the browser):
+ *   TELEGRAM_MENTIONS        tagged on every message, e.g. "@aiman_eng @meiling_sus"
+ *   TELEGRAM_MENTIONS_ALARM  also tagged on alarms, e.g. "@plant_manager"
+ * Only real Telegram usernames (@ + 5–32 letters, digits or _) are kept; anything else is ignored.
+ */
+export function mentions(level: 'warn' | 'alarm' | 'test', env: Record<string, string | undefined> = process.env): string {
+  const pick = (v?: string) => (v ?? '').split(/[\s,]+/).map((s) => s.trim()).filter((s) => /^@[A-Za-z0-9_]{5,32}$/.test(s))
+  const names = [...pick(env.TELEGRAM_MENTIONS), ...(level === 'warn' ? [] : pick(env.TELEGRAM_MENTIONS_ALARM))]
+  return [...new Set(names)].join(' ')
+}
+const withMentions = (text: string, level: 'warn' | 'alarm' | 'test') => { const m = mentions(level); return m ? `${text}\n👷 ${m}` : text }
+
 function message(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null
   const b = body as Record<string, unknown>
-  if (b.kind === 'test') return '✅ Test from ChitoCapture\nAlerts for the melt shop will arrive in this chat.'
+  if (b.kind === 'test') return withMentions('✅ Test from ChitoCapture\nAlerts for the melt shop will arrive in this chat.', 'test')
   if (b.kind !== 'alert') return null
   const rule = typeof b.rule === 'string' ? RULES[b.rule] : undefined
   if (!rule || typeof b.furnace !== 'string' || !/^IF[1-4]$/.test(b.furnace) || (b.level !== 'warn' && b.level !== 'alarm')) return null
   const value = typeof b.value === 'number' && Number.isFinite(b.value) && Math.abs(b.value) < 10_000 ? Math.round(b.value * 10) / 10 : null
   const clock = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit' })
-  return `🧪 DEMO (simulated plant)\n${b.level === 'alarm' ? '🚨 ALARM' : '⚠️ WARNING'} · ${b.furnace} ${rule.title}\n${rule.detail(value)}\nTime ${clock}\n➡️ ${rule.action}`
+  return withMentions(`🧪 DEMO (simulated plant)\n${b.level === 'alarm' ? '🚨 ALARM' : '⚠️ WARNING'} · ${b.furnace} ${rule.title}\n${rule.detail(value)}\nTime ${clock}\n➡️ ${rule.action}`, b.level as 'warn' | 'alarm')
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
