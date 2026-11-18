@@ -17,7 +17,7 @@ describe('assistant parsing', () => {
     expect(parseTonnes('reduce 20,000 tonnes')).toBe(20_000)
   })
   it('finds machines by name or nickname', () => {
-    expect(findMachine('what if we shut the EAF?', steel.machines)?.name).toBe('Electric arc furnace')
+    expect(findMachine('what if we shut the induction furnaces?', steel.machines)?.name).toBe('Induction furnaces (4 × 60 t)')
     expect(findMachine('stop the ladle furnace', steel.machines)?.name).toBe('Ladle furnace')
     expect(findMachine('reheating furnace please', steel.machines)?.name).toBe('Reheating furnace')
   })
@@ -27,7 +27,7 @@ describe('assistant answers', () => {
   it('names the biggest source first', () => {
     const answer = reply('Which process should we cut first?', steel)
     expect(answer.understood).toBe(true)
-    expect(answer.lines.join(' ')).toContain('Electric arc furnace')
+    expect(answer.lines.join(' ')).toContain('Induction furnaces')
     expect(answer.actions?.length).toBeGreaterThan(0)
   })
   it('meets a percentage goal or says it falls short', () => {

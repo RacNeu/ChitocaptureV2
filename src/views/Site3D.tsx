@@ -4,7 +4,7 @@ import FullscreenButton from '../components/FullscreenButton'
 import Info from '../components/Info'
 import type { ColorBy } from '../components/IsoSite3D'
 import { measureById } from '../model/measures'
-import { openInControlRoom } from '../model/focus'
+import { openLiveView } from '../model/focus'
 import { siteModel, type BuildingRow } from '../model/siteModel'
 import { actions, useFactory } from '../model/store'
 import { statusInfo } from '../model/roles'
@@ -124,7 +124,7 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
           {colorBy === 'risk'
             ? <><span><i className="lg-ok" />No flags</span><span><i className="lg-warn" />Watch</span><span><i className="lg-bad" />Act</span></>
             : <><span>{colorBy === 'cost' ? 'Energy cost' : 'CO₂'}: low</span><i className="lg-ramp" /><span>high</span></>}
-          {showFlows && <><span><i className="lg-power" />Power</span>{model.rows.some((r) => r.machine.unitId === 'eaf') && <span><i className="lg-steel" />Hot steel</span>}</>}
+          {showFlows && <><span><i className="lg-power" />Power</span>{model.rows.some((r) => r.machine.unitId === 'melt') && <span><i className="lg-steel" />Hot steel</span>}</>}
           <span className="muted">· drag to turn · scroll to zoom · click a building</span>
         </div>
       </section>
@@ -173,7 +173,7 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
           </li>)}</ul> : sel.planned.length === 0 && <p className="muted small">No upgrades in the library for this equipment.</p>}
           <div className="row-actions">
             <button type="button" className="btn ghost small" onClick={() => go('plan')}>Open plan →</button>
-            {sel.machine.unitId && <button type="button" className="btn ghost small" onClick={() => openInControlRoom(sel.machine.unitId!)}>🔥 Simulate</button>}
+            {sel.machine.unitId && <button type="button" className="btn ghost small" onClick={() => openLiveView(sel.machine.unitId!)}>🔥 Live view</button>}
           </div>
         </>}
       </aside>

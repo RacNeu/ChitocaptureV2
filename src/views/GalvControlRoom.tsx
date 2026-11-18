@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { EU_CARBON_PRICE_EUR, RM_PER_EUR } from '../model/prices'
 import { Sparkline } from '../components/Charts'
 import type { GalvFrame } from '../components/GalvHall3D'
-import type { UnitTooltip } from '../components/SteelHall3D'
+import type { UnitTooltip } from '../components/GalvHall3D'
 import { num, ringgit, tonnes } from '../format'
 import { gridFactor } from '../model/factors'
 import { useFactory } from '../model/store'
@@ -174,7 +174,7 @@ export default function GalvControlRoom({ onChooseSite }: { onChooseSite: () => 
   return <div className="control">
     <header className="control-head">
       <div>
-        <button type="button" className="link back-link" onClick={onChooseSite}>← Choose another site to simulate</button>
+        <button type="button" className="link back-link" onClick={onChooseSite}>← Company overview</button>
         <h1>{state.settings.factoryName} · live simulation</h1>
         <p className="muted">Wire drawing & continuous hot-dip galvanising · {params.galvLines} lines × {params.strandsPerLine} wires · {num(galvTonnesPerHour(params), 1)} t/h · illustrative sample plant</p>
         <DataLinkNote linked={link.linked} deviations={link.deviations} />

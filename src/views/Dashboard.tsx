@@ -168,7 +168,7 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
   const grid = gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh)
   const sources = [
     ...fuels.map((fuel) => ({ scope: 1, label: `${fuelLabels[fuel]} combustion`, t: periodRecords.reduce((s, r) => s + (r.fuelGJ[fuel] ?? 0) * fuelFactorsKgPerGJ[fuel] / 1_000, 0) })),
-    { scope: 1, label: 'Process (EAF electrodes & carbon)', t: periodRecords.reduce((s, r) => s + r.processT, 0) },
+    { scope: 1, label: 'Process (electrodes & carbon)', t: periodRecords.reduce((s, r) => s + r.processT, 0) },
     { scope: 2, label: `Purchased electricity (TNB grid, ${num(grid, 3)} kg/kWh)`, t: periodRecords.reduce((s, r) => s + r.electricityMWh * grid, 0) },
   ].filter((item) => item.t > 0.5).sort((a, b) => b.t - a.t)
   const biomassGJ = periodRecords.reduce((s, r) => s + (r.fuelGJ.biomass ?? 0), 0)

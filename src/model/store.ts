@@ -95,6 +95,28 @@ function normalise(parsed: FactoryState): FactoryState {
   return out.monthly?.length && !out.calibration ? matched(out) : out
 }
 
+/**
+ * Saves from the arc-furnace era (before Nov 2026): the sample mill moved to the induction route.
+ * An untouched sample mill (no bills) is rebuilt from the induction template, with plan items carried
+ * over by unit; any other site keeps its own numbers with the unit renamed.
+ */
+const oldMeasures: Record<string, string> = { 'eaf-optimisation': 'if-practice', 'scrap-preheat': 'igbt-supply' }
+function toInduction(state: FactoryState, sample: boolean): FactoryState {
+  const unitOf = (m: Machine) => m.unitId as string | undefined
+  const old = state.machines.some((m) => unitOf(m) === 'eaf' || unitOf(m) === 'oxygen')
+  if (!old && !state.plan.some((item) => oldMeasures[item.measureId])) return state
+  const remap = <T extends { measureId: string }>(item: T): T => ({ ...item, measureId: oldMeasures[item.measureId] ?? item.measureId })
+  if (old && sample && state.settings.industryId === 'steel' && !state.monthly?.length) {
+    const fresh = machinesFromTemplate('steel')
+    const byUnit = new Map(fresh.filter((m) => m.unitId).map((m) => [m.unitId as string, m.id]))
+    const unitBefore = new Map(state.machines.map((m) => [m.id, unitOf(m) === 'eaf' ? 'melt' : unitOf(m)]))
+    const plan = state.plan.flatMap((item) => { const unit = unitBefore.get(item.machineId); const id = unit ? byUnit.get(unit) : undefined; return id ? [remap({ ...item, machineId: id })] : [] })
+    return { ...state, machines: fresh, plan, settings: { ...state.settings, ...productionFor('steel') } }
+  }
+  const machines = state.machines.map((m) => unitOf(m) === 'eaf' ? { ...m, unitId: 'melt' as Machine['unitId'] } : unitOf(m) === 'oxygen' ? { ...m, unitId: undefined } : m)
+  return { ...state, machines, plan: state.plan.map(remap) }
+}
+
 function loadWorkspace(): Workspace {
   try {
     const raw = localStorage.getItem(WORKSPACE_KEY)
@@ -108,6 +130,7 @@ function loadWorkspace(): Workspace {
           // Sites of industries the app no longer offers (e.g. cement) are dropped.
           const sites = (item.sites ?? []).filter((site) => site.state?.version === 3 && Array.isArray(site.state.machines) && templateById(site.state.settings?.industryId ?? 'steel'))
             .map((site, index) => ({ ...site, fixed: legacy ? index < 3 && sampleIndustries.includes(site.state.settings?.industryId) : site.fixed, state: normalise(site.state) }))
+            .map((site) => ({ ...site, state: toInduction(site.state, !!site.fixed) }))
             .map((site) => {
               // Sample sites saved before locations existed get their sample location.
               const where = site.fixed ? sampleLocations[site.state.settings.industryId] : undefined
@@ -350,8 +373,13 @@ export const actions = {
   },
   /** Replace this site's half-hourly load profile; null removes it. */
   setInterval: (interval: IntervalSeries | null) => commit(logged({ ...state, interval: interval ?? undefined }, interval ? `Uploaded ${Math.round(interval.kW.length / 48)} days of half-hourly data (${interval.source})` : 'Removed the half-hourly data')),
-  /** Replace this site's EAF heat records; an empty list removes them. */
-  setHeats: (heats: import('./heats').HeatRecord[], source: string) => commit(logged({ ...state, heats: heats.length ? heats : undefined }, heats.length ? `Uploaded ${heats.length} EAF heats (${source})` : 'Removed the EAF heat data')),
+  /** Merge one melt-shop upload (heats, spectrometer or readings) into this site; null clears all uploads. */
+  setMeltShop: (patch: Partial<Omit<import('./meltshop').MeltShop, 'demo'>> | null, text: string) => {
+    const cur = state.meltshop ?? { heats: [], chem: [], readings: [], source: '' }
+    commit(logged({ ...state, meltshop: patch ? { ...cur, ...patch } : undefined, meltshopDemo: patch ? false : state.meltshopDemo }, text))
+  },
+  /** Show or hide the illustrative demo melt shop. */
+  setMeltShopDemo: (on: boolean) => commit(logged({ ...state, meltshopDemo: on }, on ? 'Opened the demo melt shop' : 'Closed the demo melt shop')),
   setClimate: (climate: FactoryState['climate']) => commit(logged({ ...state, climate }, climate ? `Fetched NASA POWER climate data for ${climate.lat.toFixed(3)}, ${climate.lon.toFixed(3)}` : 'Removed climate data')),
   /** Record what the team did with a finding. */
   setFinding: (key: string, patch: Partial<FindingState>, title: string) => {

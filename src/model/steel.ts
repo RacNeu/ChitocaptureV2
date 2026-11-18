@@ -1,49 +1,50 @@
 import { GET_PREMIUM_RM_PER_MWH } from './prices'
 /**
- * Illustrative steel mini-mill model: scrap-based electric arc furnace (EAF) → ladle furnace →
- * continuous caster → reheating furnace → rolling mill.
+ * Illustrative steel mini-mill model, induction route (the route of Masteel-type Malaysian long-steel
+ * mills): coreless induction furnaces → ladle furnace → continuous caster → reheating furnace →
+ * rolling mill.
  *
- * All figures are rounded, typical-order-of-magnitude assumptions for a demo. They are NOT data
- * from any real plant. Replace them with the plant's own meter readings before any decision or
- * reporting. The CBAM section is a simplified illustration of the mechanism, not a compliance tool.
+ * Per-tonne figures follow docs/induction-furnace-model.md (sources and confidence listed there).
+ * They describe a SAMPLE plant, not any real one: the app replaces them with the plant's own bills
+ * and heat logs. The CBAM section is a simplified illustration of the mechanism, not a compliance tool.
  */
 
-export type UnitId = 'scrap' | 'eaf' | 'lf' | 'caster' | 'reheat' | 'rolling' | 'fume' | 'utilities' | 'oxygen'
+export type UnitId = 'scrap' | 'melt' | 'lf' | 'caster' | 'reheat' | 'rolling' | 'fume' | 'utilities'
 
 export type SteelUnit = { id: UnitId; name: string; short: string; role: string }
 
 export const steelUnits: readonly SteelUnit[] = [
-  { id: 'scrap', name: 'Scrap yard & charging', short: 'Scrap', role: 'Scrap is sorted and loaded into baskets that charge the furnace.' },
-  { id: 'eaf', name: 'Electric arc furnace', short: 'EAF', role: 'Melts scrap with an electric arc between graphite electrodes. The biggest electricity user.' },
-  { id: 'lf', name: 'Ladle furnace', short: 'Ladle furnace', role: 'Adjusts chemistry and temperature of the liquid steel before casting.' },
+  { id: 'scrap', name: 'Scrap yard & charging', short: 'Scrap', role: 'Scrap is sorted and loaded into charging buckets for the furnaces.' },
+  { id: 'melt', name: 'Induction furnaces', short: 'Induction', role: 'Coreless induction furnaces melt scrap with a magnetic field from a water-cooled copper coil. No electrodes. The biggest electricity user.' },
+  { id: 'lf', name: 'Ladle furnace', short: 'Ladle furnace', role: 'Adjusts chemistry and temperature of the liquid steel before casting. Its graphite electrodes and alloys are most of the melt shop’s direct CO₂.' },
   { id: 'caster', name: 'Continuous caster', short: 'Caster', role: 'Solidifies liquid steel into long billets.' },
   { id: 'reheat', name: 'Reheating furnace', short: 'Reheat furnace', role: 'Burns natural gas to reheat billets to about 1,150 °C for rolling. Its stack is the main fuel-CO₂ point source.' },
   { id: 'rolling', name: 'Rolling mill', short: 'Rolling mill', role: 'Rolls hot billets into bars and rods.' },
-  { id: 'fume', name: 'Fume extraction & baghouse', short: 'Fume fans', role: 'Large fans pull furnace fumes through bag filters.' },
-  { id: 'utilities', name: 'Compressed air & water', short: 'Utilities', role: 'Compressors and cooling-water pumps.' },
-  { id: 'oxygen', name: 'Oxygen plant', short: 'Oxygen', role: 'Produces oxygen injected into the furnace.' },
+  { id: 'fume', name: 'Fume extraction & baghouse', short: 'Fume fans', role: 'Fans pull furnace fumes through bag filters.' },
+  { id: 'utilities', name: 'Cooling water & compressed air', short: 'Utilities', role: 'Coil cooling-water pumps and cooling towers, plus compressors.' },
 ]
 
 /**
- * Illustrative good-practice targets per tonne for this sample mill (kWh/t; GJ/t for the reheating
- * furnace). They are planning placeholders, not published benchmarks: set real targets from the
- * plant's own best months or an energy audit.
+ * Good-practice targets per tonne (kWh/t; GJ/t for the reheating furnace).
+ * Induction: 500 kWh/t, the low end of good ferrous practice (Otto Junker 500–560 kWh/t). Ladle
+ * furnace: 35 kWh/t, the better half of the CTC-N 33–70 benchmark. The rest are
+ * planning placeholders: set real targets from the plant's best months or an energy audit.
  */
 export const steelTargets: Record<Exclude<UnitId, 'scrap'>, number> = {
-  eaf: 380, lf: 35, caster: 12, reheat: 1.0, rolling: 85, fume: 28, utilities: 20, oxygen: 18,
+  melt: 500, lf: 35, caster: 12, reheat: 1.0, rolling: 85, fume: 15, utilities: 25,
 }
 
 export type SteelParams = {
+  /** Tapped tonnes per heat and the shop's tap-to-tap interval (all furnaces together). */
   heatSizeT: number
-  /** Tap-to-tap cycle in minutes. */
   cycleMin: number
   operatingHoursPerYear: number
   gridKgPerKWh: number
   gasKgPerGJ: number
   /** kWh per tonne of liquid steel, by unit. */
   kwhPerT: Record<Exclude<UnitId, 'scrap' | 'reheat'>, number>
-  /** Direct EAF CO₂ from electrodes, charge carbon and injected carbon (kg/t). */
-  eafDirectKgPerT: number
+  /** Direct melt-shop CO₂: LF electrodes, alloy carbon and ladle-preheat gas (kg/t). */
+  meltDirectKgPerT: number
   /** Reheating furnace natural gas (GJ/t). */
   reheatGJPerT: number
   electricityRMPerMWh: number
@@ -51,13 +52,17 @@ export type SteelParams = {
 }
 
 export const defaultSteelParams: SteelParams = {
-  heatSizeT: 100,
-  cycleMin: 50,
+  // 4 × 60 t induction furnaces on 2 power supplies: one heat about every 30 minutes across the shop.
+  heatSizeT: 57,
+  cycleMin: 30,
   operatingHoursPerYear: 7_000,
   gridKgPerKWh: 0.74,
   gasKgPerGJ: 56.1,
-  kwhPerT: { eaf: 412, lf: 40, caster: 15, rolling: 100, fume: 35, utilities: 25, oxygen: 20 },
-  eafDirectKgPerT: 70,
+  // Induction 520 ≈ the best Missouri S&T/DOE trial (473 kWh/short ton) and inside Otto Junker’s 500–560;
+  // chosen so the melt shop matches Masteel’s published 0.456–0.489 tCO₂e/t. LF 40 (CTC-N 33–70).
+  kwhPerT: { melt: 520, lf: 40, caster: 15, rolling: 100, fume: 20, utilities: 30 },
+  // LF electrodes ~0.35 kg/t (1.3 kg CO₂) + alloy carbon (~1.2) + ladle preheat 0.35 GJ/t (~19.6): docs §5–6.
+  meltDirectKgPerT: 22,
   reheatGJPerT: 1.2,
   electricityRMPerMWh: 450,
   gasRMPerGJ: 40,
@@ -68,8 +73,8 @@ export const defaultSteelParams: SteelParams = {
  * plan library (measures.ts), so a scenario turned into a plan gives the same figures.
  */
 export type Upgrades = {
-  scrapPreheat: boolean
-  eafOptimisation: boolean
+  meltPractice: boolean
+  igbt: boolean
   fumeVsd: boolean
   hotCharging: boolean
   regenBurners: boolean
@@ -77,14 +82,14 @@ export type Upgrades = {
   greenShare: number
 }
 
-export const noUpgrades: Upgrades = { scrapPreheat: false, eafOptimisation: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0 }
+export const noUpgrades: Upgrades = { meltPractice: false, igbt: false, fumeVsd: false, hotCharging: false, regenBurners: false, greenShare: 0 }
 
 export type UpgradeInfo = { key: keyof Upgrades; name: string; what: string; basis: string; capexRM: (p: SteelParams, annualT: number) => number }
 
 /** Indicative planning assumptions, shown to the user with each upgrade. */
 export const upgradeInfo: UpgradeInfo[] = [
-  { key: 'scrapPreheat', name: 'Scrap preheating', what: 'Pass the hot furnace off-gas through the scrap before it is charged, so the arc has less heating to do.', basis: '−8% arc furnace electricity; capex RM 30m', capexRM: () => 30_000_000 },
-  { key: 'eafOptimisation', name: 'Arc furnace power & foamy slag', what: 'Tune the power programme and keep a foamy slag over the arc, so more energy goes into the steel.', basis: '−6% arc furnace electricity; capex RM 6m', capexRM: () => 6_000_000 },
+  { key: 'meltPractice', name: 'Induction melting best practice', what: 'Cut holding, keep lids closed, tap at target temperature, preheat cold linings and charge full, dense heats.', basis: '−6% induction electricity (Missouri S&T/DOE trial: 5–10% on hot linings, 15% on first heats); capex RM 0.8m (lid automation, scheduling, training)', capexRM: () => 800_000 },
+  { key: 'igbt', name: 'IGBT power supplies', what: 'Replace thyristor (SCR) converters with IGBT units that hold full power and a power factor near 1 through the melt.', basis: '−5% induction electricity (vendors claim 5–25%; conservative end used); capex RM 12m design estimate: get a supplier quote', capexRM: () => 12_000_000 },
   { key: 'fumeVsd', name: 'Variable-speed fume fans', what: 'Run the extraction fans only as hard as the fumes need.', basis: '−20% fume-fan electricity; capex about 2 years of the saving',
     capexRM: (p, annualT) => Math.round(p.kwhPerT.fume * 0.2 * annualT / 1_000 * p.electricityRMPerMWh * 2) },
   { key: 'hotCharging', name: 'Hot charging', what: 'Send billets straight from the caster to the reheating furnace while still hot.', basis: '−30% reheating gas; capex RM 15m', capexRM: () => 15_000_000 },
@@ -97,7 +102,7 @@ export type Intensity = {
   kwh: Record<Exclude<UnitId, 'scrap' | 'reheat'>, number>
   totalKwhPerT: number
   reheatGJPerT: number
-  eafDirectKgPerT: number
+  meltDirectKgPerT: number
   reheatKgPerT: number
   /** Scope 1: on-site combustion and process. */
   directKgPerT: number
@@ -109,17 +114,16 @@ export type Intensity = {
 export function intensity(p: SteelParams, u: Upgrades): Intensity {
   // Savings add up as shares of the plant's own figures, the same way the plan adds up separate measures.
   const reheatGJPerT = p.reheatGJPerT * (1 - (u.hotCharging ? 0.3 : 0) - (u.regenBurners ? 0.15 : 0))
-  const reheatGrossKg = reheatGJPerT * p.gasKgPerGJ
   const kwh = {
     ...p.kwhPerT,
-    eaf: p.kwhPerT.eaf * (1 - (u.scrapPreheat ? 0.08 : 0) - (u.eafOptimisation ? 0.06 : 0)),
+    melt: p.kwhPerT.melt * (1 - (u.meltPractice ? 0.06 : 0) - (u.igbt ? 0.05 : 0)),
     fume: p.kwhPerT.fume * (u.fumeVsd ? 0.8 : 1),
   }
   const totalKwhPerT = Object.values(kwh).reduce((sum, value) => sum + value, 0)
   const indirectKgPerT = totalKwhPerT * p.gridKgPerKWh * (1 - Math.min(1, Math.max(0, u.greenShare)))
-  const reheatKgPerT = reheatGrossKg
-  const directKgPerT = p.eafDirectKgPerT + reheatKgPerT
-  return { kwh, totalKwhPerT, reheatGJPerT, eafDirectKgPerT: p.eafDirectKgPerT, reheatKgPerT, directKgPerT, indirectKgPerT, totalKgPerT: directKgPerT + indirectKgPerT }
+  const reheatKgPerT = reheatGJPerT * p.gasKgPerGJ
+  const directKgPerT = p.meltDirectKgPerT + reheatKgPerT
+  return { kwh, totalKwhPerT, reheatGJPerT, meltDirectKgPerT: p.meltDirectKgPerT, reheatKgPerT, directKgPerT, indirectKgPerT, totalKgPerT: directKgPerT + indirectKgPerT }
 }
 
 export const tonnesPerHour = (p: SteelParams) => p.heatSizeT / (p.cycleMin / 60)
@@ -166,78 +170,6 @@ export function upgradeImpacts(p: SteelParams, u: Upgrades): UpgradeImpact[] {
   })
 }
 
-/* ---------------- Live heat cycle ---------------- */
-
-export type EafPhase = 'Charging' | 'Melting' | 'Refining' | 'Tapping'
-const phases: { phase: EafPhase; share: number; powerFactor: number }[] = [
-  // Shares of the tap-to-tap time and relative arc power; the weighted average equals 1.
-  { phase: 'Charging', share: 0.1, powerFactor: 0.1 },
-  { phase: 'Melting', share: 0.64, powerFactor: 1.32 },
-  { phase: 'Refining', share: 0.16, powerFactor: 0.92 },
-  { phase: 'Tapping', share: 0.1, powerFactor: 0.04 },
-]
-const meanFactor = phases.reduce((sum, item) => sum + item.share * item.powerFactor, 0)
-
-export type LiveState = {
-  phase: EafPhase
-  phaseProgress: number
-  heatNumber: number
-  /** Electrical load by unit in MW. */
-  mw: Record<Exclude<UnitId, 'scrap' | 'reheat'>, number>
-  totalMW: number
-  reheatGJPerH: number
-  /** CO₂ being emitted right now, t/h. */
-  co2TPerH: number
-  directTPerH: number
-  indirectTPerH: number
-  rollingOn: boolean
-}
-
-/** Instantaneous plant state at a simulated time (minutes since start). Deterministic. */
-export function liveState(p: SteelParams, u: Upgrades, minutes: number): LiveState {
-  const i = intensity(p, u)
-  const tph = tonnesPerHour(p)
-  const cycleT = ((minutes % p.cycleMin) + p.cycleMin) % p.cycleMin / p.cycleMin
-  let acc = 0
-  let current = phases[0], phaseProgress = 0
-  for (const item of phases) {
-    if (cycleT < acc + item.share) { current = item; phaseProgress = (cycleT - acc) / item.share; break }
-    acc += item.share
-  }
-  // Arc power flickers while melting, as it does on a real EAF.
-  const flicker = current.phase === 'Melting' ? 1 + 0.06 * Math.sin(minutes * 7.3) + 0.04 * Math.sin(minutes * 23.1) : 1
-  const eafMW = i.kwh.eaf * tph / 1_000 * current.powerFactor / meanFactor * flicker
-  // The rolling mill pauses briefly for roll changes (about 10% of the time).
-  const rollingOn = (minutes % 120) < 108
-  const mw = {
-    eaf: eafMW,
-    lf: i.kwh.lf * tph / 1_000,
-    caster: i.kwh.caster * tph / 1_000,
-    rolling: rollingOn ? i.kwh.rolling * tph / 1_000 / 0.9 : 0.4,
-    fume: i.kwh.fume * tph / 1_000 * (current.phase === 'Melting' ? 1.15 : 0.7),
-    utilities: i.kwh.utilities * tph / 1_000,
-    oxygen: i.kwh.oxygen * tph / 1_000,
-  }
-  const totalMW = Object.values(mw).reduce((sum, value) => sum + value, 0)
-  const reheatGJPerH = i.reheatGJPerT * tph
-  const greenFactor = 1 - Math.min(1, Math.max(0, u.greenShare))
-  const indirectTPerH = totalMW * p.gridKgPerKWh * greenFactor
-  const eafDirectTPerH = ['Melting', 'Refining'].includes(current.phase) ? i.eafDirectKgPerT * tph / 1_000 / 0.8 : 0
-  const reheatTPerH = i.reheatKgPerT * tph / 1_000
-  return {
-    phase: current.phase,
-    phaseProgress,
-    heatNumber: Math.floor(minutes / p.cycleMin) + 1,
-    mw,
-    totalMW,
-    reheatGJPerH,
-    co2TPerH: indirectTPerH + eafDirectTPerH + reheatTPerH,
-    directTPerH: eafDirectTPerH + reheatTPerH,
-    indirectTPerH,
-    rollingOn,
-  }
-}
-
 /* ---------------- CBAM (simplified) ---------------- */
 
 /**
@@ -264,67 +196,4 @@ export function cbam(i: Intensity, inputs: CbamInputs): CbamResult {
   const netPriceRM = Math.max(0, inputs.euPriceEUR * inputs.rmPerEUR - inputs.malaysiaPriceRM)
   const costRMPerT = directTPerT * netPriceRM * phaseIn
   return { directTPerT, indirectTPerT: i.indirectKgPerT / 1_000, phaseIn, costRMPerT, costRMPerYear: costRMPerT * inputs.exportTPerYear }
-}
-
-/* ---------------- Inside the arc furnace ---------------- */
-
-export type EafInternals = {
-  /** Share of the charged scrap that is molten (0–1). */
-  meltFraction: number
-  /** Liquid bath temperature, °C (approximate, illustrative). */
-  bathTempC: number
-  /** Foamy-slag height factor (0–1); foaming shields the arc and improves efficiency. */
-  slagFoam: number
-  /** CO₂ share in the off-gas, % by volume (illustrative). */
-  offgasCO2Pct: number
-  /** Cooling-water temperature rise across the panels, °C. */
-  coolingDeltaT: number
-  /** Electrode tip height above the bath, 0 = in the scrap/bath, 1 = fully raised. */
-  electrodeLift: number
-  /** Energy and CO₂ in the heat so far. */
-  heatEnergyMWh: number
-  heatCO2T: number
-  /** Short explanation of what is happening now. */
-  story: string
-}
-
-const stories: Record<EafPhase, string> = {
-  Charging: 'The roof swings open and the crane drops a basket of scrap into the shell. Electrodes are raised; almost no power is drawn.',
-  Melting: 'The electrodes bore down into the scrap and strike an arc hotter than the sun’s surface. This is where most of the electricity, and so most of the CO₂, is used.',
-  Refining: 'Oxygen and carbon are injected to foam the slag, which blankets the arc. Impurities move into the slag and the bath is brought to tapping temperature.',
-  Tapping: 'The furnace tilts and liquid steel pours through the bottom tap hole into the ladle, leaving the slag behind.',
-}
-
-/** What is happening inside the EAF at a moment of the heat (deterministic, illustrative). */
-export function eafInternals(p: SteelParams, u: Upgrades, minutes: number): EafInternals {
-  const live = liveState(p, u, minutes)
-  const t = live.phaseProgress
-  const smooth = (x: number) => x * x * (3 - 2 * x)
-  let meltFraction = 0, bathTempC = 1_560, slagFoam = 0.1, electrodeLift = 1
-  if (live.phase === 'Charging') { meltFraction = 0.08 * (1 - t); bathTempC = 1_560 - 60 * t; electrodeLift = 1 }
-  else if (live.phase === 'Melting') { meltFraction = 0.05 + 0.85 * smooth(t); bathTempC = 1_480 + 100 * t; slagFoam = 0.2 + 0.3 * t; electrodeLift = 0.15 + 0.1 * Math.sin(minutes * 3) * (1 - t) }
-  else if (live.phase === 'Refining') { meltFraction = 0.9 + 0.1 * t; bathTempC = 1_580 + 55 * t; slagFoam = 0.6 + 0.35 * Math.sin(Math.PI * t); electrodeLift = 0.3 }
-  else { meltFraction = 1 - 0.95 * t; bathTempC = 1_635 - 15 * t; slagFoam = 0.3 * (1 - t); electrodeLift = 1 }
-  const i = intensity(p, u)
-  const cycleT = ((minutes % p.cycleMin) + p.cycleMin) % p.cycleMin / p.cycleMin
-  // Energy so far in the heat, integrated with the same phase profile used for the live load.
-  let energyShare = 0, acc = 0
-  for (const item of phases) {
-    const done = Math.min(item.share, Math.max(0, cycleT - acc))
-    energyShare += done * item.powerFactor / meanFactor
-    acc += item.share
-  }
-  const heatEnergyMWh = i.kwh.eaf * p.heatSizeT / 1_000 * energyShare
-  const directSoFar = live.phase === 'Charging' ? 0 : i.eafDirectKgPerT * p.heatSizeT / 1_000 * Math.min(1, Math.max(0, (cycleT - 0.1) / 0.8))
-  return {
-    meltFraction,
-    bathTempC,
-    slagFoam,
-    offgasCO2Pct: live.phase === 'Melting' ? 14 + 6 * t : live.phase === 'Refining' ? 22 - 6 * t : 2,
-    coolingDeltaT: 4 + 10 * live.mw.eaf / Math.max(1, i.kwh.eaf * tonnesPerHour(p) / 1_000 * 1.3),
-    electrodeLift,
-    heatEnergyMWh,
-    heatCO2T: heatEnergyMWh * p.gridKgPerKWh * (1 - u.greenShare) / 1_000 + directSoFar,
-    story: stories[live.phase],
-  }
 }

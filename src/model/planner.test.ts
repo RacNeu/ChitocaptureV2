@@ -43,7 +43,7 @@ describe('pre-operations planner', () => {
   it('turns an added asset into a machine on its plot', () => {
     const m = assetMachine({ id: 'f', type: 'add', assetId: 'melt-shop', col: 2, row: 3, size: 100 })
     expect([m.col, m.row, m.kind]).toEqual([2, 3, 'furnace'])
-    expect(m.processT).toBeCloseTo(6_000)
+    expect(m.processT).toBeCloseTo(2_200)
   })
   it('offers only empty plots', () => {
     const cells = freeCells([{ col: 0, row: 0 }, { col: 1, row: 0 }])

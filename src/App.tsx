@@ -2,16 +2,13 @@ import { useEffect, useState } from 'react'
 import { actions, companyActions, getCompany, getState, useCompany, useFactory, useRole, useWorkspace } from './model/store'
 import { roles } from './model/roles'
 import Company from './views/Company'
-import SimulationPicker from './views/SimulationPicker'
 import AddCompany from './views/AddCompany'
 import Tour from './components/Tour'
 import Reports from './views/Reports'
 import Sources from './views/Sources'
 import { useSensor } from './sensor/hub'
 import Analysis from './views/Analysis'
-import ControlRoom from './views/ControlRoom'
 import GalvControlRoom from './views/GalvControlRoom'
-import { simulatedIndustries } from './views/SimulationPicker'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import Sensors from './views/Sensors'
@@ -24,14 +21,14 @@ import Findings from './views/Findings'
 import Risks from './views/Risks'
 import Home from './views/Home'
 import Site3D from './views/Site3D'
-import Optimise from './views/Optimise'
+import MeltShop from './views/MeltShop'
 import SourceBadge from './components/SourceBadge'
 import ChatAssistant from './components/ChatAssistant'
 import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'optimise' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'control' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'analysis' | 'plan' | 'sensors' | 'settings'
 export type { View }
 
 type MenuItem = { id: View; label: string; icon: string; match: View[] }
@@ -41,31 +38,28 @@ const companyMenu: MenuItem[] = [
 ]
 const siteMenu: MenuItem[] = [
   { id: 'home', label: 'Site overview', icon: '⌂', match: ['home'] },
-  { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'data'] },
-  { id: 'optimise', label: 'Optimise EAF', icon: '🔥', match: ['optimise'] },
+  { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'analysis', 'data'] },
+  { id: 'meltshop', label: 'Melt shop', icon: '🔥', match: ['meltshop'] },
+  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
   { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
   { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
 ]
 const reportMenu: MenuItem[] = [
   { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
 ]
-const moreMenu: MenuItem[] = [
-  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
-  { id: 'simulate', label: 'Simulation', icon: '🔥', match: ['simulate', 'control'] },
-  { id: 'analysis', label: 'Analysis', icon: '📊', match: ['analysis'] },
-]
 const setupMenu: MenuItem[] = [
-  { id: 'sensors', label: 'Sensors', icon: '📡', match: ['sensors'] },
-  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
+  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings', 'sensors'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
-const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'optimise', 'reports', 'twin', 'simulate', 'control', 'analysis', 'settings', 'sensors']
-const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...moreMenu, ...setupMenu].flatMap((item) => item.match)
+const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'analysis', 'settings', 'sensors']
+const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...setupMenu].flatMap((item) => item.match)
 
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
 const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
-  { views: ['dashboard', 'load', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'data', label: 'Upload bills' }],
-    flow: { dashboard: 'Uses your monthly bills · leads to Savings and Reports', load: 'Uses half-hourly meter data · leads to Savings', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
+  { views: ['dashboard', 'load', 'analysis', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'analysis', label: 'By machine' }, { id: 'data', label: 'Upload bills' }],
+    flow: { dashboard: 'Uses your monthly bills · leads to Savings and Reports', load: 'Uses half-hourly meter data · leads to Savings', analysis: 'Each machine’s share, matched to your bills', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
+  { views: ['settings', 'sensors'], tabs: [{ id: 'settings', label: 'Site settings' }, { id: 'sensors', label: 'Data feeds' }],
+    flow: { settings: 'Prices, grid factor and targets used everywhere', sensors: 'Live meters and sensors · feeds the Melt shop twin' } },
   { views: ['findings', 'plan'], tabs: [{ id: 'findings', label: 'Ways to save' }, { id: 'plan', label: 'Plan' }],
     flow: { findings: 'Found in your energy data · add the fixes to your Plan', plan: 'Upgrades you’ve chosen · savings checked on Energy & carbon' } },
 ]
@@ -105,7 +99,7 @@ export default function App() {
   const finishSetup = () => {
     const next = getCompany().sites.find((site) => !site.state.onboarded)
     if (next) { companyActions.switchSite(next.id); return }
-    go(simulatedIndustries.has(getState().settings.industryId) ? 'control' : 'twin')
+    go(['steel', 'steel-downstream'].includes(getState().settings.industryId) ? 'meltshop' : 'twin')
   }
   const cancelSetup = () => {
     const id = company.activeId
@@ -121,6 +115,8 @@ export default function App() {
   }} />
   if (onboarding) return <Onboarding key={company.activeId} progress={company.sites.length > 1 ? `Site ${company.sites.findIndex((site) => site.id === company.activeId) + 1} of ${company.sites.length} · ${company.name}` : undefined} onDone={finishSetup} onCancel={company.sites.length > 1 || !company.fixed ? cancelSetup : undefined} />
 
+  /** The site's live process page: the melt shop for a steel mill, the galvanising line for the wire plant. */
+  const liveLabel = state.settings.industryId === 'steel' ? { label: 'Melt shop', icon: '🔥' } : state.settings.industryId === 'steel-downstream' ? { label: 'Galvanising line', icon: '🧵' } : null
   const canTour = companies.some((item) => item.fixed && item.sites.some((site) => site.state.settings.industryId === 'steel'))
 
   return <div className="app shell">
@@ -132,14 +128,10 @@ export default function App() {
       </nav>
       <span className="side-label">This site</span>
       <nav className="side-nav side-site-nav" aria-label={`Pages for ${state.settings.factoryName}`}>
-        {siteMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
+        {siteMenu.filter((item) => item.id !== 'meltshop' || liveLabel).map((item) => <MenuButton key={item.id} item={item.id === 'meltshop' && liveLabel ? { ...item, ...liveLabel } : item} view={view} go={go} />)}
       </nav>
       <nav className="side-nav" aria-label="Reports">
         {reportMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
-        <details className="side-more" open={moreMenu.some((item) => item.match.includes(view))}>
-          <summary><span className="side-icon" aria-hidden="true">⋯</span><span className="tab-label">Plant twin & more</span></summary>
-          {moreMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
-        </details>
       </nav>
       <nav className="side-nav side-setup" aria-label="Setup">
         {setupMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
@@ -178,7 +170,7 @@ export default function App() {
         <i />{sensor.status === 'live' ? 'Live' : sensor.status === 'simulated' ? 'Simulated' : sensor.status === 'error' ? 'Sensor error' : 'No sensor'}
       </button>
     </header>
-    <main className={`content${view === 'twin' ? ' full' : view === 'optimise' ? ' hmi-wide' : ''}`}>
+    <main className={`content${view === 'twin' ? ' full' : view === 'meltshop' ? ' wide' : ''}`}>
       {(() => {
         const section = sections.find((item) => item.views.includes(view))
         return section && <div className="section-head">
@@ -186,21 +178,19 @@ export default function App() {
           <span className="flow-line">↳ {section.flow[view]}</span>
         </div>
       })()}
-      {(['twin', 'simulate', 'control', 'analysis', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
+      {(['twin', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}
       {view === 'home' && <Home go={go} />}
       {view === 'dashboard' && <Dashboard onUpload={() => go('data')} onReport={() => go('reports')} onFindings={() => go('findings')} />}
       {view === 'data' && <DataUpload onDone={() => go('dashboard')} />}
       {view === 'load' && <LoadProfile onFindings={() => go('findings')} />}
       {view === 'findings' && <Findings onOpen={(next) => go(next)} />}
       {view === 'risks' && <Risks onOpen={(next) => go(next)} />}
-      {view === 'optimise' && <Optimise />}
+      {view === 'meltshop' && (state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('company')} /> : <MeltShop />)}
       {view === 'reports' && <Reports />}
       {view === 'sources' && <Sources />}
       {view === 'add-company' && !companyAccount && <AddCompany onCreated={() => undefined} onCancel={() => go('company')} />}
       {view === 'company' && <Company go={go} onAddSite={() => setPreviousSite(company.activeId)} />}
       {view === 'twin' && <Site3D go={go} />}
-      {view === 'simulate' && <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />}
-      {view === 'control' && (state.settings.industryId === 'steel' ? <ControlRoom onChooseSite={() => go('simulate')} /> : state.settings.industryId === 'steel-downstream' ? <GalvControlRoom onChooseSite={() => go('simulate')} /> : <SimulationPicker onStart={() => go('control')} onView3D={() => go('twin')} onAddCompany={() => go('add-company')} />)}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
       {view === 'sensors' && <Sensors />}

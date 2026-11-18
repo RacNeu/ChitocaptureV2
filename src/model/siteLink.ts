@@ -29,7 +29,7 @@ export function steelFromSite(state: FactoryState, base: SteelParams = defaultSt
     const v = perT(machine.electricityMWh * 1_000, production)
     note(machine, v, base.kwhPerT[unit.id])
     p.kwhPerT[unit.id] = v
-    if (unit.id === 'eaf') p.eafDirectKgPerT = perT(machine.processT * 1_000, production)
+    if (unit.id === 'melt') p.meltDirectKgPerT = perT(machine.processT * 1_000, production)
   }
   p.operatingHoursPerYear = Math.min(8_760, Math.max(1_000, production / tonnesPerHour(base)))
   const baseYear = tonnesPerHour(base) * base.operatingHoursPerYear

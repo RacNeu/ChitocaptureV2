@@ -54,7 +54,7 @@ export function SteelCrossCheck() {
   const rows = steelCrossCheck()
   return <section className="card cross-check">
     <header><h2>Cross-check against published Malaysian data</h2>
-      <p className="muted">The sample steel mill is not a real plant, so we compare it with what a Malaysian scrap-EAF steelmaker publishes. Masteel (Malaysia Steel Works (KL) Bhd) reports Scope 1 and 2 emissions per tonne for its steelmaking plant and its rolling mill separately, on the same Peninsular grid.</p></header>
+      <p className="muted">The sample steel mill is not a real plant, so we compare it with what a Malaysian scrap-based steelmaker publishes. Masteel (Malaysia Steel Works (KL) Bhd) melts in induction furnaces with a ladle furnace, the same route as the sample mill. It reports Scope 1 and 2 emissions per tonne for its steelmaking plant and its rolling mill separately, on the same Peninsular grid.</p></header>
     <div className="table-wrap"><table className="grid-table">
       <thead><tr><th>Part of the mill</th><th className="num">Our model (t CO₂e/t)</th><th className="num">Published (t CO₂e/t)</th><th className="num">Difference</th><th>Notes</th></tr></thead>
       <tbody>{rows.map((row) => <tr key={row.label}>

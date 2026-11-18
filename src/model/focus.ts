@@ -1,14 +1,14 @@
 /**
- * Cross-screen navigation: open a machine's live unit in the control room.
- * The target unit is held here until the control room mounts and reads it.
+ * Cross-screen navigation: open a machine's live view (the Melt shop for a steel mill, the
+ * galvanising line for the wire plant). The target unit is held until that view mounts and reads it.
  */
 let pendingUnit: string | null = null
 let pendingAt = 0
 
-export function openInControlRoom(unitId: string) {
+export function openLiveView(unitId: string) {
   pendingUnit = unitId
   pendingAt = Date.now()
-  window.location.hash = 'control'
+  window.location.hash = 'meltshop'
   window.scrollTo({ top: 0 })
 }
 

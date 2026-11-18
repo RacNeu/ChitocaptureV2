@@ -26,8 +26,8 @@ function green(items: ScenarioItem[], machines: Machine[], share: number) {
 
 export function steelScenario(state: FactoryState, u: Upgrades): ScenarioItem[] {
   const items: ScenarioItem[] = []
-  if (u.scrapPreheat) push(items, steelMachine(state, 'eaf'), 'scrap-preheat', 'Scrap preheating')
-  if (u.eafOptimisation) push(items, steelMachine(state, 'eaf'), 'eaf-optimisation', 'Arc furnace power & foamy slag')
+  if (u.meltPractice) push(items, steelMachine(state, 'melt'), 'if-practice', 'Induction melting best practice')
+  if (u.igbt) push(items, steelMachine(state, 'melt'), 'igbt-supply', 'IGBT power supplies')
   if (u.fumeVsd) push(items, steelMachine(state, 'fume'), 'vsd', 'Variable-speed fume fans')
   if (u.hotCharging) push(items, steelMachine(state, 'reheat'), 'hot-charging', 'Hot charging')
   if (u.regenBurners) push(items, steelMachine(state, 'reheat'), 'regen-burners', 'Regenerative burners')
