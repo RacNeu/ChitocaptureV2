@@ -196,7 +196,7 @@ export function buildSite(machines: Machine[], emphasis: (id: string) => number)
   box3.expandByScalar(PLOT_W)
   const size = box3.getSize(new THREE.Vector3()), centre = box3.getCenter(new THREE.Vector3())
 
-  // Ground, roads between rows and columns, and a few trees.
+  // Ground and roads between rows and columns.
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(size.x + 160, size.z + 160), std(palette.ground, { roughness: 1 }))
   ground.rotation.x = -Math.PI / 2; ground.position.set(centre.x, 0, centre.z); ground.receiveShadow = true
   root.add(ground)
@@ -217,13 +217,6 @@ export function buildSite(machines: Machine[], emphasis: (id: string) => number)
   for (const z of [roadZTop, ...roadsZ]) addRoad(maxX - minX, 8, (minX + maxX) / 2, z, true)
   const roadXLeft = Math.min(...[...cols]) * (PLOT_W + GAP) - (PLOT_W + GAP) / 2
   for (const x of [roadXLeft, ...roadsX]) addRoad(8, maxZ - minZ, x, (minZ + maxZ) / 2, false)
-  const treeMat = std(palette.tree), trunkMat = std(palette.trunk)
-  for (let i = 0; i < 14; i += 1) {
-    const side = i % 2 ? maxZ + 10 : minZ - 10
-    const x = minX + (i / 14) * (maxX - minX) + 4
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 2, 8), trunkMat); trunk.position.set(x, 1, side); trunk.castShadow = true; root.add(trunk)
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(2.2, 14, 10), treeMat); crown.position.set(x, 3.6, side); crown.castShadow = true; root.add(crown)
-  }
 
   return { root, buildings, agents: world.agents, power: world.power, steel: world.steel, size, centre }
 }

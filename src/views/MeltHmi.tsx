@@ -9,8 +9,10 @@ import { mean, quantile } from '../model/regress'
 import { EventsScreen, ShopScreen, TrendsScreen } from './MeltControl'
 import { MeltEnergy } from './MeltTabs'
 import type { Melt } from './MeltShop'
+import { faults, FURNACES } from '../live/feed'
+import { clockOf, live, useLive } from '../live/store'
 
-type Mode = 'sim' | 'replay'
+type Mode = 'sim' | 'replay' | 'live'
 type Screen = 'furnace' | 'shop' | 'trends' | 'energy' | 'events'
 const fkeys: { id: Screen | null; key: string; label: string }[] = [
   { id: 'furnace', key: 'F1', label: 'Furnace' }, { id: 'shop', key: 'F2', label: 'Melt shop' }, { id: 'trends', key: 'F3', label: 'Trends' },
@@ -105,6 +107,9 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const liveState = useLive()
+  useEffect(() => { if (mode === 'live') live.start() }, [mode])
+  const lf = FURNACES.includes(f) ? f : 'IF1'
   const now = useMemo(() => shopAt(hs, melt.data.readings, melt.anomalies, Math.floor(repT)), [hs, melt.data.readings, melt.anomalies, repT])
   const cu = useMemo(() => learnCopper(hs, melt.data.chem), [hs, melt.data.chem])
   const predCu = cu ? scrapTypes.reduce((a, x) => a + (cu[x.id] ?? 0) * sp.mix[x.id] / 100, 0) : null
@@ -123,6 +128,28 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
         alarms: heat.alarms.filter((a) => a.min <= simT),
       }
     }
+    if (mode === 'live') {
+      const r = liveState.latest[lf]
+      const hist = liveState.history[lf] ?? []
+      if (!r) return { phase: 'idle', heatMin: 0, phaseMin: 0, powerOnMin: 0, powerKW: 0, ratedKW: sp.ratedMW * 1_000, energyKwh: 0, meltPct: 0, missingKwh: 0, bathC: null, hz: null, water: null, liningC: null, lidOpen: true, tiltDeg: 0, heatNr: '—', grade: melt.s.grade, chargeT: 0, heelT: 0, tappedT: 0, scheduledT: 0, alarms: [] }
+      // This heat's history: back to its charging phase.
+      let k = hist.length - 1
+      while (k > 0 && hist[k - 1].heatNo === r.heatNo) k -= 1
+      const thisHeat = hist.slice(k)
+      let ps = thisHeat.length - 1
+      while (ps > 0 && thisHeat[ps - 1].phase === r.phase) ps -= 1
+      const energy = thisHeat.reduce((a, x) => a + x.kw / 60, 0)
+      const expected = 31_800
+      return {
+        phase: r.phase, heatMin: thisHeat.length, phaseMin: thisHeat.length - ps, powerOnMin: thisHeat.filter((x) => x.kw > 1_000).length,
+        powerKW: r.kw, ratedKW: sp.ratedMW * 1_000, energyKwh: energy, meltPct: r.phase === 'charging' ? 0 : r.phase === 'melting' ? Math.min(99, energy / (expected * 0.9) * 100) : 100,
+        missingKwh: Math.max(0, expected - energy), bathC: r.bathC, hz: r.hz || null,
+        water: { inC: r.waterInC, outC: r.waterOutC, flow: r.flowM3h, heatKW: r.flowM3h * 1_000 / 3_600 * 4.18 * (r.waterOutC - r.waterInC) }, liningC: null,
+        lidOpen: r.phase === 'charging' || r.phase === 'tapping', tiltDeg: r.phase === 'tapping' ? 31 : 0,
+        heatNr: `${lf}-${String(r.heatNo).padStart(4, '0')}`, grade: melt.s.grade, chargeT: 58 + FURNACES.indexOf(lf), heelT: 0, tappedT: r.phase === 'tapping' ? 55.4 : 0, scheduledT: 55.4,
+        alarms: liveState.alerts.filter((a) => a.active && a.furnace === lf).map((a) => ({ level: a.level, text: `${a.title}: ${a.detail}` })),
+      }
+    }
     const x = now.furnaces.find((y) => y.furnace === f)!
     const h = x.heat
     const ph: Vm['phase'] = x.phase === 'charging' ? 'charging' : x.phase === 'idle' ? 'idle' : x.phase
@@ -139,7 +166,7 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
   const pr = primary(vm.powerKW), sc = secondary(vm.powerKW, vm.ratedKW)
   const state: FurnaceState = { power: vm.powerKW / Math.max(1, vm.ratedKW), bathC: vm.bathC, phase: vm.phase === 'tapping' ? 'tapping' : vm.phase === 'holding' ? 'holding' : vm.phase === 'melting' || vm.phase === 'superheat' ? 'melting' : 'idle', fill: vm.phase === 'charging' ? 0.25 : vm.phase === 'melting' ? 0.25 + 0.75 * vm.meltPct / 100 : 1, alarm: vm.alarms.some((a) => a.level === 'alarm') }
   const activeAlarms = vm.alarms.filter((a) => !acked.has(a.text))
-  const clock = mode === 'sim' ? `Heat time ${dur(vm.heatMin)}` : stamp(Math.floor(repT))
+  const clock = mode === 'sim' ? `Heat time ${dur(vm.heatMin)}` : mode === 'live' ? `LIVE ${clockOf(liveState.t)}` : stamp(Math.floor(repT))
   const trendPts = mode === 'sim' ? heat.points.filter((_, i) => i % 8 === 0) : []
   const cursor = Math.round(simT / 2)
   const mixSum = scrapTypes.reduce((a, x) => a + sp.mix[x.id], 0)
@@ -157,20 +184,21 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
       <div className="h3-mode" role="radiogroup" aria-label="Mode">
         <button type="button" className={mode === 'sim' ? 'on' : ''} onClick={() => setMode('sim')}>Simulator</button>
         <button type="button" className={mode === 'replay' ? 'on' : ''} onClick={() => setMode('replay')}>Replay data</button>
+        <button type="button" className={mode === 'live' ? 'on live' : 'live'} onClick={() => setMode('live')}><i />Live feed</button>
       </div>
     </div>
 
     <div className="h3-head">
       <Cell label="HEAT Nr." value={vm.heatNr} /><Cell label="Heat time" value={dur(vm.heatMin)} /><Cell label="Heat phase" value={phaseLabel[vm.phase]} />
       <Cell label="STEEL" value={vm.grade} /><Cell label="Power ON time" value={dur(vm.powerOnMin)} /><Cell label="Phase time" value={dur(vm.phaseMin)} />
-      <div className="h3-big red"><span>TAP</span><b>{mode === 'sim' ? heatNo - 1 : now.furnaces.find((y) => y.furnace === f)?.heat ? 1 : 0}</b><i className={vm.powerKW > 1_000 ? 'on' : ''}>{vm.powerKW > 1_000 ? 'POWER ON' : 'POWER OFF'}</i></div>
+      <div className="h3-big red"><span>TAP</span><b>{mode === 'live' ? (liveState.latest[lf]?.heatNo ?? 1) - 1 : mode === 'sim' ? heatNo - 1 : now.furnaces.find((y) => y.furnace === f)?.heat ? 1 : 0}</b><i className={vm.powerKW > 1_000 ? 'on' : ''}>{vm.powerKW > 1_000 ? 'POWER ON' : 'POWER OFF'}</i></div>
       <div className="h3-big"><span>Melting %</span><b>{num(vm.meltPct)}</b></div>
       <div className="h3-big"><span>Temp.°C</span><b>{vm.bathC !== null ? num(vm.bathC) : 0}</b></div>
       <div className="h3-big"><span>Power %</span><b>{num(vm.powerKW / Math.max(1, vm.ratedKW) * 100)}</b></div>
       <div className="h3-runbox">
-        <button type="button" className="yellow" onClick={() => setPlay(!play)}>{play ? '❚❚ Pause' : '▶ Run'}</button>
-        <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Speed">{[10, 60, 300].map((v) => <option key={v} value={v}>× {v}</option>)}</select>
-        {mode === 'sim' ? <button type="button" onClick={() => { setSimT(0); setHeatNo((k) => k + 1) }}>New heat</button> : <select value={f} onChange={(e) => setF(e.target.value)} aria-label="Furnace">{melt.furnaces.map((x) => <option key={x}>{x}</option>)}</select>}
+        <button type="button" className="yellow" onClick={() => mode === 'live' ? (liveState.running ? live.stop() : live.start()) : setPlay(!play)}>{(mode === 'live' ? liveState.running : play) ? '❚❚ Pause' : '▶ Run'}</button>
+        {mode === 'live' ? <select value={liveState.speed} onChange={(e) => live.setSpeed(Number(e.target.value))} aria-label="Live speed">{[1, 4, 12].map((v) => <option key={v} value={v}>{v === 1 ? 'Real time ×60' : `×${v * 60}`}</option>)}</select> : <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="Speed">{[10, 60, 300].map((v) => <option key={v} value={v}>× {v}</option>)}</select>}
+        {mode === 'sim' ? <button type="button" onClick={() => { setSimT(0); setHeatNo((k) => k + 1) }}>New heat</button> : <select value={mode === 'live' ? lf : f} onChange={(e) => setF(e.target.value)} aria-label="Furnace">{(mode === 'live' ? FURNACES : melt.furnaces).map((x) => <option key={x}>{x}</option>)}</select>}
       </div>
     </div>
 
@@ -236,6 +264,10 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
             <Cell label="kWh/t (heat)" value={mode === 'sim' ? num(kwhPerT) : '—'} tone={mode === 'sim' && kwhPerT > 580 ? 'red' : undefined} />
           </Box>
         </div>
+        {mode === 'live' && <Box title={`Live Monitoring · ${lf} · last hour`}>
+          {(() => { const hh = (liveState.history[lf] ?? []).slice(-60); return <TrendChart x={hh.map((r) => clockOf(r.t))} series={[{ label: 'MW', values: hh.map((r) => r.kw / 1_000), color: '#facc15' }, { label: 'Flow ÷ 20', values: hh.map((r) => r.flowM3h / 20), color: '#38bdf8' }, { label: 'Leak mA', values: hh.map((r) => r.leakMA), color: '#f87171' }]} height={170} width={640} /> })()}
+          <div className="h3-legend"><span className="y">Power MW</span><span className="b">Coil water flow ÷ 20</span><span className="r">Earth leakage mA</span></div>
+        </Box>}
         {mode === 'sim' && <Box title="Heat Monitoring">
           <TrendChart x={trendPts.map((p) => dur(p.min))} series={[{ label: 'MW', values: trendPts.map((p) => p.powerKW / 1_000), color: '#facc15' }, { label: '°C ÷ 50', values: trendPts.map((p) => p.phase === 'charging' && sp.heelT === 0 ? null : p.bathC / 50), color: '#f87171' }]} bands={[{ from: Math.max(0, cursor - 0.5), to: cursor + 0.5 }]} height={170} width={640} />
           <div className="h3-legend"><span className="y">Power MW</span><span className="r">Bath °C ÷ 50</span></div>
@@ -280,6 +312,7 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
       {screen !== 'energy' && <p className="h3-note">This screen shows your uploaded data at the replay time ({stamp(Math.floor(repT))}). Switch to “Replay data” to move through it.</p>}
     </div>}
 
+    {mode === 'live' && <div className="h3-faults"><b>Demo faults on {lf}</b>{faults.map((x) => <button key={x.id} type="button" title={x.what} onClick={() => live.inject(x.id, lf)} className={liveState.faults[x.id]?.furnace === lf ? 'on' : ''}>{x.label}</button>)}<button type="button" className="clear" onClick={() => live.clearFaults()}>Clear faults</button><span>Simulated live feed · in a plant this comes from sensors and the PLC over MQTT</span></div>}
     {mode === 'replay' && <div className="h3-replay"><input type="range" min={tMin} max={tMax} value={repT} onChange={(e) => { setPlay(false); setRepT(Number(e.target.value)) }} aria-label="Replay time" /><span>{stamp(Math.floor(repT))}</span></div>}
 
     <div className={`h3-alarmbar ${activeAlarms.length ? 'on' : ''}`} role="status">

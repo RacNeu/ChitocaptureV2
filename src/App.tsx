@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import LineIcon from './components/LineIcon'
 import { actions, companyActions, getCompany, getState, useCompany, useFactory, useRole, useWorkspace } from './model/store'
 import { roles } from './model/roles'
 import Company from './views/Company'
@@ -11,7 +12,7 @@ import Analysis from './views/Analysis'
 import GalvControlRoom from './views/GalvControlRoom'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
-import Sensors from './views/Sensors'
+import LiveFeeds from './views/LiveFeeds'
 import Settings from './views/Settings'
 import Login from './views/Login'
 import Dashboard from './views/Dashboard'
@@ -33,7 +34,7 @@ import { getWorkspace } from './model/store'
 type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'analysis' | 'plan' | 'sensors' | 'settings'
 export type { View }
 
-type MenuItem = { id: View; label: string; icon: string; match: View[] }
+type MenuItem = { id: View; label: string; icon: ReactNode; match: View[] }
 /** The company comes first; the open site's pages follow, in the order of the story. */
 const companyMenu: MenuItem[] = [
   { id: 'company', label: 'Company overview', icon: '🏢', match: ['company', 'add-company'] },
@@ -41,11 +42,11 @@ const companyMenu: MenuItem[] = [
   { id: 'simulate', label: '3D simulation', icon: '🎛', match: ['simulate'] },
 ]
 const siteMenu: MenuItem[] = [
-  { id: 'home', label: 'Site overview', icon: '⌂', match: ['home'] },
-  { id: 'dashboard', label: 'Energy & carbon', icon: '⚡', match: ['dashboard', 'load', 'analysis', 'data'] },
-  { id: 'meltshop', label: 'Melt shop', icon: '🔥', match: ['meltshop'] },
-  { id: 'findings', label: 'Savings', icon: '⚑', match: ['findings', 'plan'] },
-  { id: 'risks', label: 'Risks', icon: '◬', match: ['risks'] },
+  { id: 'home', label: 'Site overview', icon: <LineIcon name="home" />, match: ['home'] },
+  { id: 'dashboard', label: 'Energy & carbon', icon: <LineIcon name="bolt" />, match: ['dashboard', 'load', 'analysis', 'data'] },
+  { id: 'meltshop', label: 'Melt shop', icon: <LineIcon name="furnace" />, match: ['meltshop'] },
+  { id: 'findings', label: 'Savings and Plans', icon: <LineIcon name="plan" />, match: ['findings', 'plan'] },
+  { id: 'risks', label: 'Risks', icon: <LineIcon name="risk" />, match: ['risks'] },
 ]
 const reportMenu: MenuItem[] = [
   { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
@@ -60,9 +61,9 @@ const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...setupMenu].flat
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
 const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
   { views: ['dashboard', 'load', 'analysis', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'analysis', label: 'By machine' }, { id: 'data', label: 'Upload bills' }],
-    flow: { dashboard: 'Uses your monthly bills · leads to Savings and Reports', load: 'Uses half-hourly meter data · leads to Savings', analysis: 'Each machine’s share, matched to your bills', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
+    flow: { dashboard: 'Uses your monthly bills · leads to Savings and Plans, and Reports', load: 'Uses half-hourly meter data · leads to Savings', analysis: 'Each machine’s share, matched to your bills', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
   { views: ['settings', 'sensors'], tabs: [{ id: 'settings', label: 'Site settings' }, { id: 'sensors', label: 'Data feeds' }],
-    flow: { settings: 'Prices, grid factor and targets used everywhere', sensors: 'Live meters and sensors · feeds the Melt shop twin' } },
+    flow: { settings: 'Prices, grid factor and targets used everywhere', sensors: 'Live readings, alerts and Telegram · feeds the Melt shop HMI' } },
   { views: ['findings', 'plan'], tabs: [{ id: 'findings', label: 'Ways to save' }, { id: 'plan', label: 'Plan' }],
     flow: { findings: 'Found in your energy data · add the fixes to your Plan', plan: 'Upgrades you’ve chosen · savings checked on Energy & carbon' } },
 ]
@@ -197,7 +198,7 @@ export default function App() {
       {view === 'twin' && <Site3D go={go} />}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
-      {view === 'sensors' && <Sensors />}
+      {view === 'sensors' && <LiveFeeds />}
       {view === 'settings' && <Settings onRestart={() => undefined} onRemoved={() => go('company')} />}
     </main>
     {touring && <Tour onClose={() => setTouring(false)} />}
