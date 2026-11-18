@@ -55,6 +55,17 @@ function check(r: Reading): Hit[] {
   return hits;
 }
 
+/**
+ * People to tag, from Edge Function secrets (same rule as api/telegram.ts):
+ *   TELEGRAM_MENTIONS on every alert, TELEGRAM_MENTIONS_ALARM also on alarms.
+ * Only real Telegram usernames (@ + 5–32 letters, digits or _) are kept.
+ */
+function mentions(level: "warn" | "alarm"): string {
+  const pick = (v?: string) => (v ?? "").split(/[\s,]+/).map((s) => s.trim()).filter((s) => /^@[A-Za-z0-9_]{5,32}$/.test(s));
+  const names = [...pick(Deno.env.get("TELEGRAM_MENTIONS")), ...(level === "alarm" ? pick(Deno.env.get("TELEGRAM_MENTIONS_ALARM")) : [])];
+  return [...new Set(names)].join(" ");
+}
+
 async function telegram(text: string): Promise<"sent" | "not-configured" | "failed"> {
   const token = Deno.env.get("TELEGRAM_BOT_TOKEN"), chat = Deno.env.get("TELEGRAM_CHAT_ID");
   if (!token || !chat) return "not-configured";
@@ -121,7 +132,7 @@ Deno.serve(async (req: Request) => {
       const existing = open?.find((a) => a.rule === h.rule);
       if (existing && !(existing.level === "warn" && h.level === "alarm")) continue;
       const clock = new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit" });
-      const text = `${demo ? "🧪 DEMO (simulated plant)\n" : ""}${h.level === "alarm" ? "🚨 ALARM" : "⚠️ WARNING"} · ${h.title}\n${h.detail}\nTime ${clock} · ${site}\n➡️ ${h.action}`;
+      const text = `${demo ? "🧪 DEMO (simulated plant)\n" : ""}${h.level === "alarm" ? "🚨 ALARM" : "⚠️ WARNING"} · ${h.title}\n${h.detail}\nTime ${clock} · ${site}\n➡️ ${h.action}${mentions(h.level) ? `\n👷 ${mentions(h.level)}` : ""}`;
       const status = demoTelegramLeft > 0 ? await telegram(text) : "rate-limited";
       if (status === "sent") demoTelegramLeft -= 1;
       if (existing) await db.from("alerts").update({ level: h.level, title: h.title, detail: h.detail, telegram: status }).eq("id", existing.id);
