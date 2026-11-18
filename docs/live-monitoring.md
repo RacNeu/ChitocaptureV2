@@ -9,7 +9,7 @@ For the melt shop (induction furnaces + ladle furnace).
 | Database (readings, alerts) | **Live** on Supabase project `chitocapture` (Singapore, free tier) | migration in Supabase; tables `readings`, `alerts`, private `app_config` |
 | 24/7 ingest + alert service | **Live**: Supabase Edge Function `ingest` stores readings, applies the alert rules, sends Telegram | `supabase/functions/ingest/index.ts` |
 | App reading cloud data in real time | **Built**: Supabase Realtime pushes new readings and alerts to the app | `src/live/sources.ts`, `src/live/store.ts` |
-| Test publisher | **Built**: the simulated plant plays the devices and sends readings through Supabase | Live data & alerts |
+| Test publisher | **Built**: the simulated plant plays the devices and sends readings through Supabase | Settings → Live data & alerts |
 | ESP32 sensor node | **Example sketch** (flow + two temperature probes → ingest function) | `firmware/esp32_furnace/esp32_furnace.ino` |
 | Telegram | **Ready**: sends as soon as a bot token is added (see below); until then shown as a preview | edge function + `api/telegram.ts` |
 
@@ -25,7 +25,7 @@ shows readings live.
 
 ## Using it in the app
 
-Sidebar → **Live data & alerts** (under Reports):
+Settings → **Live data & alerts**:
 1. *Where live readings come from*: Simulation or **Supabase cloud**.
 2. *Test publisher*: switch on **Send to Supabase ingest**, then choose **Supabase cloud**
    as the source. Readings now make the full round trip: browser → ingest function → database →

@@ -13,6 +13,7 @@ import GalvControlRoom from './views/GalvControlRoom'
 import Onboarding from './views/Onboarding'
 import Plan from './views/Plan'
 import LiveFeeds from './views/LiveFeeds'
+import Sensors from './views/Sensors'
 import Settings from './views/Settings'
 import Login from './views/Login'
 import Dashboard from './views/Dashboard'
@@ -31,7 +32,7 @@ import BrandLogo from './components/BrandLogo'
 import { isCompanyAccount, signOut, useSession, visibleCompanies } from './model/auth'
 import { getWorkspace } from './model/store'
 
-type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'analysis' | 'plan' | 'sensors' | 'settings'
+type View = 'home' | 'dashboard' | 'load' | 'findings' | 'risks' | 'meltshop' | 'data' | 'company' | 'add-company' | 'reports' | 'sources' | 'twin' | 'simulate' | 'analysis' | 'plan' | 'sensors' | 'live' | 'settings'
 export type { View }
 
 type MenuItem = { id: View; label: string; icon: ReactNode; match: View[] }
@@ -50,17 +51,19 @@ const siteMenu: MenuItem[] = [
 ]
 const reportMenu: MenuItem[] = [
   { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
-  { id: 'sensors', label: 'Live data & alerts', icon: <LineIcon name="live" />, match: ['sensors'] },
+  { id: 'sensors', label: 'Sensors', icon: <LineIcon name="sensor" />, match: ['sensors'] },
 ]
 const setupMenu: MenuItem[] = [
-  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
+  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings', 'live'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
-const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'simulate', 'analysis', 'settings', 'sensors']
+const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'simulate', 'analysis', 'settings', 'sensors', 'live']
 const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...setupMenu].flatMap((item) => item.match)
 
 /** Tabs inside a main place, plus one line on where its data comes from and where it leads. */
 const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
+  { views: ['settings', 'live'], tabs: [{ id: 'settings', label: 'Site settings' }, { id: 'live', label: 'Live data & alerts' }],
+    flow: { settings: 'Prices, grid factor and targets used everywhere', live: 'Live readings, 24/7 alerts and Telegram · feeds Melt shop → Furnace HMI → Live feed' } },
   { views: ['dashboard', 'load', 'analysis', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'analysis', label: 'By machine' }, { id: 'data', label: 'Upload bills' }],
     flow: { dashboard: 'Uses your monthly bills · leads to Savings and Plans, and Reports', load: 'Uses half-hourly meter data · leads to Savings', analysis: 'Each machine’s share, matched to your bills', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
   { views: ['findings', 'plan'], tabs: [{ id: 'findings', label: 'Ways to save' }, { id: 'plan', label: 'Plan' }],
@@ -197,7 +200,8 @@ export default function App() {
       {view === 'twin' && <Site3D go={go} />}
       {view === 'analysis' && <Analysis />}
       {view === 'plan' && <Plan onShowTwin={() => go('twin')} />}
-      {view === 'sensors' && <LiveFeeds />}
+      {view === 'sensors' && <Sensors />}
+      {view === 'live' && <LiveFeeds />}
       {view === 'settings' && <Settings onRestart={() => undefined} onRemoved={() => go('company')} />}
     </main>
     {touring && <Tour onClose={() => setTouring(false)} />}
