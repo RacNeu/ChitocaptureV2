@@ -1,4 +1,5 @@
 import LineIcon from '../components/LineIcon'
+import SourceTag from '../components/SourceTag'
 import { useMemo, useState } from 'react'
 import { num, ringgit, tonnes } from '../format'
 import Info from '../components/Info'
@@ -84,11 +85,11 @@ export default function Company({ go, onAddSite }: { go: (view: View) => void; o
     </div>}
 
     <div className="dash-kpis">
-      <div className="dash-kpi"><span className="dash-kpi-label">Company emissions · last 12 months</span>
+      <div className="dash-kpi"><span className="dash-kpi-label">Company emissions · last 12 months{withData.length > 0 && <SourceTag source="bills" />}</span>
         {withData.length ? <><strong>{tonnes(total)} <small>CO₂e</small></strong><small className="muted">Scope 1 {tonnes(sum('s1'))} · Scope 2 {tonnes(sum('s2'))}</small></> : <span className="tile-empty">No bills yet</span>}</div>
       <div className="dash-kpi"><span className="dash-kpi-label">Money you could save</span>
         {saving > 0 ? <><strong className="good-text">{ringgit(saving)} <small>/month</small></strong><small className="muted">{rows.reduce((s, r) => s + r.ways, 0)} ways across {rows.filter((r) => r.saving > 0).length} site(s)</small></> : <span className="tile-empty">Add meter data</span>}</div>
-      <div className="dash-kpi"><span className="dash-kpi-label">Carbon tax {new Date().getFullYear() + 1} (estimate)</span>
+      <div className="dash-kpi"><span className="dash-kpi-label">Carbon tax {new Date().getFullYear() + 1}<SourceTag source="estimate" index={1} /></span>
         {sum('taxRM') > 0 ? <><strong>{ringgit(sum('taxRM'))}</strong><small className="muted">Singapore rate as reference</small></> : <span className="tile-empty">Needs bills</span>}</div>
       <div className="dash-kpi"><span className="dash-kpi-label">Biggest risk</span>
         {topRisk ? <><strong className="risk-name">{topRisk.risk.name}</strong><small className="muted">{topRisk.site.state.settings.factoryName} · {likelihoodLabel[topRisk.risk.likelihood!]} · {impactLabel[topRisk.risk.impact!]}</small></> : <span className="tile-empty">Fill a site checklist</span>}</div>

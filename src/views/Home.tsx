@@ -12,7 +12,8 @@ import { impactLabel, likelihoodLabel, siteRisks } from '../model/risk'
 import { useFactory } from '../model/store'
 import type { View } from '../App'
 
-const COL = { s1: 'var(--series-s1)', s2: 'var(--series-s2)', green: '#10b981', sky: '#0ea5e9', violet: '#7c3aed', amber: '#f59e0b' }
+/** One meaning per hue (docs/design/craft-2026-11-18/log.md): emerald money, blue emissions, teal per tonne, amber targets. */
+const COL = { s1: 'var(--series-s1)', s2: 'var(--series-s2)', green: '#10b981', blue: '#2a78d6', teal: '#0d9488', amber: '#f59e0b' }
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })
@@ -57,9 +58,9 @@ export default function Home({ go }: { go: (view: View) => void }) {
 
     <div className="ms-kpis">
       <Kpi icon="coin" source={perMonth > 0 ? (found.load ? 'meter' : 'bills') : undefined} label="Money you could save" value={perMonth > 0 ? ringgit(perMonth) : '—'} unit={perMonth > 0 ? '/month' : undefined} delta={perMonth > 0 ? `≈ ${ringgit(perMonth * 12)} a year · ${open.length} ways` : view.empty ? 'Add bills or meter data' : 'Add half-hourly meter data'} good={perMonth > 0 ? true : undefined} color={COL.green} />
-      <Kpi icon="cloud" source={view.empty ? undefined : 'bills'} label="Emissions · last 12 months" value={view.empty ? '—' : tonnes(last.totalT)} unit={view.empty ? undefined : 'CO₂e'} delta={view.empty ? 'Upload bills' : change === null ? 'No prior year yet' : `${change <= 0 ? '▼' : '▲'} ${num(Math.abs(change), 1)}% vs year before`} good={change === null ? undefined : change <= 0} spark={months.length > 1 ? months.map((m) => m.totalT) : undefined} color={COL.violet} />
-      <Kpi icon="leaf" source={intensity !== null ? 'bills' : undefined} label="Carbon intensity" value={intensity !== null ? num(intensity, 3) : '—'} unit={intensity !== null ? `tCO₂e/t ${state.settings.productUnit}` : undefined} delta={intensity === null ? 'Needs production in the bills' : 'Scope 1 + 2 per tonne'} spark={months.length > 1 ? months.map((m) => (m.intensityKg ?? 0) / 1_000) : undefined} color={COL.sky} />
-      <Kpi icon="target" source={t.onTrack === null ? undefined : 'forecast'} label={`Target · −${state.settings.targetReductionPct}% by ${state.settings.targetYear}`} value={t.onTrack === null ? '—' : t.onTrack ? 'On track' : 'Off track'} delta={t.onTrack === null ? 'Needs 12+ months of bills' : t.onTrack ? 'Forecast meets the target' : `${tonnes(t.gapT ?? 0)}/yr still to cut`} good={t.onTrack ?? undefined} color={COL.amber} />
+      <Kpi index={1} icon="cloud" source={view.empty ? undefined : 'bills'} label="Emissions · last 12 months" value={view.empty ? '—' : tonnes(last.totalT)} unit={view.empty ? undefined : 'CO₂e'} delta={view.empty ? 'Upload bills' : change === null ? 'No prior year yet' : `${change <= 0 ? '▼' : '▲'} ${num(Math.abs(change), 1)}% vs year before`} good={change === null ? undefined : change <= 0} spark={months.length > 1 ? months.map((m) => m.totalT) : undefined} color={COL.blue} />
+      <Kpi index={2} icon="leaf" source={intensity !== null ? 'bills' : undefined} label="Carbon intensity" value={intensity !== null ? num(intensity, 3) : '—'} unit={intensity !== null ? `tCO₂e/t ${state.settings.productUnit}` : undefined} delta={intensity === null ? 'Needs production in the bills' : 'Scope 1 + 2 per tonne'} spark={months.length > 1 ? months.map((m) => (m.intensityKg ?? 0) / 1_000) : undefined} color={COL.teal} />
+      <Kpi index={3} icon="target" source={t.onTrack === null ? undefined : 'forecast'} label={`Target · −${state.settings.targetReductionPct}% by ${state.settings.targetYear}`} value={t.onTrack === null ? '—' : t.onTrack ? 'On track' : 'Off track'} delta={t.onTrack === null ? 'Needs 12+ months of bills' : t.onTrack ? 'Forecast meets the target' : `${tonnes(t.gapT ?? 0)}/yr still to cut`} good={t.onTrack ?? undefined} color={COL.amber} />
     </div>
 
     <div className="ov">

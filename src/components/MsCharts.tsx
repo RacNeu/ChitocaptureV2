@@ -1,5 +1,6 @@
 /** Small SVG charts for the dark melt-shop pages: sparkline KPI cards, trend with target, donut, ring, bars. */
 import { useId, type ReactNode } from 'react'
+import SourceTag from './SourceTag'
 import { num } from '../format'
 import LineIcon from './LineIcon'
 
@@ -22,11 +23,11 @@ export function Sparkline({ values, color = 'var(--sky)', height = 34 }: { value
 }
 
 /** KPI card: icon, label, the figure with its unit, change vs comparison, sparkline. `source` is the provenance tag every figure carries. */
-export function Kpi({ icon, label, value, unit, delta, good, spark, color, info, source }: { icon?: string; label: string; value: string; unit?: string; delta?: string; good?: boolean; spark?: number[]; color?: string; info?: ReactNode; source?: string }) {
+export function Kpi({ icon, label, value, unit, delta, good, spark, color, info, source, index = 0 }: { icon?: string; label: string; value: string; unit?: string; delta?: string; good?: boolean; spark?: number[]; color?: string; info?: ReactNode; source?: string; index?: number }) {
   return <div className="ms-kpi">
     {icon && <span className="ms-kpi-icon" aria-hidden="true" style={color ? { color, background: `color-mix(in srgb, ${color} 16%, transparent)` } : undefined}><LineIcon name={iconFor[icon] ?? icon} size={18} /></span>}
     <div className="ms-kpi-body">
-      <span className="ms-kpi-label">{label}{info}{source && <span className="src-tag">{source}</span>}</span>
+      <span className="ms-kpi-label">{label}{info}{source && <SourceTag source={source} index={index} />}</span>
       <b className={`ms-kpi-value${/\d/.test(value) ? '' : ' word'}`}>{value}{unit && <small> {unit}</small>}</b>
       {delta && <span className={`ms-kpi-delta ${good === undefined ? '' : good ? 'good' : 'bad'}`}>{delta}</span>}
     </div>

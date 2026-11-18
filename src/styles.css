@@ -2615,3 +2615,37 @@ input:disabled, select:disabled, fieldset.lock:disabled input, fieldset.lock:dis
 }
 .site-stat b.fig { font-family: var(--mono); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .site-stat small { white-space: nowrap; }
+
+/* ================= Craft: Certificate, refined (docs/design/craft-2026-11-18/log.md) ================= */
+
+/* The certificate tag. Storyboard of the stamp, played once after a bill import (times from the tag's start):
+   0ms      appears above its place, 1.25x, turned -5°                   (anticipation: lifted before it lands)
+   0→144    falls, accelerating into the label                           (slow in to the impact, like a real stamp)
+   144      lands 7% small; the ink ring squashes out on the same frame  (squash on the ring only, never the text)
+   144→360  rebounds to 1.03 and settles, easing out                     (follow-through)
+   tags start 120ms after the figures appear, 70ms apart, at most 4      (staging: one figure at a time) */
+.src-tag { position: relative; display: inline-block; }
+.src-tag.stamp { animation: tag-stamp 360ms both; animation-delay: calc(var(--i, 0) * 70ms + 120ms); transform-origin: 50% 70%; }
+.src-tag.stamp::after { content: ''; position: absolute; inset: -3px; border: 1.5px solid #047857; border-radius: 7px; opacity: 0; pointer-events: none;
+  animation: tag-ink 380ms cubic-bezier(.2, .7, .3, 1) forwards; animation-delay: calc(var(--i, 0) * 70ms + 264ms); }
+@keyframes tag-stamp {
+  0% { opacity: 0; transform: translateY(-10px) scale(1.25) rotate(-5deg); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  12% { opacity: 1; }
+  40% { transform: translateY(0) scale(.93) rotate(0deg); animation-timing-function: cubic-bezier(.32, .72, 0, 1); }
+  70% { transform: scale(1.03); animation-timing-function: cubic-bezier(.32, .72, 0, 1); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes tag-ink {
+  0% { opacity: .6; transform: scale(1.12, .82); }
+  100% { opacity: 0; transform: scale(1.55, 1.4); }
+}
+@media (prefers-reduced-motion: reduce) { .src-tag.stamp, .src-tag.stamp::after { animation: none; } .src-tag.stamp::after { display: none; } }
+
+/* One anatomy for every figure card: label row (label left, tag right), figure, comparison line. */
+.dash-kpi-label, .ms-kpi-label { gap: 7px; }
+.kpi > span:first-child { font-size: 12.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.dash-kpi strong, .kpi strong { font-size: 28px; line-height: 1.15; }
+
+/* Violet has no meaning in the chrome: the role picker is a quiet emerald control like the rest of the top bar. */
+.role-switch select { background-color: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.role-switch select:hover { border-color: #34d399; }

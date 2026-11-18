@@ -1,4 +1,5 @@
 import LineIcon from '../components/LineIcon'
+import SourceTag from '../components/SourceTag'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Sparkline } from '../components/Charts'
 import ExpectedVsActual from '../components/ExpectedVsActual'
@@ -27,9 +28,9 @@ function Change({ now, before }: { now: number; before: number | null | undefine
   return <em className={`kpi-change ${down ? 'good' : 'bad'}`}><span aria-hidden="true">{down ? '▼' : '▲'}</span> {num(Math.abs(change), 1)}% vs prior 12 months</em>
 }
 
-function Kpi({ label, value, unit, spark, color, children, active, onClick }: { label: string; value: string; unit: string; spark: number[]; color: string; children?: ReactNode; active?: boolean; onClick?: () => void }) {
+function Kpi({ label, value, unit, spark, color, children, active, onClick, source = 'bills', index = 0 }: { label: string; value: string; unit: string; spark: number[]; color: string; children?: ReactNode; active?: boolean; onClick?: () => void; source?: string; index?: number }) {
   return <button type="button" className={`dash-kpi${active ? ' active' : ''}`} onClick={onClick} aria-pressed={active}>
-    <span className="dash-kpi-label"><i style={{ background: color }} />{label}</span>
+    <span className="dash-kpi-label"><i style={{ background: color }} />{label}<SourceTag source={source} index={index} /></span>
     <strong>{value} <small>{unit}</small></strong>
     {children}
     <Sparkline values={spark} height={40} width={160} className="dash-spark" />
@@ -219,17 +220,17 @@ export default function Dashboard({ onUpload, onReport, onFindings }: { onUpload
         <Change now={total} before={prior('totalT')} />
         <small className="muted">{periodLabel}{production > 0 ? ` · ${num(total / production * 1_000)} kg/t` : ''}</small>
       </Kpi>
-      <Kpi label="Scope 1 · fuel & process" value={num(s1)} unit="tCO₂e" spark={spark('scope1T')} color={C.scope1} active={mode === 'scope1'} onClick={() => setMode('scope1')}>
+      <Kpi index={1} label="Scope 1 · fuel & process" value={num(s1)} unit="tCO₂e" spark={spark('scope1T')} color={C.scope1} active={mode === 'scope1'} onClick={() => setMode('scope1')}>
         <Change now={s1} before={prior('scope1T')} />
         <small className="muted">{num(s1 / Math.max(1e-9, total) * 100)}% of total</small>
       </Kpi>
-      <Kpi label="Scope 2 · electricity" value={num(s2)} unit="tCO₂e" spark={spark('scope2T')} color={C.scope2} active={mode === 'scope2'} onClick={() => setMode('scope2')}>
+      <Kpi index={2} label="Scope 2 · electricity" value={num(s2)} unit="tCO₂e" spark={spark('scope2T')} color={C.scope2} active={mode === 'scope2'} onClick={() => setMode('scope2')}>
         <Change now={s2} before={prior('scope2T')} />
         <small className="muted">{num(s2 / Math.max(1e-9, total) * 100)}% of total · location-based</small>
         {s2Market < s2 - 0.5 && <small className="muted">Market-based {num(s2Market)} t · {num(green / Math.max(1e-9, sumMWh) * 100)}% green electricity</small>}
       </Kpi>
       <a className="dash-kpi tax-kpi" href="#tax">
-        <span className="dash-kpi-label">Carbon tax {nextTax?.year ?? ''}</span>
+        <span className="dash-kpi-label">Carbon tax {nextTax?.year ?? ''}{nextTax && <SourceTag source="estimate" index={3} />}</span>
         <strong>{nextTax ? ringgit(nextTax.billRM) : '—'}</strong>
         {nextTax && <small className="muted">RM {num(nextTax.rmPerT)}/t · estimate ↓</small>}
       </a>

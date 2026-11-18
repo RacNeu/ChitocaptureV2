@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { markCertified } from '../components/SourceTag'
 import { num, tonnes } from '../format'
 import { CSV_TEMPLATE, evidenceShare, importCsv, importRows, monthLabel, scopesFor, sha256Hex, type ImportResult } from '../model/history'
 import { roleById } from '../model/roles'
@@ -78,7 +79,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
       {result.error && <p className="alert">{result.error}</p>}
       {result.warnings.length > 0 && <ul className="warn-list">{result.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
       {!result.error && <div className="row-actions">
-        <button type="button" className="btn" onClick={() => { const locked = Boolean(state.locks?.length); use(result.records, `Upload of ${result.name}`); setResult(null); if (!locked) onDone() }}>Use these {result.records.length} months</button>
+        <button type="button" className="btn" onClick={() => { const locked = Boolean(state.locks?.length); use(result.records, `Upload of ${result.name}`); setResult(null); if (!locked) { markCertified(); onDone() } }}>Use these {result.records.length} months</button>
         <button type="button" className="btn ghost" onClick={() => setResult(null)}>Cancel</button>
         {result.records.length < 12 && <span className="muted small">Fewer than 12 months: the forecast will be rough.</span>}
       </div>}
