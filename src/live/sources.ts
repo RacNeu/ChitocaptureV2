@@ -1,7 +1,7 @@
 /**
  * Real connection for live data: Supabase (readings stored by the 24/7 ingest function, pushed to
  * the app by Realtime). Settings come from Vite env vars
- * (.env.local / Vercel), and can be overridden per browser on the Live data & alerts page.
+ * (.env.local / Vercel), and can be overridden per browser on Settings → Live data & alerts.
  */
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import type { LiveReading } from './feed'
