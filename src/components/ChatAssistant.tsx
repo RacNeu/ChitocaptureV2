@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import LineIcon from './LineIcon'
 import { askAI, aiStatus, type AiMessage } from '../model/aiClient'
 import { contextForAI, reply, type SuggestedAction } from '../model/assistant'
 import { actions, getCompany, getState, useCompany, useFactory } from '../model/store'
@@ -52,7 +53,7 @@ export default function ChatAssistant() {
 
   return <>
     <button type="button" className={`chat-fab ${open ? 'open' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="chat-panel" title="Ask the ChitoCapture assistant">
-      {open ? '✕' : <><span aria-hidden="true">✦</span><span className="chat-fab-label">Ask AI</span></>}
+      {open ? '✕' : <><span aria-hidden="true"><LineIcon name="chat" /></span><span className="chat-fab-label">Ask AI</span></>}
     </button>
     {open && <section id="chat-panel" className="chat-panel" role="dialog" aria-label="ChitoCapture assistant">
       <header className="chat-head">

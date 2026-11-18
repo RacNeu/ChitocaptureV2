@@ -73,6 +73,8 @@ export type MeltSettings = {
   offPeakSenPerKWh: number
   demandRMPerKW: number
   grade: string
+  /** The plant's usual lining life in heats (from its refractory supplier or past relines), for the reline warning. */
+  liningLifeHeats?: number
 }
 
 /** Starting values (assumptions until the plant enters its own): TNB HV ToU per docs §8; scrap prices indicative. */

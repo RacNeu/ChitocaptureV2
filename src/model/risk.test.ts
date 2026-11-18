@@ -41,7 +41,7 @@ describe('risk register', () => {
     }
     expect(view.risks.find((r) => r.id === 'disclosure')!.likelihood).toBe(5)
   })
-  it('scores risks from data, checklist and climate', () => {
+  it('scores business risks from data and the checklist (no flood or heat guesses)', () => {
     const { tmax, rain } = daily()
     const site = {
       ...base,
@@ -52,15 +52,12 @@ describe('risk register', () => {
     }
     const view = siteRisks(site)
     const byId = Object.fromEntries(view.risks.map((r) => [r.id, r]))
-    for (const id of ['peak', 'tariff', 'flood', 'heat', 'target', 'carbon-years', 'carbon-2030']) {
+    for (const id of ['peak', 'tariff', 'target', 'carbon-years', 'carbon-2030']) {
       expect(byId[id].likelihood, id).toBeGreaterThanOrEqual(1)
       expect(byId[id].impact, id).toBeGreaterThanOrEqual(1)
     }
-    expect(byId.flood.rm).toBeCloseTo(3 * 400_000 * 1.5)
-    // Score: one past flood 2 + flood-prone 2 + near river 2 + wetter trend 1 = 7 → likely.
-    expect(byId.flood.likelihood).toBe(4)
-    expect(byId.flood.basis).toContain('NASA POWER')
-    expect(byId.heat.likelihood).toBeGreaterThanOrEqual(3)
+    expect(byId.flood).toBeUndefined()
+    expect(byId.heat).toBeUndefined()
     expect(view.energyBillRM).toBeGreaterThan(0)
     expect(JSON.stringify(view.risks)).not.toMatch(/NaN|Infinity/)
   })

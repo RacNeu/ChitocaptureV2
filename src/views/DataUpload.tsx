@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { markCertified } from '../components/SourceTag'
 import { num, tonnes } from '../format'
 import { CSV_TEMPLATE, evidenceShare, importCsv, importRows, monthLabel, scopesFor, sha256Hex, type ImportResult } from '../model/history'
 import { roleById } from '../model/roles'
@@ -78,7 +79,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
       {result.error && <p className="alert">{result.error}</p>}
       {result.warnings.length > 0 && <ul className="warn-list">{result.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
       {!result.error && <div className="row-actions">
-        <button type="button" className="btn" onClick={() => { const locked = Boolean(state.locks?.length); use(result.records, `Upload of ${result.name}`); setResult(null); if (!locked) onDone() }}>Use these {result.records.length} months</button>
+        <button type="button" className="btn" onClick={() => { const locked = Boolean(state.locks?.length); use(result.records, `Upload of ${result.name}`); setResult(null); if (!locked) { markCertified(); onDone() } }}>Use these {result.records.length} months</button>
         <button type="button" className="btn ghost" onClick={() => setResult(null)}>Cancel</button>
         {result.records.length < 12 && <span className="muted small">Fewer than 12 months: the forecast will be rough.</span>}
       </div>}
@@ -97,7 +98,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
       {rows.length > 0 && <div className="table-wrap"><table className="grid-table">
         <thead><tr><th>Month</th><th className="num">Electricity MWh</th><th className="num">Fuel GJ</th><th className="num">Process t</th><th className="num">Production t</th>{hasGreen && <th className="num">Green MWh</th>}<th className="num">Scope 1</th><th className="num">Scope 2 location</th>{hasGreen && <th className="num">Scope 2 market</th>}<th className="num">kg CO₂e/t</th>{!result && current.length > 0 && <th>Evidence</th>}</tr></thead>
         <tbody>{rows.slice().reverse().map(({ record, scopes }) => <tr key={record.month}>
-          <td>{monthLabel(record.month)}{isLocked(record.month) && <span title="Signed off: changes are blocked"> 🔒</span>}</td>
+          <td>{monthLabel(record.month)}{isLocked(record.month) && <span title="Signed off: changes are blocked" className="muted"> · signed off</span>}</td>
           <td className="num">{num(record.electricityMWh)}</td>
           <td className="num">{num(Object.values(record.fuelGJ).reduce((sum, value) => sum + (value ?? 0), 0))}</td>
           <td className="num">{num(record.processT)}</td>
@@ -107,7 +108,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
           <td className="num">{tonnes(scopes.scope2T)}</td>
           {hasGreen && <td className="num">{tonnes(scopes.scope2MarketT)}</td>}
           <td className="num">{scopes.intensityKg !== null ? num(scopes.intensityKg) : '—'}</td>
-          {!result && current.length > 0 && <td><button type="button" className="link" onClick={() => setAttachTo(record.month)}>{record.evidence?.length ? `📎 ${record.evidence.length}` : isLocked(record.month) ? 'none' : '+ Attach'}</button></td>}
+          {!result && current.length > 0 && <td><button type="button" className="link" onClick={() => setAttachTo(record.month)}>{record.evidence?.length ? `${record.evidence.length}` : isLocked(record.month) ? 'none' : '+ Attach'}</button></td>}
         </tr>)}</tbody>
       </table></div>}
     </section>
@@ -126,7 +127,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
           <td>{!isLocked(attachRecord.month) && <button type="button" className="link" onClick={() => actions.removeEvidence(attachRecord.month, e.sha256)}>Remove</button>}</td>
         </tr>)}</tbody>
       </table></div> : <p className="muted small">No documents attached yet.</p>}
-      {isLocked(attachRecord.month) ? <p className="muted small">🔒 {attachRecord.month.slice(0, 4)} is signed off; evidence can’t be changed.</p>
+      {isLocked(attachRecord.month) ? <p className="muted small">{attachRecord.month.slice(0, 4)} is signed off; evidence can’t be changed.</p>
         : <div className="row-actions">
           <label className="field">Type<select value={kind} onChange={(event) => setKind(event.target.value as Evidence['kind'])}>
             <option value="electricity">Electricity bill</option><option value="fuel">Fuel invoice</option><option value="production">Production log</option><option value="green">Green electricity certificate</option><option value="other">Other</option>
@@ -147,7 +148,7 @@ export default function DataUpload({ onDone }: { onDone: () => void }) {
           const missing = records.filter((r) => !r.evidence?.length).length
           return <tr key={year}>
             <td>{year}</td><td className="num">{records.length}</td><td className="num">{num(evidenceShare(records) * 100)}%</td>
-            <td>{lock ? `🔒 Signed off ${new Date(lock.at).toLocaleDateString('en-GB')} by ${lock.who}` : 'Open'}</td>
+            <td>{lock ? `Signed off ${new Date(lock.at).toLocaleDateString('en-GB')} by ${lock.who}` : 'Open'}</td>
             <td>{lock
               ? role === 'management' && <button type="button" className="btn ghost small" onClick={() => { const reason = prompt(`Why reopen ${year}? This is recorded in the audit trail.`); if (reason?.trim()) actions.unlockYear(year, reason) }}>Reopen</button>
               : role === 'sustainability' ? <button type="button" className="btn small" onClick={() => { if (confirm(`Sign off ${year}? Its ${records.length} months will be frozen.${missing ? ` ${missing} month(s) have no evidence attached.` : ''}`)) actions.lockYear(year) }}>Sign off</button>

@@ -125,6 +125,8 @@ seed) and never saved, so it can't be mistaken for uploaded data.
 - Sunday 08:00–14:00 maintenance stops, so the next heat on each furnace starts on a cold lining.
 - New lining on IF2 on 12 October.
 - IF3 coil-water flow falls on the last afternoon (flow −140 m³/h over an hour, ΔT climbing). The anomaly detector must catch it.
+- IF1's coil-water ΔT creeps up ~0.5 °C a day over the last 48 hours, like scale building up. The Risks page must forecast it reaching 20 °C in about 4–5 days.
+- Linings at different ages (IF1 349, IF2 198 after its reline, IF3 377, IF4 401 heats). The Risks page uses a **demo setting** of 450 heats as the usual lining life; a real plant enters its own.
 - A few heats over the copper / carbon / CEV limits. The chemistry check must flag them.
 
 ### 1.5 Live data & alerts feed (Settings → Live data & alerts, HMI Live mode)

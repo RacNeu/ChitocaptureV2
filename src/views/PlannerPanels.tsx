@@ -1,3 +1,4 @@
+import LineIcon from '../components/LineIcon'
 import { useState } from 'react'
 import { num, ringgit, tonnes } from '../format'
 import Info from '../components/Info'
@@ -20,8 +21,8 @@ export function PlannerSide({ scenarios, active, impact, armed, onArm, onSelectS
           {scenarios.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select></label>
       <button type="button" className="btn small" onClick={onNew}>+ New</button>
-      {active && <button type="button" className="icon-btn" title="Rename" aria-label="Rename scenario" onClick={() => { const name = prompt('Scenario name', active.name); if (name?.trim()) onRename(name.trim()) }}>✎</button>}
-      {active && <button type="button" className="icon-btn" title="Delete" aria-label="Delete scenario" onClick={() => { if (confirm(`Delete “${active.name}”?`)) onDelete() }}>🗑</button>}
+      {active && <button type="button" className="icon-btn" title="Rename" aria-label="Rename scenario" onClick={() => { const name = prompt('Scenario name', active.name); if (name?.trim()) onRename(name.trim()) }}><LineIcon name="pencil" /></button>}
+      {active && <button type="button" className="icon-btn" title="Delete" aria-label="Delete scenario" onClick={() => { if (confirm(`Delete “${active.name}”?`)) onDelete() }}><LineIcon name="trash" /></button>}
     </div>
 
     <h3>Add to the site <Info>Drag onto a green plot, or click one here and then click a plot. Figures are design estimates (typical engineering values), shown on each item.</Info></h3>

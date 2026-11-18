@@ -4,7 +4,6 @@ import { gridHint, LocationFields } from '../components/Malaysia'
 import { actions, defaultSettings, getState, machinesFromTemplate, newId, productionFor } from '../model/store'
 import { industryTemplates } from '../model/templates'
 import type { FuelType, Machine, MachineKind, Settings } from '../model/types'
-import { kindIcon } from '../format'
 
 const kinds: MachineKind[] = ['kiln', 'boiler', 'furnace', 'mill', 'fan', 'pump', 'compressor', 'chiller', 'production-line', 'genset', 'wastewater', 'cold-room', 'office']
 const fuels = Object.keys(fuelLabels) as FuelType[]
@@ -93,7 +92,7 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
         <thead><tr><th>Machine</th><th>Type</th><th>Electricity MWh/yr</th><th>Fuel</th><th>Fuel GJ/yr</th><th>Process t CO₂e/yr</th><th>Metered?</th><th /></tr></thead>
         <tbody>{machines.map((machine) => <tr key={machine.id}>
           <td><input aria-label="Machine name" value={machine.name} onChange={(event) => edit(machine.id, { name: event.target.value })} /></td>
-          <td><select aria-label="Machine type" value={machine.kind} onChange={(event) => edit(machine.id, { kind: event.target.value as MachineKind })}>{kinds.map((kind) => <option key={kind} value={kind}>{kindIcon[kind]} {kind.replace('-', ' ')}</option>)}</select></td>
+          <td><select aria-label="Machine type" value={machine.kind} onChange={(event) => edit(machine.id, { kind: event.target.value as MachineKind })}>{kinds.map((kind) => <option key={kind} value={kind}>{kind.replace('-', ' ')}</option>)}</select></td>
           <td><input aria-label="Electricity" type="number" min="0" value={machine.electricityMWh} onChange={(event) => edit(machine.id, { electricityMWh: Number(event.target.value) })} /></td>
           <td><select aria-label="Fuel" value={machine.fuel} onChange={(event) => edit(machine.id, { fuel: event.target.value as FuelType })}>{fuels.map((fuel) => <option key={fuel} value={fuel}>{fuelLabels[fuel]}</option>)}</select></td>
           <td><input aria-label="Fuel energy" type="number" min="0" value={machine.fuelGJ} disabled={machine.fuel === 'none'} onChange={(event) => edit(machine.id, { fuelGJ: Number(event.target.value) })} /></td>

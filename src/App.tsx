@@ -38,9 +38,9 @@ export type { View }
 type MenuItem = { id: View; label: string; icon: ReactNode; match: View[] }
 /** The company comes first; the open site's pages follow, in the order of the story. */
 const companyMenu: MenuItem[] = [
-  { id: 'company', label: 'Company overview', icon: '🏢', match: ['company', 'add-company'] },
-  { id: 'twin', label: 'Site 3D', icon: '◭', match: ['twin'] },
-  { id: 'simulate', label: '3D simulation', icon: '🎛', match: ['simulate'] },
+  { id: 'company', label: 'Company overview', icon: <LineIcon name="building" />, match: ['company', 'add-company'] },
+  { id: 'twin', label: 'Site 3D', icon: <LineIcon name="cube" />, match: ['twin'] },
+  { id: 'simulate', label: '3D simulation', icon: <LineIcon name="sliders" />, match: ['simulate'] },
 ]
 const siteMenu: MenuItem[] = [
   { id: 'home', label: 'Site overview', icon: <LineIcon name="home" />, match: ['home'] },
@@ -50,11 +50,11 @@ const siteMenu: MenuItem[] = [
   { id: 'risks', label: 'Risks', icon: <LineIcon name="risk" />, match: ['risks'] },
 ]
 const reportMenu: MenuItem[] = [
-  { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
+  { id: 'reports', label: 'Reports', icon: <LineIcon name="file" />, match: ['reports', 'sources'] },
   { id: 'sensors', label: 'Sensors', icon: <LineIcon name="sensor" />, match: ['sensors'] },
 ]
 const setupMenu: MenuItem[] = [
-  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings', 'live'] },
+  { id: 'settings', label: 'Settings', icon: <LineIcon name="gear" />, match: ['settings', 'live'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
 const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'simulate', 'analysis', 'settings', 'sensors', 'live']
@@ -128,7 +128,6 @@ export default function App() {
   return <div className="app shell">
     <aside className="sidebar" aria-label="Main menu">
       <div className="brand"><BrandLogo size={32} className="brand-mark-logo" /><span className="brand-word">ChitoCapture</span></div>
-      <p className="brand-tag">Find the money your plant wastes. Cut carbon on the way.</p>
       <nav className="side-nav" aria-label="Company">
         {companyMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
@@ -143,13 +142,13 @@ export default function App() {
         {setupMenu.map((item) => <MenuButton key={item.id} item={item} view={view} go={go} />)}
       </nav>
       <button type="button" className="account-btn side-account" onClick={() => { if (confirm(`Sign out of ${session.accountId}?`)) { setTouring(false); signOut() } }} title={`Signed in as ${session.accountId}. Click to sign out.`}>
-        <span className="account-id">{session.accountId}</span><span aria-hidden="true">⎋</span><span className="sr-only">Sign out</span>
+        <span className="account-id">{session.accountId}</span><LineIcon name="logout" /><span className="sr-only">Sign out</span>
       </button>
     </aside>
     <div className="main-col">
     <header className="topbar">
       <button type="button" className="topbar-company" onClick={() => go('company')} title="Company overview">
-        <span aria-hidden="true">🏢</span><b>{company.name}</b>
+        <b>{company.name}</b>
       </button>
       <span className="topbar-sep" aria-hidden="true">›</span>
       <label className="site-pick" title="Choose a site">
@@ -165,11 +164,11 @@ export default function App() {
         </select>
       </label>
       <span className="topbar-spacer" />
-      {canTour && <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">▶ Tour</button>}
+      {canTour && <button type="button" className="tour-btn" onClick={() => setTouring(true)} title="A 2-minute guided tour">Tour</button>}
       <label className="role-switch" title="View the app as a different team">
         <span className="role-label">View as</span>
         <select value={role} onChange={(event) => actions.setRole(event.target.value as typeof role)}>
-          {roles.map((item) => <option key={item.id} value={item.id}>{item.icon} {item.label}</option>)}
+          {roles.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </label>
       <button type="button" className={`live-pill ${sensor.status}`} onClick={() => go('sensors')} title="Sensor status">
@@ -181,7 +180,7 @@ export default function App() {
         const section = sections.find((item) => item.views.includes(view))
         return section && <div className="section-head">
           <div className="section-tabs" role="tablist">{section.tabs.map((tab) => <button key={tab.id} type="button" role="tab" aria-selected={view === tab.id} className={view === tab.id ? 'active' : ''} onClick={() => go(tab.id)}>{tab.label}</button>)}</div>
-          <span className="flow-line">↳ {section.flow[view]}</span>
+          <span className="flow-line">{section.flow[view]}</span>
         </div>
       })()}
       {(['twin', 'simulate', 'plan'] as View[]).includes(view) && <SourceBadge onUpload={() => go('data')} />}

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useRef, useState } from 'react'
-import { kindIcon, num, ringgit, tonnes } from '../format'
+import { num, ringgit, tonnes } from '../format'
+import LineIcon, { kindLine } from '../components/LineIcon'
 import FullscreenButton from '../components/FullscreenButton'
 import Info from '../components/Info'
 import type { ColorBy } from '../components/IsoSite3D'
@@ -18,7 +19,7 @@ const IsoSite3D = lazy(() => import('../components/IsoSite3D'))
 
 type Sort = 'co2' | 'cost' | 'risk'
 const riskScore = (r: BuildingRow) => r.flags.reduce((s, f) => s + (f.level === 'bad' ? 10 : 3), 0)
-const flagIcon: Record<string, string> = { target: '▲', peak: '⚡', flood: '💧', fuel: '🔥' }
+const flagIcon: Record<string, string> = { target: 'chart', peak: 'bolt', flood: 'drop', fuel: 'furnace' }
 
 export default function Site3D({ go }: { go: (view: View) => void }) {
   const state = useFactory()
@@ -75,8 +76,8 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
       </div>
       <div className="s3-controls">
         <div className="seg mode" role="radiogroup" aria-label="Mode">
-          <button type="button" role="radio" aria-checked={!planMode} className={!planMode ? 'on' : ''} onClick={() => { setMode('view'); setArmed(null) }}>👁 View</button>
-          <button type="button" role="radio" aria-checked={planMode} className={planMode ? 'on' : ''} onClick={() => setMode('plan')}>✎ Plan</button>
+          <button type="button" role="radio" aria-checked={!planMode} className={!planMode ? 'on' : ''} onClick={() => { setMode('view'); setArmed(null) }}>View</button>
+          <button type="button" role="radio" aria-checked={planMode} className={planMode ? 'on' : ''} onClick={() => setMode('plan')}>Plan</button>
         </div>
         {!planMode && <div className="seg" role="radiogroup" aria-label="Show">
           <button type="button" role="radio" aria-checked={!withPlan} className={!withPlan ? 'on' : ''} onClick={() => setWithPlan(false)}>Today</button>
@@ -106,11 +107,11 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
           return <li key={r.machine.id}>
             <button type="button" className={`s3-row${active ? ' active' : ''}${r.machine.id === hoverId ? ' hover' : ''}`}
               onMouseEnter={() => setHoverId(r.machine.id)} onMouseLeave={() => setHoverId(null)} onClick={() => setSelectedId(active ? null : r.machine.id)}>
-              <span className="s3-icon" aria-hidden="true">{kindIcon[r.machine.kind] ?? '🏭'}</span>
+              <span className="s3-icon" aria-hidden="true"><LineIcon name={kindLine[r.machine.kind] ?? 'building'} /></span>
               <span className="s3-name"><b>{r.machine.name}</b><small>{r.machine.area ?? ''}</small>
                 <span className="s3-bar"><i style={{ width: `${v / maxValue * 100}%` }} /></span></span>
               <span className="s3-val"><b>{value(r)}</b>
-                <small>{r.flags.map((f) => <span key={f.id} className={`s3-flag ${f.level}`} title={f.label}>{flagIcon[f.id]}</span>)}{r.planned.length > 0 && <span className="s3-flag plan" title={`${r.planned.length} in plan`}>✓{r.planned.length}</span>}</small></span>
+                <small>{r.flags.map((f) => <span key={f.id} className={`s3-flag ${f.level}`} title={f.label}><LineIcon name={flagIcon[f.id]} size={12} /></span>)}{r.planned.length > 0 && <span className="s3-flag plan" title={`${r.planned.length} in plan`}>✓{r.planned.length}</span>}</small></span>
             </button>
           </li>
         })}</ul></>}
@@ -132,7 +133,7 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
       <aside className="s3-panel" aria-live="polite">
         {planMode ? (sel ? <>
           <header className="s3-panel-head">
-            <span className="s3-icon big" aria-hidden="true">{kindIcon[sel.machine.kind] ?? '🏭'}</span>
+            <span className="s3-icon big" aria-hidden="true"><LineIcon name={kindLine[sel.machine.kind] ?? 'building'} size={20} /></span>
             <div><h2>{sel.machine.name}</h2><small className="muted">{tonnes(sel.totalT)}/yr · {ringgit(sel.costRM)}/yr</small></div>
             <button type="button" className="icon-btn" aria-label="Back to scenario" onClick={() => setSelectedId(null)}>✕</button>
           </header>
@@ -147,7 +148,7 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
           </div>
         </div> : <>
           <header className="s3-panel-head">
-            <span className="s3-icon big" aria-hidden="true">{kindIcon[sel.machine.kind] ?? '🏭'}</span>
+            <span className="s3-icon big" aria-hidden="true"><LineIcon name={kindLine[sel.machine.kind] ?? 'building'} size={20} /></span>
             <div><h2>{sel.machine.name}</h2><small className="muted">{sel.machine.area ?? 'Site'} · {sel.machine.quality === 'metered' ? 'metered' : state.monthly?.length ? 'matched to bills' : 'template figures'}</small></div>
             <button type="button" className="icon-btn" aria-label="Close" onClick={() => setSelectedId(null)}>✕</button>
           </header>
@@ -173,7 +174,7 @@ export default function Site3D({ go }: { go: (view: View) => void }) {
           </li>)}</ul> : sel.planned.length === 0 && <p className="muted small">No upgrades in the library for this equipment.</p>}
           <div className="row-actions">
             <button type="button" className="btn ghost small" onClick={() => go('plan')}>Open plan →</button>
-            {sel.machine.unitId && <button type="button" className="btn ghost small" onClick={() => openLiveView(sel.machine.unitId!)}>🔥 Live view</button>}
+            {sel.machine.unitId && <button type="button" className="btn ghost small" onClick={() => openLiveView(sel.machine.unitId!)}>Live view</button>}
           </div>
         </>}
       </aside>

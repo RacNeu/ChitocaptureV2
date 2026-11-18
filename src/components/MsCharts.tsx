@@ -1,6 +1,11 @@
 /** Small SVG charts for the dark melt-shop pages: sparkline KPI cards, trend with target, donut, ring, bars. */
 import { useId, type ReactNode } from 'react'
+import SourceTag from './SourceTag'
 import { num } from '../format'
+import LineIcon from './LineIcon'
+
+/** Older call sites pass emoji; they draw as the matching line icon. */
+const iconFor: Record<string, string> = { '💰': 'coin', '☁': 'cloud', '🍃': 'leaf', '🎯': 'target', '⚡': 'bolt', '🏭': 'building', '🔥': 'furnace' }
 
 const extent = (v: number[]) => { const lo = Math.min(...v), hi = Math.max(...v); return hi - lo < 1e-9 ? [lo - 1, hi + 1] : [lo, hi] }
 
@@ -17,13 +22,13 @@ export function Sparkline({ values, color = 'var(--sky)', height = 34 }: { value
   </svg>
 }
 
-/** KPI card like the reference: icon, label, big value, change vs comparison, sparkline. */
-export function Kpi({ icon, label, value, unit, delta, good, spark, color, info }: { icon: string; label: string; value: string; unit?: string; delta?: string; good?: boolean; spark?: number[]; color?: string; info?: ReactNode }) {
+/** KPI card: icon, label, the figure with its unit, change vs comparison, sparkline. `source` is the provenance tag every figure carries. */
+export function Kpi({ icon, label, value, unit, delta, good, spark, color, info, source, index = 0 }: { icon?: string; label: string; value: string; unit?: string; delta?: string; good?: boolean; spark?: number[]; color?: string; info?: ReactNode; source?: string; index?: number }) {
   return <div className="ms-kpi">
-    <span className="ms-kpi-icon" aria-hidden="true" style={color ? { color, background: `color-mix(in srgb, ${color} 16%, transparent)` } : undefined}>{icon}</span>
+    {icon && <span className="ms-kpi-icon" aria-hidden="true" style={color ? { color, background: `color-mix(in srgb, ${color} 16%, transparent)` } : undefined}><LineIcon name={iconFor[icon] ?? icon} size={18} /></span>}
     <div className="ms-kpi-body">
-      <span className="ms-kpi-label">{label}{info}</span>
-      <b className="ms-kpi-value">{value}{unit && <small> {unit}</small>}</b>
+      <span className="ms-kpi-label">{label}{info}{source && <SourceTag source={source} index={index} />}</span>
+      <b className={`ms-kpi-value${/\d/.test(value) ? '' : ' word'}`}>{value}{unit && <small> {unit}</small>}</b>
       {delta && <span className={`ms-kpi-delta ${good === undefined ? '' : good ? 'good' : 'bad'}`}>{delta}</span>}
     </div>
     {spark && <Sparkline values={spark} color={color} />}
