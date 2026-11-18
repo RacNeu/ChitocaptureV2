@@ -198,6 +198,16 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
             <Cell label="Active Energy" value={`${num(vm.energyKwh)} kWh`} /><Cell label="Reactive Energy" value={`${num(vm.energyKwh * Math.tan(Math.acos(pr.cos)))} kVArh`} /><Cell label="Specific Energy" value={`${num(vm.energyKwh / Math.max(1, vm.scheduledT))} kWh/t`} />
           </div>
         </Box>
+        <Box title="Charge & Chemistry Monitoring">
+          <div className="h3-mix">{scrapTypes.filter((x) => x.id !== 'dri' || sp.mix.dri > 0).map((x) => <div key={x.id} className="h3-mixcol">
+            <div className="h3-bar-track small">{[0, 25, 50, 75, 100].map((g) => <i key={g} style={{ bottom: `${g}%` }} />)}<b style={{ height: `${Math.min(100, sp.mix[x.id] / 60 * 100)}%`, background: '#1e40ff' }} /></div>
+            <input type="range" min={0} max={60} step={0.5} value={sp.mix[x.id]} disabled={!editable || x.id === 'hms'} onChange={(e) => setMix(x.id, Number(e.target.value))} aria-label={x.label} className="h3-vslider" />
+            <b>{num(sp.mix[x.id], 1)}%</b><span className="h3-green">{x.short}</span>
+          </div>)}</div>
+          <Cell label="Predicted Cu" value={predCu !== null ? `${num(predCu, 3)} %` : '—'} tone={predCu !== null && predCu > 0.68 ? 'red' : undefined} unit="limit 0.80" />
+          <Cell label="Metal yield" value={`${num(yieldFor(sp.mix) * 100, 1)} %`} />
+          {Math.abs(mixSum - 100) > 0.5 && <p className="h3-note">Mix adds to {num(mixSum, 1)}%.</p>}
+        </Box>
       </div>
 
       <div className="h3-centre">
@@ -226,6 +236,10 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
             <Cell label="kWh/t (heat)" value={mode === 'sim' ? num(kwhPerT) : '—'} tone={mode === 'sim' && kwhPerT > 580 ? 'red' : undefined} />
           </Box>
         </div>
+        {mode === 'sim' && <Box title="Heat Monitoring">
+          <TrendChart x={trendPts.map((p) => dur(p.min))} series={[{ label: 'MW', values: trendPts.map((p) => p.powerKW / 1_000), color: '#facc15' }, { label: '°C ÷ 50', values: trendPts.map((p) => p.phase === 'charging' && sp.heelT === 0 ? null : p.bathC / 50), color: '#f87171' }]} bands={[{ from: Math.max(0, cursor - 0.5), to: cursor + 0.5 }]} height={170} width={640} />
+          <div className="h3-legend"><span className="y">Power MW</span><span className="r">Bath °C ÷ 50</span></div>
+        </Box>}
       </div>
 
       <div className="h3-right">
@@ -249,24 +263,12 @@ export default function MeltHmi({ melt }: { melt: Melt }) {
           <Num label="Water inlet" value={sp.waterInC} min={20} max={45} step={0.5} unit="°C" on={editable} onChange={(v) => set({ waterInC: v })} digits={1} />
           <Cell label="Heat to coil water" value={vm.water ? `${num(vm.water.heatKW / 1_000, 2)} MW` : '—'} unit={vm.water && vm.powerKW > 1_000 ? `${num(vm.water.heatKW / vm.powerKW * 100)}% of power` : undefined} />
         </Box>
-        <Box title="Charge & Chemistry Monitoring">
-          <div className="h3-mix">{scrapTypes.filter((x) => x.id !== 'dri' || sp.mix.dri > 0).map((x) => <div key={x.id} className="h3-mixcol">
-            <div className="h3-bar-track small">{[0, 25, 50, 75, 100].map((g) => <i key={g} style={{ bottom: `${g}%` }} />)}<b style={{ height: `${Math.min(100, sp.mix[x.id] / 60 * 100)}%`, background: '#1e40ff' }} /></div>
-            <input type="range" min={0} max={60} step={0.5} value={sp.mix[x.id]} disabled={!editable || x.id === 'hms'} onChange={(e) => setMix(x.id, Number(e.target.value))} aria-label={x.label} className="h3-vslider" />
-            <b>{num(sp.mix[x.id], 1)}%</b><span className="h3-green">{x.short}</span>
-          </div>)}</div>
-          <Cell label="Predicted Cu" value={predCu !== null ? `${num(predCu, 3)} %` : '—'} tone={predCu !== null && predCu > 0.68 ? 'red' : undefined} unit="limit 0.80" />
-          <Cell label="Metal yield" value={`${num(yieldFor(sp.mix) * 100, 1)} %`} />
+        <Box title="Process Set Points">
           <Num label="Tap aim" value={sp.tapAimC} min={1_560} max={1_700} step={5} unit="°C" on={editable} onChange={(v) => set({ tapAimC: v })} />
           <Num label="Holding" value={sp.holdMin} min={0} max={60} step={1} unit="min" on={editable} onChange={(v) => set({ holdMin: v })} />
           <Num label="Lid open (extra)" value={sp.lidOpenMin} min={0} max={30} step={1} unit="min" on={editable} onChange={(v) => set({ lidOpenMin: v })} />
           <label className={`h3-check ${editable ? '' : 'off'}`}><input type="checkbox" checked={sp.coldLining} disabled={!editable} onChange={(e) => set({ coldLining: e.target.checked })} />Cold lining (first heat)</label>
-          {Math.abs(mixSum - 100) > 0.5 && <p className="h3-note">Mix adds to {num(mixSum, 1)}%.</p>}
         </Box>
-        {mode === 'sim' && <Box title="Heat Monitoring">
-          <TrendChart x={trendPts.map((p) => dur(p.min))} series={[{ label: 'MW', values: trendPts.map((p) => p.powerKW / 1_000), color: '#facc15' }, { label: '°C ÷ 50', values: trendPts.map((p) => p.phase === 'charging' && sp.heelT === 0 ? null : p.bathC / 50), color: '#f87171' }]} bands={[{ from: Math.max(0, cursor - 0.5), to: cursor + 0.5 }]} height={150} width={330} />
-          <div className="h3-legend"><span className="y">Power MW</span><span className="r">Bath °C ÷ 50</span></div>
-        </Box>}
       </div>
     </div>}
 
