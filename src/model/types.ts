@@ -71,8 +71,8 @@ export type Settings = {
   assumptions?: { idleAvoidablePct?: number; peakHoursMovable?: number; baseCutPct?: number }
   /** Carbon tax calculator inputs; defaults apply when absent. */
   carbonTax?: import('./carbonTax').TaxInputs
-  /** EAF prices and carbon contents for Optimise; defaults (assumptions) apply when absent. */
-  eaf?: Partial<import('./heats').EafSettings>
+  /** Melt shop prices and targets; defaults (assumptions) apply when absent. */
+  melt?: Partial<import('./meltshop').MeltSettings>
 }
 
 /** A measure applied to a machine, with its start year. */
@@ -119,8 +119,10 @@ export type FactoryState = {
   calibration?: import('./calibration').Calibration
   /** Half-hourly electricity demand (the meter's load profile). */
   interval?: IntervalSeries
-  /** Per-heat records exported from the EAF's HMI / level-2 system. */
-  heats?: import('./heats').HeatRecord[]
+  /** Melt shop uploads: induction furnace heats, spectrometer results and live readings. */
+  meltshop?: Omit<import('./meltshop').MeltShop, 'demo'>
+  /** Show the illustrative demo melt shop (never mixed with uploads). */
+  meltshopDemo?: boolean
   /** 30 years of NASA POWER climate data for the site's location. */
   climate?: import('./climate').ClimateSummary
   /** What the team has done with each finding, by finding key. */
@@ -162,7 +164,7 @@ export type MonthlyRecord = {
   electricityMWh: number
   /** Fuel burnt on site in GJ, by fuel. */
   fuelGJ: Partial<Record<Exclude<FuelType, 'none'>, number>>
-  /** Non-energy (process) CO₂e in tonnes, e.g. EAF electrodes and charge carbon. */
+  /** Non-energy (process) CO₂e in tonnes, e.g. furnace electrodes and carbon added to the steel. */
   processT: number
   /** Product made that month, in tonnes. */
   productionT: number

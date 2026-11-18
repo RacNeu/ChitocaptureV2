@@ -138,16 +138,16 @@ export const measures: readonly Measure[] = [
 
   /* ---------- Steel mini-mill process measures (indicative planning assumptions) ---------- */
   {
-    id: 'scrap-preheat', name: 'Scrap preheating with furnace off-gas', short: 'Scrap preheat', category: 'Heat recovery', appliesTo: ['furnace'], steelOnly: true,
-    explain: 'Pass the hot furnace off-gas through the scrap before it is charged, so the arc has less heating to do.',
-    checks: ['Check off-gas temperature and dust load', 'Confirm space for a preheating shaft or conveyor', 'Review dioxin control for preheated scrap'],
-    basis: '8% of the arc furnace’s electricity; capex RM 30m', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.08, capexRM: 30_000_000, lifetimeYears: 20 } : null,
+    id: 'if-practice', name: 'Induction melting best practice', short: 'IF practice', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Cut holding time, keep the lid closed, tap at the target temperature, gas-preheat cold linings and charge full, dense heats. The Melt shop page shows which of these your heats lose most on.',
+    checks: ['Compare kWh/t of your best and worst quarter of heats (Melt shop › Energy)', 'Log holding and lid-open minutes per heat', 'Trial lining preheat before the first heat of the week'],
+    basis: '6% of the induction furnaces’ electricity (Missouri S&T/DOE trial: 5–10% on hot linings, 15% on first heats); capex RM 0.8m', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.06, capexRM: 800_000, lifetimeYears: 10 } : null,
   },
   {
-    id: 'eaf-optimisation', name: 'Arc furnace power & foamy-slag optimisation', short: 'EAF optimise', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
-    explain: 'Tune the electrical power programme and keep a foamy slag over the arc, so more energy goes into the steel and less into the furnace walls.',
-    checks: ['Analyse kWh/t per heat against scrap mix', 'Trial carbon and oxygen injection rates', 'Check electrode consumption'],
-    basis: '6% of the arc furnace’s electricity; capex RM 6m', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.06, capexRM: 6_000_000, lifetimeYears: 10 } : null,
+    id: 'igbt-supply', name: 'IGBT induction power supplies', short: 'IGBT', category: 'Efficiency', appliesTo: ['furnace'], steelOnly: true,
+    explain: 'Replace thyristor (SCR) converters with IGBT units that keep full power and a power factor near 1 through the whole melt.',
+    checks: ['Get supplier quotes for the converter and coil match', 'Measure today’s power factor and kW through a heat', 'Check the transformer and harmonic limits'],
+    basis: '5% of the induction furnaces’ electricity (vendors claim 5–25%; conservative end); capex RM 12m design estimate', estimate: (machine) => machine.electricityMWh > 0 ? { ...none, electricitySavedMWh: machine.electricityMWh * 0.05, capexRM: 12_000_000, lifetimeYears: 20 } : null,
   },
   {
     id: 'green-ppa', name: 'Renewable electricity supply (green tariff or PPA)', short: 'Green power', category: 'Renewables', appliesTo: ['furnace', 'mill', 'production-line'], steelOnly: true,
@@ -271,12 +271,11 @@ export const measureById = (id: string) => measures.find((measure) => measure.id
  * control-room unit) only get these; other machines get the generic measures for their kind.
  */
 export const steelUnitMeasures: Record<string, readonly string[]> = {
-  eaf: ['eaf-optimisation', 'scrap-preheat', 'green-ppa'],
+  melt: ['if-practice', 'igbt-supply', 'green-ppa'],
   lf: ['lf-control'],
   caster: ['line-idle'],
   reheat: ['hot-charging', 'regen-burners', 'combustion', 'insulation'],
   rolling: ['mill-drives', 'green-ppa'],
   fume: ['vsd'],
   utilities: ['air-leaks', 'vsd'],
-  oxygen: ['oxygen-turndown'],
 }

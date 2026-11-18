@@ -36,7 +36,7 @@ export const assets: Record<AssetId, AssetSpec> = {
   solar: { name: 'Solar PV farm', icon: '☀️', kind: 'solar', unit: 'MWp', min: 1, max: 30, step: 1, size: 5, lifetime: 25, note: '1,300 MWh per MWp a year (Malaysian average); RM 3.0m per MWp; O&M 1% of capex a year.' },
   battery: { name: 'Battery storage', icon: '🔋', kind: 'battery', unit: 'MW (2 h)', min: 1, max: 30, step: 1, size: 5, lifetime: 12, note: 'Cuts maximum demand by its MW; 2-hour battery at RM 1.6m per MWh; 300 cycles a year with 10% losses.' },
   'rolling-line': { name: 'New rolling line', icon: '⚙️', kind: 'mill', unit: 'kt/yr', min: 50, max: 800, step: 50, size: 200, lifetime: 30, note: '110 kWh/t electricity and 1.3 GJ/t gas reheating per tonne rolled; RM 600 per t/yr of capacity.' },
-  'melt-shop': { name: 'New EAF melt shop', icon: '🔥', kind: 'furnace', unit: 'kt/yr', min: 100, max: 1500, step: 50, size: 500, lifetime: 30, note: '420 kWh/t electricity and 60 kg/t direct CO₂ (electrodes, carbon) per tonne melted; RM 1,200 per t/yr of capacity.' },
+  'melt-shop': { name: 'New induction melt shop', icon: '🔥', kind: 'furnace', unit: 'kt/yr', min: 100, max: 1500, step: 50, size: 500, lifetime: 30, note: '560 kWh/t (520 induction + 40 ladle furnace) and 22 kg/t direct CO₂ (LF electrodes, alloy carbon, ladle preheat) per tonne melted; RM 1,200 per t/yr of capacity.' },
 }
 
 /** A new asset as a machine, so the 3D site and the totals can include it. */
@@ -46,7 +46,7 @@ export function assetMachine(change: Extract<Change, { type: 'add' }>): Machine 
   if (change.assetId === 'solar') return { ...base, electricityMWh: -change.size * 1_300 }
   if (change.assetId === 'battery') return { ...base, electricityMWh: change.size * 2 * 300 * 0.1 }
   if (change.assetId === 'rolling-line') return { ...base, electricityMWh: change.size * 1_000 * 0.11, fuel: 'natural-gas', fuelGJ: change.size * 1_000 * 1.3 }
-  return { ...base, electricityMWh: change.size * 1_000 * 0.42, processT: change.size * 1_000 * 0.06 }
+  return { ...base, electricityMWh: change.size * 1_000 * 0.56, processT: change.size * 1_000 * 0.022 }
 }
 
 /* ---------------- Impact ---------------- */

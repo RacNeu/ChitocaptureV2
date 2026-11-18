@@ -139,7 +139,7 @@ describe('energy performance and process areas', () => {
     const steel = freshState('steel')
     expect(steel.settings.productionTPerYear).toBeGreaterThan(0)
     expect(steel.machines.every((machine) => machine.role && machine.area)).toBe(true)
-    expect(steel.machines.filter((machine) => machine.unitId).length).toBe(8)
+    expect(steel.machines.filter((machine) => machine.unitId).length).toBe(7)
   })
 })
 
@@ -147,11 +147,10 @@ describe('steel-specific measures', () => {
   it('offers process measures on steel units and no generic mismatches', () => {
     const steel = freshState('steel')
     const byName = (name: string) => optionsFor(steel.machines.find((machine) => machine.name === name)!, steel).map((option) => option.measureId)
-    expect(byName('Electric arc furnace')).toEqual(expect.arrayContaining(['eaf-optimisation', 'scrap-preheat']))
+    expect(byName('Induction furnaces (4 × 60 t)')).toEqual(expect.arrayContaining(['if-practice', 'igbt-supply']))
     expect(byName('Reheating furnace')).toEqual(expect.arrayContaining(['hot-charging', 'regen-burners']))
     expect(byName('Rolling mill')).not.toContain('grinding')
-    expect(byName('Oxygen plant')).not.toContain('air-leaks')
-    expect(byName('Oxygen plant')).toContain('oxygen-turndown')
+    expect(byName('Cooling water & compressed air')).toContain('air-leaks')
     // Non-steel sites keep the generic library and never see steel-only measures.
     const office = freshState('office')
     expect(office.machines.flatMap((machine) => optionsFor(machine, office).map((option) => option.measureId))).not.toContain('hot-charging')

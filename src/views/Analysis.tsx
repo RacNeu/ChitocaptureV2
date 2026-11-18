@@ -9,7 +9,7 @@ type StackItem = { machine: Machine; segments: StackSegment[]; total: number; be
 const zoneColours = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#0f766e']
 import { kindIcon, num, ringgit, tonnes } from '../format'
 import { areaSummary, contextFor, machineEmissions, performance, summarise } from '../model/calc'
-import { openInControlRoom } from '../model/focus'
+import { openLiveView } from '../model/focus'
 import { performanceLabel } from '../components/PerformanceBlock'
 import { fuelLabels } from '../model/factors'
 import { useFactory } from '../model/store'
@@ -101,7 +101,7 @@ export default function Analysis() {
           return
         }
         const machine = state.machines.find((item) => item.id === id)
-        if (machine?.unitId) openInControlRoom(machine.unitId)
+        if (machine?.unitId) openLiveView(machine.unitId)
       }
       return <section className="card map-card">
         <div className="map-head">

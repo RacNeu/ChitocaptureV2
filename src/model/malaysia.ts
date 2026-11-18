@@ -140,8 +140,9 @@ export function programmesFor(state: FactoryState): Programme[] {
 }
 
 /**
- * Published Scope 1+2 intensities from a Malaysian scrap-EAF steelmaker, used to cross-check the
- * sample mill. Masteel (Malaysia Steel Works (KL) Bhd) reports separately for its steelmaking plant
+ * Published Scope 1+2 intensities from a Malaysian scrap-based steelmaker, used to cross-check the
+ * sample mill. Masteel melts scrap in induction furnaces with a ladle furnace (fully induction since
+ * 2021, per its sustainability page): the same route as our sample mill. Masteel (Malaysia Steel Works (KL) Bhd) reports separately for its steelmaking plant
  * and its rolling mill. Its rolling mill uses direct casting and direct rolling, so it burns no
  * reheating gas; our sample mill uses a conventional gas reheating furnace.
  */
@@ -158,8 +159,8 @@ export type CrossCheck = { label: string; ours: number; theirs: number; theirsLa
 /** Split our sample mill into the same two parts Masteel reports, and compare. */
 export function steelCrossCheck(p: SteelParams = defaultSteelParams): CrossCheck[] {
   const i = intensity(p, noUpgrades)
-  const meltKWh = i.kwh.eaf + i.kwh.lf + i.kwh.caster + i.kwh.fume + i.kwh.utilities + i.kwh.oxygen
-  const steelmaking = (meltKWh * p.gridKgPerKWh + i.eafDirectKgPerT) / 1_000
+  const meltKWh = i.kwh.melt + i.kwh.lf + i.kwh.caster + i.kwh.fume + i.kwh.utilities
+  const steelmaking = (meltKWh * p.gridKgPerKWh + i.meltDirectKgPerT) / 1_000
   const rollingElectric = i.kwh.rolling * p.gridKgPerKWh / 1_000
   const total = i.totalKgPerT / 1_000
   const [fy24, fy25] = masteelBenchmark
@@ -169,10 +170,10 @@ export function steelCrossCheck(p: SteelParams = defaultSteelParams): CrossCheck
   const avgBoth = avgMelt + avgRoll
   const noGas = steelmaking + rollingElectric
   return [
-    { label: 'Steelmaking plant (arc furnace to caster)', ours: steelmaking, theirs: avgMelt, theirsLabel: `Masteel ${fy25.steelmakingT}–${fy24.steelmakingT}`, diffPct: pct(steelmaking, avgMelt), comparable: true, note: 'Same route (scrap EAF), same grid (Peninsular), same scopes. The closest like-for-like check.' },
+    { label: 'Steelmaking plant (induction furnaces to caster)', ours: steelmaking, theirs: avgMelt, theirsLabel: `Masteel ${fy25.steelmakingT}–${fy24.steelmakingT}`, diffPct: pct(steelmaking, avgMelt), comparable: true, note: 'Same route (induction + ladle furnace), same grid (Peninsular), same scopes. The closest like-for-like check.' },
     { label: 'Rolling mill, electricity only', ours: rollingElectric, theirs: avgRoll, theirsLabel: `Masteel ${fy25.rollingT}–${fy24.rollingT}`, diffPct: pct(rollingElectric, avgRoll), comparable: true, note: 'Our 100 kWh/t rolling figure is on the low side; Masteel’s implies about 110–150 kWh/t. A real mill’s meters would replace it.' },
     { label: 'Whole mill without reheating gas', ours: noGas, theirs: avgBoth, theirsLabel: `Masteel ${(fy25.steelmakingT + fy25.rollingT).toFixed(3)}–${(fy24.steelmakingT + fy24.rollingT).toFixed(3)}`, diffPct: pct(noGas, avgBoth), comparable: true, note: 'Masteel rolls billets straight from the caster and burns no reheating gas, so this is the like-for-like whole-mill figure.' },
-    { label: 'Whole mill with gas reheating', ours: total, theirs: WORLD_SCRAP_EAF_T, theirsLabel: `World scrap-EAF average ${WORLD_SCRAP_EAF_T}`, diffPct: pct(total, WORLD_SCRAP_EAF_T), comparable: true, note: 'Our sample mill reheats billets with natural gas. It sits below the world average for the route, as expected for a modern mill on a 0.74 kg/kWh grid.' },
+    { label: 'Whole mill with gas reheating', ours: total, theirs: WORLD_SCRAP_EAF_T, theirsLabel: `World scrap-EAF average ${WORLD_SCRAP_EAF_T}`, diffPct: pct(total, WORLD_SCRAP_EAF_T), comparable: false, note: 'Our sample mill reheats billets with natural gas. The world figure is for scrap EAFs; no worldwide induction-route average is published.' },
   ]
 }
 

@@ -20,7 +20,7 @@ type Extra = { role: string; area: string; unitId?: string; targetPerT?: number 
 const m = (name: string, kind: Machine['kind'], col: number, row: number, extra: Extra, electricityMWh: number, fuel: Machine['fuel'] = 'none', fuelGJ = 0, processT = 0): Omit<Machine, 'id'> =>
   ({ name, kind, col, row, electricityMWh, fuel, fuelGJ, processT, quality: 'estimated', ...extra })
 
-/** Steel mini-mill machines derived from the same model the control room runs, so both views agree. */
+/** Steel mini-mill machines derived from the sample-mill model (induction route), so every view agrees. */
 const steelT = annualTonnes(steel)
 const mwh = (kwhPerT: number) => Math.round(kwhPerT * steelT / 1_000)
 
@@ -29,17 +29,16 @@ export const industryTemplates: readonly IndustryTemplate[] = [
     id: 'steel',
     label: 'Steel mini-mill',
     icon: '🔩',
-    blurb: 'Electric arc furnace route. First in line for the EU CBAM and Malaysia’s planned carbon tax.',
+    blurb: 'Induction furnace + ladle furnace route, like most Malaysian long-steel mills. First in line for the EU CBAM and Malaysia’s planned carbon tax.',
     production: { tonnes: Math.round(steelT), unit: 'steel' },
     machines: [
-      m('Electric arc furnace', 'furnace', 0, 0, { area: 'Melt shop', unitId: 'eaf', targetPerT: steelTargets.eaf, role: 'Melts scrap steel with a powerful electric arc between graphite electrodes. The plant’s biggest electricity user.' }, mwh(steel.kwhPerT.eaf), 'none', 0, Math.round(steel.eafDirectKgPerT * steelT / 1_000)),
-      m('Ladle furnace', 'furnace', 1, 0, { area: 'Melt shop', unitId: 'lf', targetPerT: steelTargets.lf, role: 'Reheats the liquid steel in its ladle and adjusts the chemistry to the exact grade before casting.' }, mwh(steel.kwhPerT.lf)),
+      m('Induction furnaces (4 × 60 t)', 'furnace', 0, 0, { area: 'Melt shop', unitId: 'melt', targetPerT: steelTargets.melt, role: 'Four coreless induction furnaces melt scrap with a magnetic field from water-cooled copper coils. No electrodes. The plant’s biggest electricity user.' }, mwh(steel.kwhPerT.melt)),
+      m('Ladle furnace', 'furnace', 1, 0, { area: 'Melt shop', unitId: 'lf', targetPerT: steelTargets.lf, role: 'Reheats the liquid steel in its ladle and adjusts the chemistry to the exact grade before casting. Its electrodes, alloy carbon and ladle-preheat gas are the melt shop’s direct CO₂.' }, mwh(steel.kwhPerT.lf), 'none', 0, Math.round(steel.meltDirectKgPerT * steelT / 1_000)),
       m('Fume extraction fans', 'fan', 2, 0, { area: 'Melt shop', unitId: 'fume', targetPerT: steelTargets.fume, role: 'Giant fans that pull furnace fumes and dust through bag filters before the gas leaves the stack.' }, mwh(steel.kwhPerT.fume)),
-      m('Oxygen plant', 'compressor', 3, 0, { area: 'Melt shop', unitId: 'oxygen', targetPerT: steelTargets.oxygen, role: 'Separates oxygen from air. The oxygen is injected into the furnace to speed up melting.' }, mwh(steel.kwhPerT.oxygen)),
       m('Continuous caster', 'production-line', 0, 1, { area: 'Casting', unitId: 'caster', targetPerT: steelTargets.caster, role: 'Pours liquid steel into water-cooled moulds where it solidifies into long square bars called billets.' }, mwh(steel.kwhPerT.caster)),
       m('Reheating furnace', 'furnace', 1, 1, { area: 'Hot rolling', unitId: 'reheat', targetPerT: steelTargets.reheat, role: 'Burns natural gas to heat billets back to about 1,150 °C so they are soft enough to roll. Its stack is the main on-site CO₂ point source.' }, 0, 'natural-gas', Math.round(steel.reheatGJPerT * steelT)),
       m('Rolling mill', 'mill', 2, 1, { area: 'Hot rolling', unitId: 'rolling', targetPerT: steelTargets.rolling, role: 'A line of heavy rollers that squeezes hot billets into reinforcing bars and wire rod.' }, mwh(steel.kwhPerT.rolling)),
-      m('Compressed air & water', 'compressor', 3, 1, { area: 'Utilities', unitId: 'utilities', targetPerT: steelTargets.utilities, role: 'Compressors and pumps supplying air for tools and cooling water for the furnaces and caster.' }, mwh(steel.kwhPerT.utilities)),
+      m('Cooling water & compressed air', 'compressor', 3, 1, { area: 'Utilities', unitId: 'utilities', targetPerT: steelTargets.utilities, role: 'Pumps and cooling towers for the induction coils and caster, plus compressors for tools.' }, mwh(steel.kwhPerT.utilities)),
       m('Office', 'office', 0, 2, { area: 'Buildings', role: 'Offices, control rooms and the quality lab.' }, 600),
     ],
   },

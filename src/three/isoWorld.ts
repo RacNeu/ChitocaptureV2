@@ -154,7 +154,7 @@ export function buildWorld(root: THREE.Group, placed: Placed[], electricity: Map
   const pulseGeo = new THREE.SphereGeometry(0.45, 10, 8)
   const hotGeo = new THREE.BoxGeometry(2.2, 0.8, 0.8)
   const byUnit = new Map(placed.filter((m) => m.unitId).map((m) => [m.unitId!, m]))
-  const isSteel = byUnit.has('eaf')
+  const isSteel = byUnit.has('melt')
   const minRow = Math.min(...placed.map((m) => m.row))
   const extraPlots = isSteel ? [{ col: -1, row: minRow }, { col: -1, row: minRow + 1 }] : [{ col: -1, row: minRow }]
   const subPlot = isSteel ? extraPlots[1] : extraPlots[0]
@@ -253,9 +253,9 @@ export function buildWorld(root: THREE.Group, placed: Placed[], electricity: Map
     flow(power, pts, C.power, 2 + Math.round(share * 8), 4 + share * 6, pulseGeo, agents)
   })
 
-  // ---- Steel: scrap yard → arc furnace → ladle → caster → reheat → rolling mill → dispatch.
+  // ---- Steel: scrap yard → induction furnaces → ladle → caster → reheat → rolling mill → dispatch.
   if (isSteel) {
-    const route = ['eaf', 'lf', 'caster', 'reheat', 'rolling'].map((u) => byUnit.get(u)).filter((m): m is Placed => Boolean(m))
+    const route = ['melt', 'lf', 'caster', 'reheat', 'rolling'].map((u) => byUnit.get(u)).filter((m): m is Placed => Boolean(m))
     const stops: THREE.Vector3[] = [plotXZ(extraPlots[0].col, extraPlots[0].row), ...route.map((m) => plotXZ(m.col, m.row))]
     const pts: THREE.Vector3[] = []
     for (let i = 0; i < stops.length; i += 1) {

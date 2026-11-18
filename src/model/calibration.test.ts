@@ -39,9 +39,9 @@ describe('one source of truth', () => {
     expect(result.calibration.months).toBe(6)
   })
   it('leaves metered machines alone and scales only the estimated ones', () => {
-    const machines = mill.machines.map((m, k) => k === 0 ? { ...m, quality: 'metered' as const } : m)
+    const machines = mill.machines.map((m, k) => k === 1 ? { ...m, quality: 'metered' as const } : m)
     const result = calibrate(machines, bills(12), mill.settings, id)!
-    expect(result.machines[0].electricityMWh).toBe(machines[0].electricityMWh)
+    expect(result.machines[1].electricityMWh).toBe(machines[1].electricityMWh)
     expect(machineTotals(result.machines).electricity).toBeCloseTo(360_000, -1)
   })
   it('makes the machine-based pages agree with the bill-based ones', () => {

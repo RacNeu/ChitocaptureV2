@@ -5,7 +5,8 @@ import type { GalvLive, GalvParams, GalvUnitId, GalvUpgrades } from '../model/ga
 import { buildGalvHall, type GalvHallHandles } from '../three/galvHall'
 import { createComposer } from '../three/post'
 import { createHeatmap } from '../three/heatmap'
-import type { UnitTooltip } from './SteelHall3D'
+/** What a hover over a unit shows. */
+export type UnitTooltip = { title: string; rows: [string, string][]; note?: string }
 
 export type GalvFrame = { minutes: number; live: GalvLive; upgrades: GalvUpgrades; params: GalvParams }
 

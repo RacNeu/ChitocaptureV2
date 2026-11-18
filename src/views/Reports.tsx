@@ -119,7 +119,7 @@ export default function Reports() {
   }
 
   const cbamReport = () => {
-    usedSources.add('cbam'); usedSources.add('eaf-kwh'); usedSources.add('eaf-co2'); usedSources.add('cbam-default'); usedSources.add('tax')
+    usedSources.add('cbam'); usedSources.add('if-kwh'); usedSources.add('lf-kwh'); usedSources.add('eaf-co2'); usedSources.add('cbam-default'); usedSources.add('tax')
     const DEFAULT_T = 2.31
     const params = { ...defaultSteelParams, gridKgPerKWh: gridFactor(state.settings.gridRegionId, state.settings.customGridKgPerKWh) }
     const pilot: Upgrades = { ...noUpgrades, hotCharging: true, regenBurners: true }
@@ -131,7 +131,7 @@ export default function Reports() {
       <table className="rep-table"><thead><tr><th /><th className="num">Today</th><th className="num">With reheat-furnace upgrades</th></tr></thead><tbody>
         <tr><td>Direct (charged under CBAM for iron and steel)</td><td className="num">{num(base.directKgPerT / 1_000, 3)} t/t</td><td className="num">{num(withPilot.directKgPerT / 1_000, 3)} t/t</td></tr>
         <tr><td>Indirect (grid electricity, reported)<Cite ids={['gef']} /></td><td className="num">{num(base.indirectKgPerT / 1_000, 3)} t/t</td><td className="num">{num(withPilot.indirectKgPerT / 1_000, 3)} t/t</td></tr>
-        <tr><td>Arc furnace electricity<Cite ids={['eaf-kwh']} /></td><td className="num" colSpan={2}>{num(base.kwh.eaf)} kWh/t (typical scrap EAF about 450)</td></tr>
+        <tr><td>Induction furnace electricity<Cite ids={['if-kwh']} /></td><td className="num" colSpan={2}>{num(base.kwh.melt)} kWh/t (steel melting in induction furnaces 500–880 kWh/t)</td></tr>
         <tr><td>Annual production</td><td className="num" colSpan={2}>{num(steelT)} t</td></tr>
       </tbody></table>
       <h2>2. Estimated CBAM cost by year</h2>
@@ -206,7 +206,7 @@ export default function Reports() {
           const tCO2 = gj * fuelFactorsKgPerGJ[f] / 1_000
           return <tr key={f}><td>{fuelLabels[f]} combustion<Cite ids={['ipcc']} /></td><td className="num">{num(gj)} GJ</td><td className="num">{fuelFactorsKgPerGJ[f]} kg/GJ</td><td className="num">{num(tCO2)}</td><td className="num">{num(tCO2 / Math.max(1e-9, s1) * 100, 1)}%</td></tr>
         })}
-        {processT > 0 && <tr><td>Process emissions (EAF electrodes, charge and injected carbon)</td><td className="num">—</td><td className="num">site data</td><td className="num">{num(processT)}</td><td className="num">{num(processT / Math.max(1e-9, s1) * 100, 1)}%</td></tr>}
+        {processT > 0 && <tr><td>Process emissions (furnace electrodes and carbon added to the steel)</td><td className="num">—</td><td className="num">site data</td><td className="num">{num(processT)}</td><td className="num">{num(processT / Math.max(1e-9, s1) * 100, 1)}%</td></tr>}
       </tbody></table>
       {inPeriod.some((r) => (r.fuelGJ.biomass ?? 0) > 0) && <p>Biogenic CO₂ from {num(inPeriod.reduce((acc, r) => acc + (r.fuelGJ.biomass ?? 0), 0))} GJ of biomass is reported separately and excluded from Scope 1.</p>}
 

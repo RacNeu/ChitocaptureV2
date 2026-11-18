@@ -11,29 +11,33 @@ type Step = {
   text: string
   /** Optional clicks to set the scene, e.g. opening a deep dive. */
   clicks?: string[]
-  /** Drive the steel simulation: open a zoomed-in view, select a unit. */
+  /** Drive the galvanising simulation: open a zoomed-in view, select a unit. */
   sim?: SimCommand
   before?: () => void
   /** Which site of the demo company the step needs open. */
   site?: 'steel' | 'steel-downstream'
 }
 
+/** Open the demo melt shop for the tour, unless the site has its own uploads. */
+const demoMelt = () => { if (!getState().meltshop?.heats.length && !getState().meltshopDemo) actions.setMeltShopDemo(true) }
+const meltTab = (n: number) => [`.ms-tabs button:nth-child(${n + 1})`]
+
 const steps: Step[] = [
-  { view: 'company', target: '.site-grid', title: '1 · One company, every site', text: 'ChitoCapture tracks carbon for a whole company. Malaysia Steel Demo has a steel mill, a wire & galvanising plant and a head office; their emissions add up to the company total.' },
-  { view: 'analysis', target: '.map-card', site: 'steel', title: '2 · Where the carbon comes from', text: 'Every piece of equipment as a block: taller and redder means more CO₂. The arc furnace dominates. Switch to “Whole company” to compare sites.' },
-  { view: 'twin', target: '.floor-card', site: 'steel', title: '3 · The plant in 3D', text: 'The same machines as a 3D site. Hover any building to see what it does, its energy against target and the best way to cut it.' },
-  { view: 'simulate', target: '.logo-row', title: '4 · Choose what to simulate', text: 'Sites with a live process model can be simulated: the steel mill and the wire & galvanising plant.' },
-  { view: 'control', target: '.tickers', site: 'steel', title: '5 · The mill, running live', text: 'Power, CO₂ per hour, CO₂ per tonne of steel and carbon cost update every second as the arc furnace goes through each heat. The simulation runs on this site’s own machine data.', sim: { dive: null, select: null, heatmap: false } },
-  { view: 'control', target: '.hall-card', site: 'steel', title: '6 · Inside the arc furnace', text: 'Double-click the arc furnace to zoom into the process: scrap melts under the arc, steel is tapped into the ladle. Purple tags are virtual sensors, where real meters plug in.', sim: { dive: 'eaf', select: 'eaf' } },
-  { view: 'control', target: '.ledger', site: 'steel', title: '8 · The carbon ledger', text: 'Every kilogram of CO₂ per tonne of steel, traced to a process step as activity × emission factor, with targets. This is what auditors and CBAM ask for.', sim: { dive: null, select: null } },
-  { view: 'control', target: '.cbam', site: 'steel', title: '9 · CBAM exposure', text: 'What the EU carbon border charge could cost per tonne exported, today and with upgrades, after deducting carbon price paid in Malaysia.' },
-  { view: 'control', target: '.hall-card', site: 'steel-downstream', title: '10 · A second plant: wire & galvanising', text: 'The group’s wire plant draws rod into wire and zinc-coats it on four lines of 40 wires. Badges over each unit show live CO₂ and whether it is on target.', sim: { dive: null, select: null, heatmap: false } },
-  { view: 'control', target: '.hall-card', site: 'steel-downstream', title: '11 · CO₂ heat map', text: 'Like a thermal camera for carbon: the floor glows red under the biggest live sources, so anyone can see where to act first.', sim: { heatmap: true } },
-  { view: 'control', target: '.hall-card', site: 'steel-downstream', title: '12 · Inside the zinc kettle', text: 'Forty wires dive into molten zinc at 450 °C. The coating gauge shows zinc given away above specification, and only about 15% of the kettle’s gas actually heats the wire.', sim: { dive: 'kettle', select: 'kettle', heatmap: false } },
-  { view: 'plan', target: '.board-card', site: 'steel', title: '13 · From plan to verified tonnes', text: 'Engineers propose and deliver actions, sustainability approves and verifies measured savings, management approves investment. Switch “View as” to play each team.',
+  { view: 'company', target: '.site-cards', title: '1 · One company, every site', text: 'ChitoCapture tracks money and carbon for a whole company. Malaysia Steel Demo has a steel mill, a wire & galvanising plant and a head office; their emissions add up to the company total.' },
+  { view: 'analysis', target: '.map-card', site: 'steel', title: '2 · Where the carbon comes from', text: 'Every piece of equipment as a block: taller and redder means more CO₂. The induction furnaces dominate. Switch to “Whole company” to compare sites.' },
+  { view: 'twin', target: '.site3d', site: 'steel', title: '3 · The plant in 3D', text: 'The same machines as a living 3D site. Pick a building to see its carbon, risks and what to do; switch to Plan to drag in solar, batteries or new lines and see the payback.' },
+  { view: 'meltshop', target: '.ms-stage', site: 'steel', before: demoMelt, clicks: meltTab(1), title: '4 · Melt shop: the furnace twin', text: 'Each induction furnace in 3D: the coil glows with power, the bath colour follows temperature, and it tilts to tap. Replay the readings minute by minute; IF3 is raising a coil-cooling alarm.' },
+  { view: 'meltshop', target: '.ms-balance', site: 'steel', clicks: meltTab(2), title: '5 · Where each tonne’s electricity goes', text: 'About 389 kWh/t heats the steel; a quarter leaves in coil cooling water; holding, open lids, cold linings and superheat waste the rest. Each factor is learned from your own heats.' },
+  { view: 'meltshop', target: '.ms-grid.c3', site: 'steel', clicks: meltTab(3), title: '6 · Charge chemistry & yield', text: 'Induction furnaces don’t refine: the scrap you charge sets the copper you tap. The app learns how much each scrap type brings and checks every heat against the rebar limits.' },
+  { view: 'meltshop', target: '.ms-grid.c-carbon', site: 'steel', clicks: meltTab(4), title: '7 · Carbon & emissions', text: 'Scope 2 (electricity) is over 90% of the melt shop’s carbon; Scope 1 comes from ladle-furnace electrodes, alloy carbon and ladle preheating.' },
+  { view: 'meltshop', target: '.sim-presets', site: 'steel', clicks: meltTab(5), title: '8 · Decarbonisation simulator', text: 'Try best-quarter practice, off-peak melting, solar, green electricity or IGBT power supplies, and see the saving per lever. “Explain” asks Claude to put the result in plain words.' },
+  { view: 'meltshop', target: '.hall-card', site: 'steel-downstream', title: '9 · A second plant: wire & galvanising', text: 'The group’s wire plant draws rod into wire and zinc-coats it on four lines of 40 wires. Badges over each unit show live CO₂ and whether it is on target.', sim: { dive: null, select: null, heatmap: false } },
+  { view: 'meltshop', target: '.hall-card', site: 'steel-downstream', title: '10 · CO₂ heat map', text: 'Like a thermal camera for carbon: the floor glows red under the biggest live sources, so anyone can see where to act first.', sim: { heatmap: true } },
+  { view: 'meltshop', target: '.hall-card', site: 'steel-downstream', title: '11 · Inside the zinc kettle', text: 'Forty wires dive into molten zinc at 450 °C. The coating gauge shows zinc given away above specification, and only about 15% of the kettle’s gas actually heats the wire.', sim: { dive: 'kettle', select: 'kettle', heatmap: false } },
+  { view: 'plan', target: '.board-card', site: 'steel', title: '12 · From plan to verified tonnes', text: 'Engineers propose and deliver actions, sustainability approves and verifies measured savings, management approves investment. Switch “View as” to play each team.',
     before: () => { const state = getState(); if (state.plan.length === 0) actions.setPlan(autoPlan(state)) } },
-  { view: 'reports', target: '.report-paper', site: 'steel', title: '14 · One-click reports', text: 'Site carbon, EECA energy and CBAM reports, with every default factor cited, ready to save as PDF. The CBAM report shows why verified data matter: EU default values can cost many times more.' },
-  { view: 'company', target: '.chat-fab', title: '15 · Ask the assistant', text: 'Ask in plain words: “Which process should we cut first?”, “Save RM 2 million a year”, “What if we shut the ladle furnace?”. Answers use the site’s own numbers, with one click to add an action to the plan.' },
+  { view: 'reports', target: '.report-paper', site: 'steel', title: '13 · One-click reports', text: 'Site carbon, EECA energy and CBAM reports, with every default factor cited, ready to save as PDF. The CBAM report shows why verified data matter: EU default values can cost many times more.' },
+  { view: 'company', target: '.chat-fab', title: '14 · Ask the assistant', text: 'Ask in plain words: “Which process should we cut first?”, “Save RM 2 million a year”, “What if we shut the ladle furnace?”. Answers use the site’s own numbers, with one click to add an action to the plan.' },
 ]
 
 async function waitFor(selector: string, timeout = 5_000) {

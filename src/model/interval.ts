@@ -90,7 +90,7 @@ export function importIntervalRows(rows: string[][], source: string): IntervalIm
 
 /**
  * TEST FIXTURE ONLY: never shown in the app. Three synthetic months of half-hourly demand for a site, scaled so the average matches its
- * yearly electricity. For the steel mill: an arc furnace that swings heat by heat, three shifts,
+ * yearly electricity. For the steel mill: induction furnaces that swing heat by heat, three shifts,
  * a Sunday day-shift maintenance stop (when the plant idles but auxiliaries stay on), short
  * delays, and one coincident peak a month when the rolling mill restarts while the furnace melts.
  */
@@ -113,13 +113,13 @@ export function sampleInterval(state: FactoryState, endMonth = new Date().toISOS
     const base = 0.24
     if (maintenance) { raw.push(base * (1.25 + 0.05 * rand())); continue }
     // The coincident peak: the second Tuesday of the month, 14:00–15:00, when the rolling mill
-    // restarts and the ladle furnace reheats while the arc furnace is melting.
+    // restarts and the ladle furnace reheats while the induction furnaces are melting.
     const peak = day >= 8 && day <= 14 && dow === 2 && hour >= 14 && hour < 15
     const delay = !peak && rand() < 0.06
-    // Arc furnace: power-on for most of each 50-minute heat; half-hour averages swing between heats.
-    const eaf = delay ? 0.05 : peak ? 0.97 + 0.03 * rand() : 0.55 + 0.25 * rand() + 0.1 * rand()
+    // Induction furnaces: two power supplies melt most of the time; half-hour averages swing between heats.
+    const melt = delay ? 0.05 : peak ? 0.97 + 0.03 * rand() : 0.55 + 0.25 * rand() + 0.1 * rand()
     const rolling = hour >= 7 && hour < 23 ? 0.18 : 0.1
-    const value = base + 0.12 + rolling + eaf
+    const value = base + 0.12 + rolling + melt
     raw.push(value)
   }
   const mean = raw.reduce((s, v) => s + v, 0) / raw.length

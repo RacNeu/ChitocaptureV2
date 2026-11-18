@@ -56,10 +56,10 @@ export function parseTonnes(text: string): number | null {
   return Number.isFinite(value) ? value * (match[2].startsWith('k') ? 1_000 : 1) : null
 }
 
-/** Finds the machine a question names, by full name or a distinctive word ("arc furnace", "EAF", "kiln"). */
+/** Finds the machine a question names, by full name or a distinctive word ("induction", "ladle furnace", "kiln"). */
 export function findMachine(text: string, machines: Machine[]): Machine | null {
   const q = ` ${words(text)} `
-  const aliases: Record<string, string[]> = { eaf: ['electric arc furnace'], 'arc furnace': ['electric arc furnace'], lf: ['ladle furnace'], caster: ['continuous caster'], 'reheat': ['reheating furnace'], aircon: ['central air-conditioning'], genset: ['genset'] }
+  const aliases: Record<string, string[]> = { induction: ['induction furnaces'], 'melt shop': ['induction furnaces'], lf: ['ladle furnace'], caster: ['continuous caster'], 'reheat': ['reheating furnace'], aircon: ['central air-conditioning'], genset: ['genset'] }
   for (const [alias, targets] of Object.entries(aliases)) {
     if (q.includes(` ${alias}`)) {
       const hit = machines.find((machine) => targets.some((target) => machine.name.toLowerCase().includes(target)))
