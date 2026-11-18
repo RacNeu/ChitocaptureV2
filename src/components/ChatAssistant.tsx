@@ -52,12 +52,12 @@ export default function ChatAssistant() {
   const inPlan = (action: SuggestedAction) => added.has(`${action.machineId}:${action.measureId}`) || state.plan.some((item) => item.machineId === action.machineId && item.measureId === action.measureId)
 
   return <>
-    <button type="button" className={`chat-fab ${open ? 'open' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="chat-panel" title="Ask the ChitoCapture assistant">
+    <button type="button" className={`chat-fab ${open ? 'open' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="chat-panel" title="Ask the CarbonPath assistant">
       {open ? '✕' : <><span aria-hidden="true"><LineIcon name="chat" /></span><span className="chat-fab-label">Ask AI</span></>}
     </button>
-    {open && <section id="chat-panel" className="chat-panel" role="dialog" aria-label="ChitoCapture assistant">
+    {open && <section id="chat-panel" className="chat-panel" role="dialog" aria-label="CarbonPath assistant">
       <header className="chat-head">
-        <div><strong>ChitoCapture assistant</strong><small>{state.settings.factoryName} · {aiStatus() === 'on' ? 'AI on' : 'built-in answers'}</small></div>
+        <div><strong>CarbonPath assistant</strong><small>{state.settings.factoryName} · {aiStatus() === 'on' ? 'AI on' : 'built-in answers'}</small></div>
         {entries.length > 0 && <button type="button" className="link" onClick={() => setEntries([])}>Clear</button>}
       </header>
       <div className="chat-list" ref={listRef} aria-live="polite">

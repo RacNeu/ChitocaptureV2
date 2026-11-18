@@ -1,4 +1,4 @@
-// ChitoCapture ingest: devices and the plant gateway POST furnace readings here (24/7, no browser
+// CarbonPath ingest: devices and the plant gateway POST furnace readings here (24/7, no browser
 // needed). The function stores them, applies the alert rules and sends Telegram messages.
 //
 // POST /functions/v1/ingest

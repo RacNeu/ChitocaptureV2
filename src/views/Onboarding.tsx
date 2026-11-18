@@ -56,7 +56,7 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
 
   return <div className="onboard">
     <header className="onboard-head">
-      <div className="brand"><span className="brand-mark">◭</span> ChitoCapture{progress && <small>{progress}</small>}</div>
+      <div className="brand"><span className="brand-mark">◭</span> CarbonPath{progress && <small>{progress}</small>}</div>
       <ol className="steps" aria-label="Setup steps">
         {['Your factory', 'Your machines', 'Your target'].map((label, index) => <li key={label} className={step === index + 1 ? 'current' : step > index + 1 ? 'done' : ''}><b>{index + 1}</b>{label}</li>)}
       </ol>
@@ -110,7 +110,7 @@ export default function Onboarding({ onDone, onCancel, progress }: { onDone: () 
           if (result.machines.length) setMachines(result.machines.slice(0, 16))
           event.target.value = ''
         }} /></label>
-        <a className="link" href={`data:text/csv;charset=utf-8,${encodeURIComponent('name,kind,electricity_mwh,fuel,fuel_gj,process_t\nBoiler 1,boiler,120,natural-gas,40000,0\nAir compressors,compressor,900,none,0,0\n')}`} download="chitocapture-machines-template.csv">Download CSV template</a>
+        <a className="link" href={`data:text/csv;charset=utf-8,${encodeURIComponent('name,kind,electricity_mwh,fuel,fuel_gj,process_t\nBoiler 1,boiler,120,natural-gas,40000,0\nAir compressors,compressor,900,none,0,0\n')}`} download="carbonpath-machines-template.csv">Download CSV template</a>
       </div>
       {csvErrors.length > 0 && <div className="alert" role="alert">{csvErrors.map((error) => <div key={error}>{error}</div>)}</div>}
       <nav className="onboard-nav"><button type="button" className="btn ghost" onClick={() => setStep(1)}>← Back</button><button type="button" className="btn" disabled={machines.length === 0} onClick={() => setStep(3)}>Next: set a target →</button></nav>

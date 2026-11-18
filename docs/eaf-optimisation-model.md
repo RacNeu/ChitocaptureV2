@@ -1,6 +1,6 @@
 # EAF optimisation model — how each factor works
 
-Reference for the ChitoCapture **Optimise** section (electric arc furnace route only). For every factor an EAF HMI shows, this lists what it is, how it moves energy, CO₂ and cost, the published numbers, and how confident we are. The app should show the basis and confidence next to every figure it derives from here.
+Reference for the CarbonPath **Optimise** section (electric arc furnace route only). For every factor an EAF HMI shows, this lists what it is, how it moves energy, CO₂ and cost, the published numbers, and how confident we are. The app should show the basis and confidence next to every figure it derives from here.
 
 **Confidence**
 - **A**: physics or regulation (exact).

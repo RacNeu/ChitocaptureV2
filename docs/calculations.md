@@ -1,4 +1,4 @@
-# Calculations used in ChitoCapture
+# Calculations used in CarbonPath
 
 Every formula the app uses, sorted into three groups:
 

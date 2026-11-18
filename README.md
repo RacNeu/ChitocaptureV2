@@ -1,4 +1,4 @@
-# ChitoCapture
+# CarbonPath
 
 **Scope 1 and 2 carbon accounting, carbon tax forecasting and decarbonisation planning for Malaysian steel.** Built by Malaysians for Malaysia. Upload your monthly TNB bills, fuel invoices and production, see Scope 1 and Scope 2 clearly, forecast emissions and your carbon tax bill, check you are on track for your target, and export a GHG disclosure laid out for Bursa Malaysia and the NSRF.
 
@@ -6,7 +6,7 @@
 
 ## Who it is for
 
-Bursa-listed steel companies and the steel SMEs that supply them. Listed issuers must disclose Scope 1 and 2 emissions under the National Sustainability Reporting Framework (NSRF), and their customers increasingly ask suppliers for the same figures. Malaysia has also announced a carbon tax for the iron, steel and energy sectors without confirming its rate. ChitoCapture answers both questions from the bills a plant already has: **what are our Scope 1 and 2 emissions, and what will the carbon tax cost us?**
+Bursa-listed steel companies and the steel SMEs that supply them. Listed issuers must disclose Scope 1 and 2 emissions under the National Sustainability Reporting Framework (NSRF), and their customers increasingly ask suppliers for the same figures. Malaysia has also announced a carbon tax for the iron, steel and energy sectors without confirming its rate. CarbonPath answers both questions from the bills a plant already has: **what are our Scope 1 and 2 emissions, and what will the carbon tax cost us?**
 
 ## What it does
 

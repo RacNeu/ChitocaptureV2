@@ -1,4 +1,4 @@
-# Data used in ChitoCapture, and where it comes from
+# Data used in CarbonPath, and where it comes from
 
 This lists every number the app runs on: in the melt shop (induction furnaces, the most important
 part), the machines list, Site 3D and the 3D simulation. For each one it says **where it comes from**

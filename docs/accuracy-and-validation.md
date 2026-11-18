@@ -1,11 +1,11 @@
-# Is ChitoCapture accurate? Validation and proof
+# Is CarbonPath accurate? Validation and proof
 
 *Run on 18 November 2026 against the code on branch `refocus-scope-dashboard`. Every number below
 comes from running the app's own functions; section 6 shows how to reproduce them.*
 
 ## Short answer
 
-ChitoCapture has no industry partner yet, so we can't show "a plant used it and saved X". What we
+CarbonPath has no industry partner yet, so we can't show "a plant used it and saved X". What we
 **can** show is accuracy at three levels. Each level is proven in a different way:
 
 | Level | Question | Answer | Proof |

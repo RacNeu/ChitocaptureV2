@@ -1,7 +1,7 @@
 /*
-  ChitoCapture CO2 sensor firmware for ESP32 + Sensirion SCD41 (or SCD40).
+  CarbonPath CO2 sensor firmware for ESP32 + Sensirion SCD41 (or SCD40).
 
-  Prints one JSON line per reading at 115200 baud. The ChitoCapture app reads it over USB
+  Prints one JSON line per reading at 115200 baud. The CarbonPath app reads it over USB
   with the browser's Web Serial API (Chrome or Edge): Sensors -> "Connect USB sensor".
 
   Modes
@@ -55,7 +55,7 @@ void setup() {
     busB.begin(25, 26);
     startSensor(sensorB, busB);
   }
-  Serial.println("ChitoCapture sensor ready");   // ignored by the app (not a reading)
+  Serial.println("CarbonPath sensor ready");   // ignored by the app (not a reading)
 }
 
 void loop() {

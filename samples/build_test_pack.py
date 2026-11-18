@@ -29,7 +29,7 @@ Files
 REAL DATA (published by Masteel):
 masteel-published-fy2022-2024.csv  Real annual electricity, gas, diesel and reported Scope 1/2,
                                    from Masteel's Sustainability Report FY2024 (pages listed in the file)
-VALIDATION.md                      ChitoCapture's calculation vs Masteel's reported figures
+VALIDATION.md                      CarbonPath's calculation vs Masteel's reported figures
                                    (Scope 2 matches exactly for FY2022-FY2024)
 
 ILLUSTRATIVE DATA (NOT Masteel's real bills - monthly bills and meter data are not public):

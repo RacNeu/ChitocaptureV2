@@ -1005,7 +1005,7 @@ fieldset.lock:disabled { opacity: .6; }
 }
 @media print { .chat-fab, .chat-panel, .account-btn { display: none !important; } }
 
-/* ChitoCapture unit label in the steel hall, and the "go inside" hint on hover cards */
+/* CarbonPath unit label in the steel hall, and the "go inside" hint on hover cards */
 .p3-dive-hint { margin: 6px 0 0 !important; color: #059669 !important; font-weight: 800; }
 .hall-label.capture { background: #059669; color: #fff; box-shadow: 0 0 0 3px #34d39955, 0 4px 14px #05966966; }
 .pick-hint { margin: 0 0 14px; padding: 10px 12px; border: 1px dashed #a7f3d0; border-radius: 12px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
@@ -2683,3 +2683,9 @@ input:disabled, select:disabled, fieldset.lock:disabled input, fieldset.lock:dis
   .carpet-wrap .carpet { min-width: 720px; }
   .carpet-wrap .chart-tip { position: sticky; left: 0 !important; }
 }
+
+/* Melt shop overview cards (IF1-4, LF, CCM): label above value, so pairs never collide at any width */
+.hmi2-unit-grid { grid-template-columns: 1fr 1fr; column-gap: 10px; row-gap: 6px; }
+.hmi2-unit-grid .hmi2-field { flex-direction: column; align-items: stretch; gap: 2px; padding: 0; border-bottom: 0; }
+.hmi2-unit-grid .hmi2-field > span { font-size: 11px; }
+.hmi2-unit-grid .hmi2-field > b { padding: 2px 6px; text-align: left; overflow: hidden; text-overflow: ellipsis; }

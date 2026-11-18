@@ -23,7 +23,7 @@ const demoMelt = () => { if (!getState().meltshop?.heats.length && !getState().m
 const meltTab = (n: number) => [`.ms-tabs button:nth-child(${n})`]
 
 const steps: Step[] = [
-  { view: 'company', target: '.site-cards', title: '1 · One company, every site', text: 'ChitoCapture tracks money and carbon for a whole company. Malaysia Steel Demo has a steel mill, a wire & galvanising plant and a head office; their emissions add up to the company total.' },
+  { view: 'company', target: '.site-cards', title: '1 · One company, every site', text: 'CarbonPath tracks money and carbon for a whole company. Malaysia Steel Demo has a steel mill, a wire & galvanising plant and a head office; their emissions add up to the company total.' },
   { view: 'analysis', target: '.map-card', site: 'steel', title: '2 · Where the carbon comes from', text: 'Every piece of equipment as a block: taller and redder means more CO₂. The induction furnaces dominate. Switch to “Whole company” to compare sites.' },
   { view: 'twin', target: '.site3d', site: 'steel', title: '3 · The plant in 3D', text: 'The same machines as a living 3D site. Pick a building to see its carbon, risks and what to do; switch to Plan to drag in solar, batteries or new lines and see the payback.' },
   { view: 'simulate', target: '.hall-card', site: 'steel', title: '4 · The mill, running live', text: 'The whole induction mill in 3D, heat by heat: power, CO₂ per hour and per tonne update every second. Double-click the induction furnaces to go inside. Below it, the what-if sandbox: switch upgrades on and “Add to plan” sends them to Savings and Plans → Plan.', sim: { dive: null, select: null, heatmap: false } },

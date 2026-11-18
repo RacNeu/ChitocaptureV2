@@ -25,7 +25,7 @@ function Architecture() {
     {box(10, 128, 230, 'Furnace PLC / HMI', 'power, bath °C, set points', 'plant', true)}
     {box(10, 222, 230, 'Plant gateway', 'reads PLC + sensors every second', 'plant', true)}
     {box(300, 128, 210, 'Ingest + alerts', 'Supabase Edge Function · 24/7', 'cloud')}
-    {box(560, 34, 190, 'ChitoCapture app', 'live HMI · Live data', 'app')}
+    {box(560, 34, 190, 'CarbonPath app', 'live HMI · Live data', 'app')}
     {box(560, 128, 190, 'Database', 'Supabase Postgres · history', 'cloud')}
     {box(560, 222, 190, 'Telegram bot', 'sends the alert', 'out')}
     {box(800, 222, 190, 'Plant group chat', 'operators and managers', 'out')}
@@ -148,7 +148,7 @@ export default function LiveFeeds() {
       <section className="ms-card lf-phone-card">
         <div className="ms-card-head"><h3>Telegram</h3><button type="button" className="btn small ghost" onClick={() => void live.sendTest()}>Send test</button></div>
         <div className="lf-phone">
-          <div className="lf-phone-top"><span className="lf-avatar">IF</span><div><b>Melt Shop Alerts</b><small>ChitoCapture bot · {FURNACES.length} furnaces</small></div></div>
+          <div className="lf-phone-top"><span className="lf-avatar">IF</span><div><b>Melt Shop Alerts</b><small>CarbonPath bot · {FURNACES.length} furnaces</small></div></div>
           <div className="lf-chat">
             {s.telegram.messages.length === 0 && <p className="lf-empty">No alerts yet. Inject a demo fault to see one arrive.</p>}
             {s.telegram.messages.slice(-12).map((m) => <div key={m.id} className={`lf-msg ${m.level}`}>

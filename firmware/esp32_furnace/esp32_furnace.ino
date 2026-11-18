@@ -1,7 +1,7 @@
 /*
- * ChitoCapture furnace sensor node (ESP32)
+ * CarbonPath furnace sensor node (ESP32)
  *
- * Reads induction-furnace coil cooling water and sends it to ChitoCapture every 5 seconds:
+ * Reads induction-furnace coil cooling water and sends it to CarbonPath every 5 seconds:
  *   - coil water flow: hall-effect flow meter on FLOW_PIN (pulses per litre: FLOW_K)
  *   - water in / out temperature: two DS18B20 probes on ONE_WIRE_PIN
  * Optional extras (wire them the same way): furnace kW from the power meter's Modbus output,

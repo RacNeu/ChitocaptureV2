@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { guard } from './_guard.js'
 
 /**
- * POST /api/chat — the real-AI mode of the ChitoCapture assistant (a Vercel serverless function).
+ * POST /api/chat — the real-AI mode of the CarbonPath assistant (a Vercel serverless function).
  * The API key stays on the server: set ANTHROPIC_API_KEY in Vercel → Project → Settings →
  * Environment Variables, then redeploy. Without a key this returns 501 and the app quietly keeps
  * using its built-in assistant.
@@ -13,7 +13,7 @@ const MODEL = 'claude-opus-5-5'
 const MAX_MESSAGES = 20
 const MAX_CHARS = 4_000
 
-const SYSTEM = `You are the ChitoCapture assistant inside a carbon-management app used by Malaysian factories.
+const SYSTEM = `You are the CarbonPath assistant inside a carbon-management app used by Malaysian factories.
 You help plant engineers, sustainability teams and managers decide which processes or equipment to change to cut CO2 and cost.
 
 Rules:

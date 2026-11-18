@@ -5,7 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
  * file as a route).
  *
  * 1. Same site only: the browser's Origin must be this deployment's own host (or one listed in
- *    ALLOWED_ORIGINS, comma-separated, e.g. "https://chitocapture.com"). This stops other websites from
+ *    ALLOWED_ORIGINS, comma-separated, e.g. "https://carbonpath.example"). This stops other websites from
  *    using the routes. A script can fake the header, so this is a first fence, not the only one.
  * 2. Per-visitor rate limit by IP address, per minute and per day. Counts live in the function's
  *    memory, so each running copy of the function keeps its own; the Anthropic spend limit and the
