@@ -7,18 +7,15 @@ import {
 import { demoMeltShop } from '../model/meltshopDemo'
 import { actions, useFactory } from '../model/store'
 import PlantArt from '../components/PlantArt'
-import MeltOverview from './MeltOverview'
-import MeltControl from './MeltControl'
-import { MeltEnergy, MeltChemistry, MeltCarbon, MeltSimulator } from './MeltTabs'
+import { toast } from '../model/toast'
+import MeltHmi from './MeltHmi'
+import { MeltChemistry, MeltCarbon, MeltSimulator } from './MeltTabs'
 
-export type Tab = 'overview' | 'twin' | 'energy' | 'chemistry' | 'carbon' | 'simulator'
+export type Tab = 'hmi' | 'material' | 'carbon'
 const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: '⌂' },
-  { id: 'twin', label: 'Control room', icon: '◉' },
-  { id: 'energy', label: 'Energy & thermal', icon: '⚡' },
-  { id: 'chemistry', label: 'Chemistry & yield', icon: '⚗' },
-  { id: 'carbon', label: 'Carbon & emissions', icon: '☁' },
-  { id: 'simulator', label: 'Decarbonisation simulator', icon: '✦' },
+  { id: 'hmi', label: 'Furnace HMI', icon: '🎛' },
+  { id: 'material', label: 'Material & yield', icon: '⚗' },
+  { id: 'carbon', label: 'Carbon & decarbonisation', icon: '🍃' },
 ]
 
 async function readFile(file: File): Promise<MeltImport> {
@@ -60,7 +57,7 @@ export type Melt = NonNullable<ReturnType<typeof useMelt>>
 
 export default function MeltShop() {
   const melt = useMelt()
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>('hmi')
   const [msg, setMsg] = useState<MeltImport | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -73,6 +70,7 @@ export default function MeltShop() {
         setMsg(r)
         if (r.error) continue
         if (r.kind === 'heats') actions.setMeltShop({ heats: r.heats, source: file.name }, `Uploaded ${r.heats.length} melt-shop heats (${file.name})`)
+        if (!r.error) toast(`Loaded ${r.kind === 'heats' ? `${r.heats.length} heats` : r.kind === 'chem' ? `${r.chem.length} spectrometer results` : `${r.readings.length} readings`} from ${file.name}`)
         if (r.kind === 'chem') actions.setMeltShop({ chem: r.chem }, `Uploaded ${r.chem.length} spectrometer results (${file.name})`)
         if (r.kind === 'readings') actions.setMeltShop({ readings: r.readings }, `Uploaded ${r.readings.length} furnace readings (${file.name})`)
       } catch (err) { setMsg({ kind: 'heats', heats: [], chem: [], readings: [], warnings: [], error: `Could not read ${file.name}: ${(err as Error).message}` }) }
@@ -105,12 +103,9 @@ export default function MeltShop() {
     </header>
     {msg && <ImportMsg msg={msg} />}
     <nav className="ms-tabs" role="tablist">{tabs.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}><span aria-hidden="true">{t.icon}</span>{t.label}</button>)}</nav>
-    {tab === 'overview' && <MeltOverview melt={melt} go={setTab} />}
-    {tab === 'twin' && <MeltControl melt={melt} />}
-    {tab === 'energy' && <MeltEnergy melt={melt} />}
-    {tab === 'chemistry' && <MeltChemistry melt={melt} />}
-    {tab === 'carbon' && <MeltCarbon melt={melt} />}
-    {tab === 'simulator' && <MeltSimulator melt={melt} />}
+    {tab === 'hmi' && <MeltHmi melt={melt} />}
+    {tab === 'material' && <MeltChemistry melt={melt} />}
+    {tab === 'carbon' && <div className="ms-stack"><MeltCarbon melt={melt} /><h2 className="ms-section">Decarbonisation simulator</h2><MeltSimulator melt={melt} /></div>}
   </div>
 }
 

@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { templateById } from './templates'
 import type { ActionStatus, DataChange, Evidence, FactoryState, FindingState, HistoryEntry, IntervalSeries, Machine, MonthlyRecord, PlanAction, Role, Settings } from './types'
+import { toast } from './toast'
 import { diffRecords, evidenceShare, marketFactor, scopesFor } from './history'
 import { gridFactor } from './factors'
 import { roleById, statusInfo } from './roles'
@@ -262,6 +263,7 @@ export const actions = {
     if (state.plan.some((item) => item.machineId === machineId && item.measureId === measureId)) return
     const action: PlanAction = { id: newId('a'), machineId, measureId, startYear, status: 'proposed', owner: roleById(getRole()).person, comments: [] }
     commit(logged({ ...state, plan: [...state.plan, action] }, `Proposed ${actionName(state, action)}`))
+    toast(`Added to plan: ${actionName(state, action)}`)
   },
   /**
    * Add a simulation scenario to the plan as proposed actions. An action already in the plan for the
@@ -279,7 +281,7 @@ export const actions = {
       plan = [...plan, { id: newId('a'), machineId: item.machineId, measureId: item.measureId, startYear: state.settings.baselineYear + 1, status: 'proposed', owner: roleById(getRole()).person, comments: [], source: 'sandbox', ...(item.scale !== undefined ? { scale: item.scale } : {}) }]
       added += 1
     }
-    if (added || updated) commit(logged({ ...state, plan }, `Added the ${label} scenario to the plan (${added} new, ${updated} updated)`))
+    if (added || updated) { commit(logged({ ...state, plan }, `Added the ${label} scenario to the plan (${added} new, ${updated} updated)`)); toast(`Plan updated: ${added} added${updated ? `, ${updated} updated` : ''}`) }
     return { added, updated }
   },
   removeFromPlan: (actionId: string) => {

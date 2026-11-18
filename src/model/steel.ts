@@ -52,10 +52,11 @@ export type SteelParams = {
 }
 
 export const defaultSteelParams: SteelParams = {
-  // 4 × 60 t induction furnaces on 2 power supplies: one heat about every 30 minutes across the shop.
+  // 4 × 60 t induction furnaces on 2 power supplies (~31 MW each): one heat about every 34 minutes
+  // across the shop, running most of the year, so melting peaks near the 2 × 31 MW the supplies allow.
   heatSizeT: 57,
-  cycleMin: 30,
-  operatingHoursPerYear: 7_000,
+  cycleMin: 34,
+  operatingHoursPerYear: 7_900,
   gridKgPerKWh: 0.74,
   gasKgPerGJ: 56.1,
   // Induction 520 ≈ the best Missouri S&T/DOE trial (473 kWh/short ton) and inside Otto Junker’s 500–560;
@@ -168,6 +169,104 @@ export function upgradeImpacts(p: SteelParams, u: Upgrades): UpgradeImpact[] {
       paybackYears: annualSavingRM > 0 && capexRM > 0 ? capexRM / annualSavingRM : null,
     }
   })
+}
+
+/* ---------------- Live heat cycle (induction) ---------------- */
+
+export type MeltPhase = 'Charging' | 'Melting' | 'Holding' | 'Tapping'
+const phases: { phase: MeltPhase; share: number; powerFactor: number }[] = [
+  // Shares of the tap-to-tap time and relative SHOP power. Furnaces in a pair take turns on one
+  // supply, so while one charges or taps the other melts: shop power swings far less than one
+  // furnace's. Induction power is steady while melting (no arc flicker).
+  { phase: 'Charging', share: 0.12, powerFactor: 0.6 },
+  { phase: 'Melting', share: 0.66, powerFactor: 1.15 },
+  { phase: 'Holding', share: 0.14, powerFactor: 0.75 },
+  { phase: 'Tapping', share: 0.08, powerFactor: 0.6 },
+]
+const meanFactor = phases.reduce((sum, item) => sum + item.share * item.powerFactor, 0)
+
+export type LiveState = {
+  phase: MeltPhase
+  phaseProgress: number
+  heatNumber: number
+  /** Electrical load by unit in MW. */
+  mw: Record<Exclude<UnitId, 'scrap' | 'reheat'>, number>
+  totalMW: number
+  reheatGJPerH: number
+  /** CO₂ being emitted right now, t/h. */
+  co2TPerH: number
+  directTPerH: number
+  indirectTPerH: number
+  rollingOn: boolean
+}
+
+function phaseAt(p: SteelParams, minutes: number) {
+  const cycleT = ((minutes % p.cycleMin) + p.cycleMin) % p.cycleMin / p.cycleMin
+  let acc = 0
+  for (const item of phases) {
+    if (cycleT < acc + item.share) return { item, progress: (cycleT - acc) / item.share, cycleT }
+    acc += item.share
+  }
+  return { item: phases[phases.length - 1], progress: 1, cycleT }
+}
+
+/** Instantaneous plant state at a simulated time (minutes since start). Deterministic. */
+export function liveState(p: SteelParams, u: Upgrades, minutes: number): LiveState {
+  const i = intensity(p, u)
+  const tph = tonnesPerHour(p)
+  const { item, progress } = phaseAt(p, minutes)
+  const meltMW = i.kwh.melt * tph / 1_000 * item.powerFactor / meanFactor * (item.phase === 'Melting' ? 1 + 0.01 * Math.sin(minutes * 2.1) : 1)
+  // The rolling mill pauses briefly for roll changes (about 10% of the time).
+  const rollingOn = (minutes % 120) < 108
+  const mw = {
+    melt: meltMW,
+    lf: i.kwh.lf * tph / 1_000,
+    caster: i.kwh.caster * tph / 1_000,
+    rolling: rollingOn ? i.kwh.rolling * tph / 1_000 / 0.9 : 0.4,
+    fume: i.kwh.fume * tph / 1_000 * (item.phase === 'Charging' || item.phase === 'Tapping' ? 1.3 : 0.9),
+    utilities: i.kwh.utilities * tph / 1_000 * (0.8 + 0.2 * item.powerFactor),
+  }
+  const totalMW = Object.values(mw).reduce((sum, value) => sum + value, 0)
+  const reheatGJPerH = i.reheatGJPerT * tph
+  const greenFactor = 1 - Math.min(1, Math.max(0, u.greenShare))
+  const indirectTPerH = totalMW * p.gridKgPerKWh * greenFactor
+  // Melt-shop direct CO₂ (LF electrodes, alloy carbon, ladle preheat) runs steadily with the LF.
+  const meltDirectTPerH = i.meltDirectKgPerT * tph / 1_000
+  const reheatTPerH = i.reheatKgPerT * tph / 1_000
+  return {
+    phase: item.phase, phaseProgress: progress, heatNumber: Math.floor(minutes / p.cycleMin) + 1,
+    mw, totalMW, reheatGJPerH,
+    co2TPerH: indirectTPerH + meltDirectTPerH + reheatTPerH, directTPerH: meltDirectTPerH + reheatTPerH, indirectTPerH, rollingOn,
+  }
+}
+
+export type MeltInternals = { meltFraction: number; bathTempC: number; powerShare: number; coilWaterDT: number; lidOpen: boolean; heatEnergyMWh: number; heatCO2T: number; story: string }
+const stories: Record<MeltPhase, string> = {
+  Charging: 'The lid swings open and a bucket of scrap drops into the crucible. The power supply idles; the coil is cold.',
+  Melting: 'Full power flows through the water-cooled copper coil. Its magnetic field heats the scrap directly and stirs the bath. Most of the electricity, and so most of the CO₂, is used here.',
+  Holding: 'The steel is liquid. Power drops to cover the heat lost through the lining and to the coil water while a sample is checked and the ladle is readied. Every minute here costs energy.',
+  Tapping: 'The furnace tilts on its trunnions and liquid steel pours from the spout into the ladle, which goes to the ladle furnace.',
+}
+/** What is happening inside the current furnace at a moment of the heat (illustrative, deterministic). */
+export function meltInternals(p: SteelParams, u: Upgrades, minutes: number): MeltInternals {
+  const { item, progress, cycleT } = phaseAt(p, minutes)
+  const smooth = (x: number) => x * x * (3 - 2 * x)
+  let meltFraction = 0, bathTempC = 1_200
+  if (item.phase === 'Charging') { meltFraction = 0.1; bathTempC = 1_250 }
+  else if (item.phase === 'Melting') { meltFraction = 0.1 + 0.9 * smooth(progress); bathTempC = 1_250 + 330 * progress }
+  else if (item.phase === 'Holding') { meltFraction = 1; bathTempC = 1_590 + 30 * progress }
+  else { meltFraction = 1 - progress; bathTempC = 1_620 - 10 * progress }
+  const i = intensity(p, u)
+  let energyShare = 0, acc = 0
+  for (const x of phases) { energyShare += Math.min(x.share, Math.max(0, cycleT - acc)) * x.powerFactor / meanFactor; acc += x.share }
+  const heatEnergyMWh = i.kwh.melt * p.heatSizeT / 1_000 * energyShare
+  return {
+    meltFraction, bathTempC, powerShare: item.phase === 'Melting' ? 1 : item.phase === 'Holding' ? 0.15 : 0.02,
+    coilWaterDT: item.phase === 'Melting' ? 17 : item.phase === 'Holding' ? 5 : 3,
+    lidOpen: item.phase === 'Charging' || item.phase === 'Tapping',
+    heatEnergyMWh, heatCO2T: heatEnergyMWh * p.gridKgPerKWh * (1 - u.greenShare) / 1_000,
+    story: stories[item.phase],
+  }
 }
 
 /* ---------------- CBAM (simplified) ---------------- */

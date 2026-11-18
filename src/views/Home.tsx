@@ -145,7 +145,7 @@ export default function Home({ go }: { go: (view: View) => void }) {
           <h3>{steel ? '🔥 Melt shop' : wire ? '🧵 Galvanising line' : '◭ Site 3D'}</h3>
           <p>{steel ? (hasMelt ? 'Your induction furnaces: live twin, energy, chemistry, carbon and the simulator.' : 'Upload furnace heat logs, or open the demo melt shop.') : wire ? 'The wire plant running live, with its carbon heat map.' : 'Your buildings in 3D, with carbon, risks and actions.'}</p>
         </div>
-        <button type="button" className="btn" onClick={() => go(steel || wire ? 'meltshop' : 'twin')}>Open →</button>
+        <button type="button" className="btn" onClick={() => go(steel ? 'meltshop' : wire ? 'simulate' : 'twin')}>Open →</button>
       </section>
 
       <section className="ms-card h2-journey">
