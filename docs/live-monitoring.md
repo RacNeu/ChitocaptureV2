@@ -1,50 +1,78 @@
 # Live monitoring and Telegram alerts: how it works
 
-For the melt shop (induction furnaces + ladle furnace). The app already contains the full path, with
-the plant side **simulated** so it can be demonstrated without hardware.
+For the melt shop (induction furnaces + ladle furnace).
+
+## What is built and running
+
+| Part | Status | Where |
+|---|---|---|
+| Database (readings, alerts) | **Live** on Supabase project `chitocapture` (Singapore, free tier) | migration in Supabase; tables `readings`, `alerts`, private `app_config` |
+| 24/7 ingest + alert service | **Live**: Supabase Edge Function `ingest` stores readings, applies the alert rules, sends Telegram | `supabase/functions/ingest/index.ts` |
+| App reading cloud data in real time | **Built**: Supabase Realtime pushes new readings and alerts to the app | `src/live/sources.ts`, `src/live/store.ts` |
+| Test publisher | **Built**: the simulated plant plays the devices and sends readings through Supabase | Live data & alerts |
+| ESP32 sensor node | **Example sketch** (flow + two temperature probes → ingest function) | `firmware/esp32_furnace/esp32_furnace.ino` |
+| Telegram | **Ready**: sends as soon as a bot token is added (see below); until then shown as a preview | edge function + `api/telegram.ts` |
 
 ## The path
 
 ```
-Sensors + furnace PLC ──► Plant gateway ──► MQTT broker ──► ChitoCapture app (live HMI, Data feeds)
-                                                     ├────► Database (history, reports, replay)
-                                                     └────► 24/7 alert service ──► Telegram bot ──► plant group chat
+ESP32 sensors / PLC gateway ──► Supabase ingest function (24/7) ──► readings + alerts tables ──► app (Realtime)
+                                                            └──► Telegram bot ──► plant group chat
 ```
 
-| Step | What it is | Real products | In the demo |
-|---|---|---|---|
-| Measure | Furnace PLC: power, frequency, bath °C, set points. Extra sensors: coil-water flow and in/out temperature, lining earth-leakage current | The furnace maker's PLC; ESP32 + flow meter, PT100 probes, current transformer | Simulated by `src/live/feed.ts` using the heat physics in `src/model/furnaceSim.ts` |
-| Collect | A small PC on the plant network reads the PLC and sensors every second | Node-RED or a Python script; OPC UA or Modbus TCP to the PLC | Simulated |
-| Transport | Publishes each signal to an MQTT topic over TLS, e.g. `plant/IF3/coil/flow` | HiveMQ Cloud or EMQX Cloud (both have free tiers) | Simulated in the browser |
-| Show | The app subscribes over secure WebSocket (`wss://`) and updates the HMI live | `mqtt.js` in the browser | **Live feed** mode in Melt shop → Furnace HMI, and Settings → Data feeds |
-| Keep | Readings stored for history, reports and the learned energy factors | Supabase (Postgres) or a time-series database | Not connected |
-| Alert | A service runs 24/7, applies the rules, and sends Telegram messages, even with no browser open | A Vercel cron/edge function or a small worker subscribed to MQTT | Rules and messages are the real ones; they run in the browser in the demo |
-| Notify | Telegram Bot API `sendMessage` to the plant group | Bot from @BotFather | `api/telegram.ts` sends for real once a token is set; otherwise the app shows a preview |
+One path does everything: it stores history, checks alerts 24/7 without anyone watching the app, and
+shows readings live.
+
+## Using it in the app
+
+Sidebar → **Live data & alerts** (under Reports):
+1. *Where live readings come from*: Simulation or **Supabase cloud**.
+2. *Test publisher*: switch on **Send to Supabase ingest**, then choose **Supabase cloud**
+   as the source. Readings now make the full round trip: browser → ingest function → database →
+   Realtime → app. Inject a demo fault and the alert is raised **by the server**.
+3. Melt shop → Furnace HMI → **Live feed** shows the same source.
+
+## Keys and where they go (never in the code, never in chat)
+
+| Key | Where | Purpose |
+|---|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` (git-ignored) and Vercel → Settings → Environment Variables | App reads live data (read-only: the tables only allow SELECT) |
+| `VITE_INGEST_KEY` | same | Only for the in-app test publisher demo. Real devices keep their own copy; for production give each device its own key and remove this from the browser |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | **Supabase → Edge Functions → Secrets** (for 24/7 alerts) and Vercel env (for the app's "Send test") | Telegram alerts |
+| `ANTHROPIC_API_KEY` | Vercel env | Claude in the chat and the simulator's Explain |
+
+The device ingest key is stored in the Supabase table `app_config` (row `ingest_key`), readable only by
+the server. To rotate it: update that row and the devices.
+
+### Telegram in 4 steps
+1. In Telegram, message **@BotFather** → `/newbot` → copy the token.
+2. Create a group, add the bot, send any message in the group.
+3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy the group's `chat.id` (negative number).
+4. Supabase dashboard → project `chitocapture` → Edge Functions → **Secrets**: add `TELEGRAM_BOT_TOKEN`
+   and `TELEGRAM_CHAT_ID`. The next alert is delivered (the app shows ✓✓ in the Telegram preview).
+
+## Device message format
+
+```json
+POST https://<project-ref>.supabase.co/functions/v1/ingest
+x-ingest-key: <device key>
+{ "site": "demo", "readings": [ { "furnace": "IF3", "kw": 30500, "hz": 210, "bathC": 1540,
+  "waterInC": 32.1, "waterOutC": 48.6, "flowM3h": 410, "leakMA": 3.2, "phase": "melting" } ] }
+```
 
 ## Alert rules (example set points; the furnace maker's values replace them)
 
-- Coil water flow < 300 m³/h → **alarm** (pump trip, blockage or leak)
+- Coil water flow < 300 m³/h → **alarm**
 - Coil water outlet > 55 °C → **alarm**; ΔT > 20 °C → warning
-- Earth leakage > 15 mA → warning; > 25 mA → **alarm** (metal getting close to the coil through a worn lining)
-- Bath > tap aim + 30 °C → warning (energy waste, lining wear)
-- Unusual reading: 3 readings in a row outside the furnace's own normal band (median ± 4 robust σ over the last hour, melting and idle judged separately)
+- Earth leakage > 15 mA → warning; > 25 mA → **alarm**
+- Bath > tap aim + 30 °C → warning
+- In the app (simulation source) also: unusual reading for this furnace (median ± 4 robust σ)
 
-Each alert is sent **once**, can escalate from warning to alarm, and clears after the reading has been
-normal for 3 minutes, so a flapping signal does not flood the chat.
+Each alert is raised once, can escalate warning → alarm, and clears after the reading is normal again
+(after at least 3 minutes).
 
-## To make it real
+## Still to do for a real plant
 
-1. Create a Telegram bot with @BotFather, add it to the plant group, and note the group's chat ID.
-2. In Vercel → Project → Settings → Environment Variables set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-   and optionally `ALERT_API_KEY` (then send it as the `x-alert-key` header). Redeploy.
-3. Create an MQTT broker account and a gateway (Node-RED is quickest) that reads the PLC and sensors and
-   publishes to `plant/<furnace>/<signal>`.
-4. Replace the simulated feed with an MQTT subscription that produces the same `LiveReading` objects;
-   the HMI, alert engine and Telegram messages stay unchanged.
-5. Move the alert engine into the 24/7 service so alerts do not depend on an open browser.
-
-## Safety note
-
-Telegram alerts support the operators; they never replace the furnace's own hard-wired protections
-(coil-water interlocks, ground-fault trip). The app reads data and sends messages; it does not control
-the furnace.
+- A gateway that reads the furnace PLC (OPC UA / Modbus TCP) and posts to the ingest function.
+- One key per device, and a retention job (e.g. keep 90 days of 1-second data, longer of 1-minute averages).
+- Telegram alerts support operators; they never replace the furnace's hard-wired protections.

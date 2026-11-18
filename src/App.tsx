@@ -50,9 +50,10 @@ const siteMenu: MenuItem[] = [
 ]
 const reportMenu: MenuItem[] = [
   { id: 'reports', label: 'Reports', icon: '📄', match: ['reports', 'sources'] },
+  { id: 'sensors', label: 'Live data & alerts', icon: <LineIcon name="live" />, match: ['sensors'] },
 ]
 const setupMenu: MenuItem[] = [
-  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings', 'sensors'] },
+  { id: 'settings', label: 'Settings', icon: '⚙', match: ['settings'] },
 ]
 /** Pages that show one site; switching site keeps you on the same page. */
 const sitePages: View[] = ['home', 'dashboard', 'load', 'data', 'findings', 'plan', 'risks', 'meltshop', 'reports', 'twin', 'simulate', 'analysis', 'settings', 'sensors']
@@ -62,8 +63,6 @@ const allViews = [...companyMenu, ...siteMenu, ...reportMenu, ...setupMenu].flat
 const sections: { views: View[]; tabs: { id: View; label: string }[]; flow: Record<string, string> }[] = [
   { views: ['dashboard', 'load', 'analysis', 'data'], tabs: [{ id: 'dashboard', label: 'Emissions' }, { id: 'load', label: 'Electricity load' }, { id: 'analysis', label: 'By machine' }, { id: 'data', label: 'Upload bills' }],
     flow: { dashboard: 'Uses your monthly bills · leads to Savings and Plans, and Reports', load: 'Uses half-hourly meter data · leads to Savings', analysis: 'Each machine’s share, matched to your bills', data: 'Feeds Energy & carbon, Savings, Risks and Reports' } },
-  { views: ['settings', 'sensors'], tabs: [{ id: 'settings', label: 'Site settings' }, { id: 'sensors', label: 'Data feeds' }],
-    flow: { settings: 'Prices, grid factor and targets used everywhere', sensors: 'Live readings, alerts and Telegram · feeds the Melt shop HMI' } },
   { views: ['findings', 'plan'], tabs: [{ id: 'findings', label: 'Ways to save' }, { id: 'plan', label: 'Plan' }],
     flow: { findings: 'Found in your energy data · add the fixes to your Plan', plan: 'Upgrades you’ve chosen · savings checked on Energy & carbon' } },
 ]

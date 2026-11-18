@@ -5,6 +5,7 @@ const paths: Record<string, string> = {
   furnace: 'M6 6h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6Zm-1 0h14M6 10h12M6 14h12M10 3c0 1 1 1.5 1 2.5M14 3c0 1 1 1.5 1 2.5',
   plan: 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM6 6h12v15H6V6Zm3 6 2 2 4-4m-6 7h6',
   risk: 'M12 3 2 20h20L12 3Zm0 6v5m0 3v.01',
+  live: 'M3 12h4l2-6 4 12 2-6h6',
 }
 
 export default function LineIcon({ name }: { name: keyof typeof paths | string }) {

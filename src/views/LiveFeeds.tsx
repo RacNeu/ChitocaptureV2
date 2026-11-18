@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { num } from '../format'
-import Info from '../components/Info'
 import { Sparkline } from '../components/MsCharts'
 import { faults, FURNACES, rules } from '../live/feed'
 import { clockOf, live, useLive } from '../live/store'
@@ -20,23 +19,24 @@ function Architecture() {
     <path d={`M${x1} ${y1} L${x2} ${y2}`} markerEnd="url(#arch-head)" />
     <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 8} textAnchor="middle">{label}</text>
   </g>
-  return <svg viewBox="0 0 1000 330" className="arch" role="img" aria-label="Sensors and the furnace PLC send readings through a plant gateway to an MQTT broker; the app shows them live, a database keeps history, and a 24/7 alert service sends Telegram messages.">
+  return <svg viewBox="0 0 1000 330" className="arch" role="img" aria-label="Sensors and the furnace PLC send readings through a plant gateway to the 24/7 ingest function, which stores them in the database and sends Telegram alerts; the app shows them live through Realtime.">
     <defs><marker id="arch-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" /></marker></defs>
     <text x="10" y="18" className="arch-zone">PLANT</text><text x="300" y="18" className="arch-zone">CLOUD</text><text x="760" y="18" className="arch-zone">PEOPLE</text>
     {box(10, 34, 230, 'Sensors', 'ESP32 · coil water, current, leak', 'plant', true)}
     {box(10, 128, 230, 'Furnace PLC / HMI', 'power, bath °C, set points', 'plant', true)}
-    {box(10, 222, 230, 'Plant gateway', 'Node-RED / Python · OPC UA, Modbus', 'plant', true)}
-    {box(300, 128, 210, 'MQTT broker', 'HiveMQ / EMQX · TLS', 'cloud')}
-    {box(560, 34, 190, 'ChitoCapture app', 'live HMI · Data feeds', 'app')}
-    {box(560, 128, 190, 'Database', 'Supabase · history, reports', 'cloud')}
-    {box(560, 222, 190, '24/7 alert service', 'rules + anomaly checks', 'cloud')}
-    {box(800, 128, 190, 'Telegram bot', 'plant group chat', 'out')}
+    {box(10, 222, 230, 'Plant gateway', 'reads PLC + sensors every second', 'plant', true)}
+    {box(300, 128, 210, 'Ingest + alerts', 'Supabase Edge Function · 24/7', 'cloud')}
+    {box(560, 34, 190, 'ChitoCapture app', 'live HMI · Live data', 'app')}
+    {box(560, 128, 190, 'Database', 'Supabase Postgres · history', 'cloud')}
+    {box(560, 222, 190, 'Telegram bot', 'sends the alert', 'out')}
+    {box(800, 222, 190, 'Plant group chat', 'operators and managers', 'out')}
     {arrow(125, 108, 125, 128, '')}{arrow(125, 202, 125, 222, '')}
-    {arrow(240, 258, 300, 182, 'publish 1 s')}
-    {arrow(510, 150, 560, 82, 'live (WebSocket)')}
-    {arrow(510, 165, 560, 165, 'store')}
-    {arrow(510, 180, 560, 250, 'subscribe')}
-    {arrow(750, 250, 800, 182, 'sendMessage')}
+    {arrow(240, 258, 300, 182, 'HTTPS POST')}
+    {arrow(510, 160, 560, 160, 'store')}
+    {arrow(655, 128, 655, 108, '')}
+    {arrow(510, 185, 560, 245, 'alert')}
+    {arrow(750, 258, 800, 258, 'message')}
+    <text x="668" y="122" className="arch-arrow-label">Realtime</text>
   </svg>
 }
 
@@ -44,6 +44,7 @@ export default function LiveFeeds() {
   const s = useLive()
   const state = useFactory()
   const [f, setF] = useState('IF3')
+  const [cfg, setCfg] = useState(s.config)
   useEffect(() => { live.setSite(state.settings.factoryName) }, [state.settings.factoryName])
   const active = s.alerts.filter((a) => a.active)
   const log = [...s.alerts].reverse().slice(0, 12)
@@ -51,7 +52,7 @@ export default function LiveFeeds() {
 
   return <div className="lf ms">
     <header className="ms-head">
-      <div><span className="eyebrow">Settings · Data feeds</span><h1>Live data & alerts</h1>
+      <div><span className="eyebrow">Sensors · cloud · alerts</span><h1>Live data & alerts</h1>
         <p className="muted">Sensors and the furnace PLC stream readings into the app; a 24/7 service watches them and sends alerts to the plant’s Telegram group. This demo runs on a simulated plant so you can see the whole path working.</p></div>
       <div className="row-actions">
         {s.running ? <button type="button" className="btn ghost" onClick={() => live.stop()}>❚❚ Pause live feed</button> : <button type="button" className="btn" onClick={() => live.start()}>▶ Start live feed</button>}
@@ -59,11 +60,34 @@ export default function LiveFeeds() {
       </div>
     </header>
 
+    <section className="ms-card lf-source">
+      <div className="ms-card-head"><h3>Where live readings come from</h3><span className="muted small">Melt shop → Furnace HMI → Live feed shows the same source</span></div>
+      <div className="lf-sources two" role="radiogroup" aria-label="Live data source">
+        {([
+          ['sim', 'Simulation', 'Virtual plant in this browser, with demo faults', s.running ? `Streaming · ${clockOf(s.t)}` : 'Paused'],
+          ['supabase', 'Supabase cloud', 'Readings posted by devices to the 24/7 ingest function, pushed here instantly. Alerts and Telegram run on the server.', s.status.supabase],
+        ] as const).map(([id, title, what, st]) => <button key={id} type="button" role="radio" aria-checked={s.source === id} className={`lf-src ${s.source === id ? 'on' : ''}`} onClick={() => void live.useSource(id)}>
+          <b>{title}</b><small>{what}</small>{status(s.source === id ? (st === 'Connected' || st.startsWith('Streaming') ? true : st.startsWith('Error') ? false : null) : null, s.source === id ? st : 'Not in use')}
+        </button>)}
+      </div>
+      <div className="lf-publish">
+        <b>Test publisher</b><span className="muted small">The simulated plant plays the devices and sends its readings through the real cloud path.</span>
+        <label className="sim-toggle"><input type="checkbox" checked={s.publish.supabase} onChange={(e) => live.setPublish(e.target.checked)} /><span className="sim-switch" aria-hidden="true" /><span><b>Send to Supabase ingest</b><small>{s.publish.last || 'Every 3 plant-minutes, as one batch'}</small></span></label>
+      </div>
+      <details className="lf-settings"><summary>Connection settings</summary>
+        <div className="lf-form">
+          {([
+            ['supabaseUrl', 'Supabase project URL', 'text'], ['supabaseKey', 'Supabase publishable key', 'password'], ['ingestKey', 'Device ingest key', 'password'], ['site', 'Site ID', 'text'],
+          ] as const).map(([k, label, type]) => <label key={k} className="field"><span>{label}</span><input type={type} value={cfg[k]} onChange={(e) => setCfg({ ...cfg, [k]: e.target.value })} autoComplete="off" /></label>)}
+        </div>
+        <div className="row-actions"><button type="button" className="btn small" onClick={() => { live.saveConfig(cfg); if (s.source !== 'sim') void live.useSource(s.source) }}>Save and reconnect</button><span className="muted small">Saved in this browser only. Defaults come from .env.local / Vercel environment variables.</span></div>
+      </details>
+    </section>
+
     <div className="lf-conn">
-      <div className="ms-card"><span>Simulated live feed</span>{status(s.running, s.running ? `Streaming · ${clockOf(s.t)}` : 'Paused')}<small>4 furnaces · 7 signals each · one reading per minute</small></div>
-      <div className="ms-card"><span>MQTT broker</span>{status(null, 'Not connected')}<small>Real plants publish here (HiveMQ, EMQX). <Info>The app subscribes over secure WebSocket (wss://) to topics like plant/IF3/coil/flow. Add the broker URL and credentials in Settings to switch from the simulated feed.</Info></small></div>
-      <div className="ms-card"><span>History database</span>{status(null, 'Not connected')}<small>Keeps readings for reports and replay.</small></div>
-      <div className="ms-card"><span>Telegram</span>{status(s.telegram.mode === 'live' ? true : null, s.telegram.mode === 'live' ? 'Connected' : 'Preview only')}<small>{s.telegram.mode === 'live' ? 'Alerts go to the plant group.' : 'Add a bot token on the server to send for real.'}</small></div>
+      <div className="ms-card"><span>Supabase</span>{status(s.config.supabaseUrl ? (s.status.supabase === 'Connected' ? true : null) : false, s.config.supabaseUrl ? (s.source === 'supabase' ? s.status.supabase : 'Configured') : 'Not configured')}<small>{s.config.supabaseUrl ? s.config.supabaseUrl.replace('https://', '') : 'Add the project URL and key'}</small></div>
+      <div className="ms-card"><span>24/7 alert service</span>{status(s.config.ingestKey ? true : null, s.config.ingestKey ? 'Ingest function live' : 'Needs ingest key')}<small>Checks every posted reading, no browser needed.</small></div>
+      <div className="ms-card"><span>Telegram</span>{status(s.telegram.mode === 'live' || s.telegram.messages.some((m) => m.delivered === 'sent') ? true : null, s.telegram.mode === 'live' || s.telegram.messages.some((m) => m.delivered === 'sent') ? 'Connected' : 'Preview only')}<small>Server needs a bot token (see How it works).</small></div>
     </div>
 
     <div className="lf-grid">
@@ -127,11 +151,11 @@ export default function LiveFeeds() {
       <Architecture />
       <ol className="lf-steps">
         <li><b>Measure.</b> The furnace PLC already knows power, frequency and bath temperature; small ESP32 sensors add coil-water flow and temperatures and the lining’s earth-leakage current.</li>
-        <li><b>Collect.</b> A gateway PC on the plant network reads the PLC (OPC UA or Modbus TCP) and the sensors, and publishes one message per signal per second to an MQTT broker, encrypted.</li>
-        <li><b>Show and keep.</b> This app subscribes and updates the HMI live; a database keeps every reading for reports, replay and the learned energy factors.</li>
-        <li><b>Alert.</b> A small service runs 24/7 in the cloud, applies the same rules you see here, and sends Telegram messages through the bot. It works even when nobody has the app open.</li>
+        <li><b>Collect.</b> A gateway PC on the plant network reads the PLC (OPC UA or Modbus TCP) and the sensors, and posts the readings over HTTPS to the ingest function every few seconds. ESP32 sensors can post directly.</li>
+        <li><b>Keep and show.</b> The function stores every reading in the database (for reports, replay and the learned energy factors), and the app receives each new reading instantly.</li>
+        <li><b>Alert.</b> The same function checks every reading against the rules and sends Telegram messages through the bot, 24/7, even when nobody has the app open.</li>
       </ol>
-      <p className="ms-note">In this demo the plant, gateway and broker are simulated in your browser; the alert rules, the anomaly check and the Telegram message format are the real ones. Details: docs/live-monitoring.md.</p>
+      <p className="ms-note">Built and running: the Supabase database, the 24/7 ingest + alert function (Supabase Edge Function) and the live link to this app. Simulated: the sensors, PLC and gateway (the test publisher plays them). Telegram sends once a bot token is added. Details: docs/live-monitoring.md.</p>
     </section>
 
     <details className="ms-card lf-usb"><summary><b>USB sensor (ESP32 CO₂ board)</b> · plug a board into this computer</summary><Sensors /></details>
