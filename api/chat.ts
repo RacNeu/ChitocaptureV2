@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { guard } from './_guard.js'
 
 /**
  * POST /api/chat — the real-AI mode of the ChitoCapture assistant (a Vercel serverless function).
@@ -44,6 +45,9 @@ function clean(body: unknown): { messages: ChatMessage[]; context: unknown } | n
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'method-not-allowed' }); return }
   if (!process.env.ANTHROPIC_API_KEY) { res.status(501).json({ error: 'no-key' }); return }
+  // Only this website's pages, 8 questions a minute and 100 a day per visitor (see _guard.ts).
+  // Also set a monthly spend limit in the Anthropic Console as the hard cap.
+  if (!guard(req, res, 'chat', 8, 100)) return
   const input = clean(req.body)
   if (!input) { res.status(400).json({ error: 'bad-request' }); return }
 

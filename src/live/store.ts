@@ -11,7 +11,9 @@ import { ingest, loadConfig, saveConfig, supabaseSubscribe, toDevice, type Alert
 import { toast } from '../model/toast'
 
 export type Source = 'sim' | 'supabase'
-export type SentMessage = { id: string; text: string; level: LiveAlert['level']; clock: string; delivered: 'preview' | 'sent' | 'failed' }
+/** What the server needs to write the Telegram message itself (it never accepts free text). */
+export type TelegramPayload = { kind: 'test' } | { kind: 'alert'; furnace: string; rule: string; level: LiveAlert['level']; value?: number }
+export type SentMessage = { id: string; text: string; level: LiveAlert['level']; clock: string; delivered: 'preview' | 'sent' | 'failed'; payload?: TelegramPayload }
 export type LiveState = {
   running: boolean
   speed: number
@@ -45,9 +47,9 @@ export const clockOf = (t: number) => new Date(state.startedAt + t * 60_000).toL
 /* ---------------- Telegram ---------------- */
 
 async function deliver(m: SentMessage): Promise<SentMessage['delivered']> {
-  if (state.telegram.mode === 'preview') return 'preview'
+  if (state.telegram.mode === 'preview' || !m.payload) return 'preview'
   try {
-    const res = await fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: m.text }) })
+    const res = await fetch('/api/telegram', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(m.payload) })
     if (res.status === 501 || res.status === 404 || !(res.headers.get('content-type') ?? '').includes('application/json')) { set({ telegram: { ...state.telegram, mode: 'preview' } }); return 'preview' }
     if (state.telegram.mode !== 'live') set({ telegram: { ...state.telegram, mode: 'live' } })
     return res.ok ? 'sent' : 'failed'
@@ -70,7 +72,9 @@ function apply(readings: LiveReading[], localAlerts: boolean) {
   }
   set({ latest, history, alerts })
   for (const a of raised) {
-    const m: SentMessage = { id: a.id + a.level, text: telegramText(a, state.site, clockOf(a.t)), level: a.level, clock: clockOf(a.t), delivered: 'preview' }
+    const value = Number(a.detail.match(/-?\d+(\.\d+)?/)?.[0])
+    const payload: TelegramPayload = { kind: 'alert', furnace: a.furnace, rule: a.key.split(':')[1], level: a.level, ...(Number.isFinite(value) ? { value } : {}) }
+    const m: SentMessage = { id: a.id + a.level, text: telegramText(a, state.site, clockOf(a.t)), level: a.level, clock: clockOf(a.t), delivered: 'preview', payload }
     addMessage(m)
     toast(`${a.level === 'alarm' ? 'ALARM' : 'Warning'}: ${a.title}`, a.level === 'alarm' ? 'warn' : 'info')
     void deliver(m).then((delivered) => addMessage({ ...m, delivered }))
@@ -102,7 +106,17 @@ function serverAlert(a: AlertRow) {
 
 /* ---------------- The simulated plant (and test publisher) ---------------- */
 
-let buffer: DeviceReading[] = []
+/** The test publisher sends each furnace's latest reading at most every 2 s (the demo key is rate-limited). */
+const PUBLISH_MS = 2_000
+let lastPublish = 0, publishing = false
+function publish(devices: DeviceReading[]) {
+  if (publishing || Date.now() - lastPublish < PUBLISH_MS) return
+  publishing = true; lastPublish = Date.now()
+  void ingest(state.config, devices).then((r) => {
+    publishing = false
+    set({ publish: { ...state.publish, sent: state.publish.sent + (r.ok ? devices.length : 0), last: r.ok ? `Sent ${devices.length} readings · ${new Date().toLocaleTimeString('en-GB')}` : `Not sent: ${r.error}` } })
+  })
+}
 function step() {
   const t = state.t + 1
   const rs = FURNACES.map((f) => readingAt(f, t, state.faults))
@@ -110,13 +124,7 @@ function step() {
   if (state.source === 'sim') apply(rs, true)
   const at = new Date(state.startedAt + t * 60_000).toISOString()
   const devices = rs.map((r) => toDevice(r, at))
-  if (state.publish.supabase) {
-    buffer.push(...devices)
-    if (buffer.length >= FURNACES.length * 3) {
-      const batch = buffer; buffer = []
-      void ingest(state.config, batch).then((r) => set({ publish: { ...state.publish, sent: state.publish.sent + (r.ok ? batch.length : 0), last: r.ok ? `Sent ${batch.length} readings · ${new Date().toLocaleTimeString('en-GB')}` : `Not sent: ${r.error}` } }))
-    }
-  }
+  if (state.publish.supabase) publish(devices)
 }
 
 let timer: ReturnType<typeof setInterval> | null = null
@@ -157,7 +165,7 @@ export const live = {
     if (on) live.start()
   },
   async sendTest() {
-    const m: SentMessage = { id: `test-${Date.now()}`, text: `✅ Test from ChitoCapture · ${state.site}\nAlerts for the melt shop will arrive in this chat.`, level: 'warn', clock: clockOf(state.t), delivered: 'preview' }
+    const m: SentMessage = { id: `test-${Date.now()}`, text: '✅ Test from ChitoCapture\nAlerts for the melt shop will arrive in this chat.', level: 'warn', clock: clockOf(state.t), delivered: 'preview', payload: { kind: 'test' } }
     addMessage(m)
     const delivered = await deliver(m)
     addMessage({ ...m, delivered })

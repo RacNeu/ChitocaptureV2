@@ -26,7 +26,7 @@ const char* WIFI_PASS = "your-password";
 const char* FURNACE   = "IF3";
 const char* SITE      = "demo";
 const char* INGEST_URL = "https://<project-ref>.supabase.co/functions/v1/ingest";
-const char* INGEST_KEY = "<device ingest key>";
+const char* INGEST_KEY = "<device key: Supabase SQL editor, select value from app_config where key = 'ingest_key'>";  // never the demo key
 const int FLOW_PIN = 27, ONE_WIRE_PIN = 4;
 const float FLOW_K = 7.5;                  // pulses per second per (L/min) for a YF-type meter; calibrate
 // ------------------------------

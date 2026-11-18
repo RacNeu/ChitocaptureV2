@@ -36,13 +36,29 @@ Settings → **Live data & alerts**:
 
 | Key | Where | Purpose |
 |---|---|---|
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` (git-ignored) and Vercel → Settings → Environment Variables | App reads live data (read-only: the tables only allow SELECT) |
-| `VITE_INGEST_KEY` | same | Only for the in-app test publisher demo. Real devices keep their own copy; for production give each device its own key and remove this from the browser |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | **Supabase → Edge Functions → Secrets** (for 24/7 alerts) and Vercel env (for the app's "Send test") | Telegram alerts |
-| `ANTHROPIC_API_KEY` | Vercel env | Claude in the chat and the simulator's Explain |
+Anything starting with `VITE_` is built into the website and anyone can read it. Only public values go there.
 
-The device ingest key is stored in the Supabase table `app_config` (row `ingest_key`), readable only by
-the server. To rotate it: update that row and the devices.
+| Key | Where | Vercel type | Purpose |
+|---|---|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` (git-ignored) and Vercel env | Config | App reads live data. Public by design: the browser roles can only read `readings` and `alerts` |
+| `VITE_DEMO_INGEST_KEY` | same | Config | The test publisher's **demo** key. Public by design, so the ingest function fences it in: site forced to `demo`, furnaces IF1–IF4 only, ≤ 24 readings per request, ≤ 360 readings a minute, ≤ 10 Telegram messages an hour, demo data deleted after 24 h |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | **Supabase → Edge Functions → Secrets** (24/7 alerts) and Vercel env (the app's "Send test") | Secret | Telegram alerts |
+| `ANTHROPIC_API_KEY` | Vercel env | Secret | Claude in the chat and the simulator's Explain |
+| `ALLOWED_ORIGINS` (optional) | Vercel env | Config | Extra web addresses allowed to call `/api/chat` and `/api/telegram`, comma-separated (e.g. a custom domain). The deployment's own address is always allowed |
+
+**The device key** (real sensors and gateways) is in the Supabase table `app_config`, row `ingest_key`,
+readable only by the server. It is **never** put in the website. To see it for flashing an ESP32:
+Supabase → SQL Editor → `select value from app_config where key = 'ingest_key';`. To rotate it:
+`update app_config set value = encode(extensions.gen_random_bytes(24), 'hex') where key = 'ingest_key';`
+and re-flash the devices. The demo key (row `demo_ingest_key`) rotates the same way; then update
+`VITE_DEMO_INGEST_KEY` in `.env.local` and Vercel.
+
+### How the public routes are protected
+
+- **Database:** row-level security on every table; the browser roles have no write permission at all, and no access to `app_config`.
+- **`/api/telegram`:** never sends free text. The browser sends a message kind (`test`, or an alert's furnace, rule and level) and the server writes the words from fixed templates. Same-site only, 6 a minute per visitor, 30 an hour per running copy of the function.
+- **`/api/chat`:** same-site only, 8 questions a minute and 100 a day per visitor. Also set a monthly spend limit in the Anthropic Console: it is the hard cap.
+- **Limits that remain:** a determined script can fake the "same site" header, and per-visitor counts reset when Vercel starts a new copy of a function. The Telegram caps and the Anthropic spend limit are the backstops.
 
 ### Telegram in 4 steps
 1. In Telegram, message **@BotFather** → `/newbot` → copy the token.
